@@ -20,6 +20,20 @@ jobs:
     name: Check and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: grantit
+          POSTGRES_PASSWORD: grantit
+          POSTGRES_DB: grantit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grantit -d grantit_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v6
 
@@ -33,8 +47,10 @@ jobs:
       - name: Shared (types, rules, sample data)
         run: npm run check -w shared
 
-      - name: API
+      - name: API (tests run against the Postgres service)
         run: npm run check -w api
+        env:
+          TEST_DATABASE_URL: postgres://grantit:grantit@localhost:5432/grantit_test
 
       - name: Web
         run: npm run check -w web

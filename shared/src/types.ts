@@ -1,7 +1,9 @@
 // ─── Domain model ───────────────────────────────────────────────────────────
-// Kept framework-free so it can be shared with a future API layer.
+// Framework-free and shared by the web app and the API. Enumerations are const
+// arrays so the database schema and request validation use the same values.
 
-export type Role = 'director' | 'finance' | 'program'
+export const ROLES = ['director', 'finance', 'program'] as const
+export type Role = (typeof ROLES)[number]
 
 export interface User {
   id: string
@@ -13,16 +15,11 @@ export interface User {
 
 // 1. Organization knowledge base ------------------------------------------------
 
-export type FactCategory =
-  | 'mission'
-  | 'program'
-  | 'service'
-  | 'beneficiaries'
-  | 'outcome'
-  | 'organization'
-  | 'finance'
+export const FACT_CATEGORIES = ['mission', 'program', 'service', 'beneficiaries', 'outcome', 'organization', 'finance'] as const
+export type FactCategory = (typeof FACT_CATEGORIES)[number]
 
-export type FactStatus = 'draft' | 'pending' | 'approved'
+export const FACT_STATUSES = ['draft', 'pending', 'approved'] as const
+export type FactStatus = (typeof FACT_STATUSES)[number]
 
 export interface Fact {
   id: string
@@ -38,25 +35,22 @@ export interface Fact {
   approvedAt?: string
 }
 
+export const DOCUMENT_KINDS = ['application', 'report'] as const
+export const DOCUMENT_OUTCOMES = ['awarded', 'declined', 'submitted'] as const
+
 export interface PastDocument {
   id: string
   name: string
-  kind: 'application' | 'report'
+  kind: (typeof DOCUMENT_KINDS)[number]
   funder: string
   year: number
-  outcome?: 'awarded' | 'declined' | 'submitted'
+  outcome?: (typeof DOCUMENT_OUTCOMES)[number]
 }
 
 // 2. Grant configuration --------------------------------------------------------
 
-export type GrantStage =
-  | 'prospect'
-  | 'drafting'
-  | 'submitted'
-  | 'awarded'
-  | 'reporting'
-  | 'closed'
-  | 'declined'
+export const GRANT_STAGES = ['prospect', 'drafting', 'submitted', 'awarded', 'reporting', 'closed', 'declined'] as const
+export type GrantStage = (typeof GRANT_STAGES)[number]
 
 export interface BudgetCategory {
   id: string
@@ -64,7 +58,8 @@ export interface BudgetCategory {
   budget: number
 }
 
-export type AnswerStatus = 'empty' | 'draft' | 'approved'
+export const ANSWER_STATUSES = ['empty', 'draft', 'approved'] as const
+export type AnswerStatus = (typeof ANSWER_STATUSES)[number]
 
 export interface Question {
   id: string
@@ -77,11 +72,13 @@ export interface Question {
   updatedAt?: string
 }
 
+export const DEADLINE_KINDS = ['application', 'report', 'other'] as const
+
 export interface Deadline {
   id: string
   label: string
   date: string // ISO date
-  kind: 'application' | 'report' | 'other'
+  kind: (typeof DEADLINE_KINDS)[number]
   done?: boolean
 }
 
@@ -110,6 +107,8 @@ export interface Allocation {
   amount: number
 }
 
+export const TRANSACTION_SOURCES = ['csv', 'quickbooks-sample', 'manual'] as const
+
 export interface Transaction {
   id: string
   date: string
@@ -119,7 +118,7 @@ export interface Transaction {
   amount: number
   allocations: Allocation[]
   reviewed: boolean
-  source: 'csv' | 'quickbooks-sample' | 'manual'
+  source: (typeof TRANSACTION_SOURCES)[number]
 }
 
 export type FlagKind = 'unassigned' | 'unauthorized-category' | 'over-budget' | 'outside-period' | 'split-not-allowed'

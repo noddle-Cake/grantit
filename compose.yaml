@@ -1,0 +1,22 @@
+# Local Postgres for the API. `npm run db:up` starts it; data persists in the grantit-pg volume.
+# The init script also creates grantit_test, which the API tests reset on every run.
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: grantit
+      POSTGRES_PASSWORD: grantit
+      POSTGRES_DB: grantit
+    ports:
+      - "127.0.0.1:54329:5432"
+    volumes:
+      - grantit-pg:/var/lib/postgresql
+      - ./api/db/init-test-db.sql:/docker-entrypoint-initdb.d/10-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grantit -d grantit"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  grantit-pg:

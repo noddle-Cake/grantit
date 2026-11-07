@@ -7,6 +7,9 @@
   "scripts": {
     "dev": "node --env-file-if-exists=.env --watch src/server.ts",
     "start": "node src/server.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "node --env-file-if-exists=.env src/db/migrate.ts",
+    "db:seed": "node --env-file-if-exists=.env src/db/seed.ts",
     "typecheck": "tsc -p .",
     "lint": "oxlint",
     "test": "vitest run",
@@ -16,10 +19,13 @@
   "dependencies": {
     "@grantit/shared": "*",
     "@hono/node-server": "2.1.5",
-    "hono": "4.13.13"
+    "drizzle-orm": "0.45.4",
+    "hono": "4.13.13",
+    "postgres": "3.4.9"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "drizzle-kit": "0.31.11",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",
     "vitest": "^5.1.0"
