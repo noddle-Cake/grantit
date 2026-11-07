@@ -21,11 +21,13 @@
     "@hono/node-server": "2.1.5",
     "drizzle-orm": "0.45.4",
     "hono": "4.13.13",
+    "papaparse": "^5.7.0",
     "postgres": "3.4.9",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "^24.19.2",
+    "@types/papaparse": "^5.5.2",
     "drizzle-kit": "0.31.11",
     "oxlint": "^1.90.0",
     "typescript": "~7.0.2",

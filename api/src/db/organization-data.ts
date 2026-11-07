@@ -1,5 +1,5 @@
 import type { AppState, Grant, Transaction } from '@grantit/shared/types'
-import { asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { Db } from './client.ts'
 import * as t from './schema.ts'
 
@@ -7,7 +7,7 @@ import * as t from './schema.ts'
 export type OrganizationData = Omit<AppState, 'currentUserId'>
 
 /** Drop null columns so optional fields come back as absent, the way the shared types and seed write them. */
-function compact<T extends Record<string, unknown>>(row: T): { [K in keyof T]: Exclude<T[K], null> } {
+export function compact<T extends Record<string, unknown>>(row: T): { [K in keyof T]: Exclude<T[K], null> } {
   return Object.fromEntries(Object.entries(row).filter(([, v]) => v !== null)) as never
 }
 
@@ -62,11 +62,11 @@ export async function loadGrants(db: Db, organizationId: string, ids?: string[])
   }))
 }
 
-export async function loadTransactions(db: Db, organizationId: string): Promise<Transaction[]> {
+export async function loadTransactions(db: Db, organizationId: string, ids?: string[]): Promise<Transaction[]> {
   const rows = await db
     .select()
     .from(t.transactions)
-    .where(eq(t.transactions.organizationId, organizationId))
+    .where(ids ? and(eq(t.transactions.organizationId, organizationId), inArray(t.transactions.id, ids)) : eq(t.transactions.organizationId, organizationId))
     .orderBy(asc(t.transactions.createdAt), asc(t.transactions.id))
   if (!rows.length) return []
   const allocs = await db

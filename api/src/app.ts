@@ -3,7 +3,10 @@ import { Hono } from 'hono'
 import type { Db } from './db/client.ts'
 import { organizations } from './db/schema.ts'
 import { errorResponse, handleError, organizationScope, type AppEnv } from './http.ts'
+import { factRoutes } from './routes/facts.ts'
 import { grantRoutes } from './routes/grants.ts'
+import { transactionImportRoutes } from './routes/transaction-imports.ts'
+import { transactionRoutes } from './routes/transactions.ts'
 
 export interface AppOptions {
   db: Db
@@ -31,6 +34,9 @@ export function createApp({ db, defaultOrganizationId }: AppOptions) {
   )
 
   app.route('/grants', grantRoutes)
+  app.route('/facts', factRoutes)
+  app.route('/transactions', transactionRoutes)
+  app.route('/transaction-imports', transactionImportRoutes)
 
   return app
 }

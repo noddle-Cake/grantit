@@ -121,16 +121,27 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 - Cover the success response, at least one validation failure, `404` for a missing record, and organization
   isolation.
 
-## Planned endpoints (Phase 2)
+## Endpoints
 
-| Endpoint | Owner | Issue |
+| Endpoint | Status | Issue |
 |---|---|---|
 | `GET /grants`, `GET /grants/:grantId` | done (reference) | #78 |
-| `PATCH /grants/:grantId`, `POST /grants` | Chris | #4 |
-| `GET/POST /facts`, `PATCH/DELETE /facts/:factId` | Chris | #4 |
-| `PATCH /grants/:grantId/questions/:questionId` | Chris | #4 |
-| `POST /grants/:grantId/questions/:questionId/drafts` | Chris | #14 |
-| `GET/POST /transactions`, `PATCH /transactions/:transactionId` | Sam | #79 |
-| `PUT /transactions/:transactionId/allocations` | Sam | #79 |
-| `GET /grants/:grantId/financials?start=&end=` | Sam | #79 |
-| `POST /transaction-imports` (CSV) | Sam | #6 |
+| `PATCH /grants/:grantId`, `POST /grants` | done | #4 |
+| `GET/POST /facts`, `PATCH/DELETE /facts/:factId` | done | #4 |
+| `PATCH /grants/:grantId/questions/:questionId` | done | #4 |
+| `POST /grants/:grantId/questions/:questionId/drafts` | done | #14 |
+| `GET/POST /transactions`, `PATCH /transactions/:transactionId` | done | #79 |
+| `PUT /transactions/:transactionId/allocations` | done | #79 |
+| `GET /grants/:grantId/financials?start=&end=` | done | #79 |
+| `POST /transaction-imports` (CSV) | done | #6 |
+
+Notes on the built endpoints:
+
+- `PATCH /grants/:grantId` patches scalar fields; a provided `categories`, `questions` or `deadlines` array
+  replaces that whole sub-collection. Child ids default to `c1`, `q1`, `d1`… within the grant.
+- `POST …/drafts` returns `201` with `{ data: { question, draft } }`: the saved question plus the
+  `DraftResult` (text, citations, missing, blockedBy) from the shared `draftAnswer` engine.
+- `POST /transaction-imports` takes `{ csv }` (same columns as the web import) and returns `201` with
+  `{ data: Transaction[], errors: string[] }` — invalid rows are skipped and reported as `Row N: …`.
+- Until sign-in exists (#9), writes that need a user (fact `updatedBy`/`approvedBy`, a new grant's
+  `ownerId`) take `X-User-Id`, falling back to the organization's first user.
