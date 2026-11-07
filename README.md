@@ -22,17 +22,18 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Local dev server |
 | `npm run check` | Type-check, lint, and unit tests (what CI runs) |
 | `npm test` | Unit tests for the domain logic in `src/lib` |
-| `npm run build` | Type-check and build for Cloudflare |
-| `npm run deploy` | Build and deploy to Cloudflare (needs `npx cf auth login`) |
+| `npm run build` | Type-check and build static files to `web/dist` |
 
 ## Repository layout
 
 ```
 .
-├── .github/workflows/ci.yml   CI: checks every PR, deploys main to Cloudflare
-├── docs/requirements.md       Functional requirements + build status
+├── .github/workflows/ci.yml   CI on the self-hosted 5820 runner: checks + build
+├── deploy/                    5820 deploy script and nginx config
+├── docs/
+│   ├── requirements.md        Functional requirements + build status
+│   └── deploy.md              Hosting, deploys, CI runner
 └── web/                       React app (Vite, TypeScript, Tailwind v4)
-    ├── cloudflare.config.ts   Cloudflare Worker (static assets) + custom domain
     └── src/
         ├── app/               App root, routes (lazy-loaded), shell/navigation
         ├── features/          One folder per area of the product
@@ -67,5 +68,6 @@ npm run dev        # http://localhost:5173
 
 ## Deployment
 
-Every push to `main` deploys to Cloudflare Workers via GitHub Actions. The workflow needs two repository
-secrets: `CLOUDFLARE_API_TOKEN` (Workers edit + zone DNS) and `CLOUDFLARE_ACCOUNT_ID`.
+Live at **https://grantit.joseyandco.com**, served from the 5820 home server through the Cloudflare Tunnel.
+CI runs on the self-hosted runner; deploys are `sudo bash ~/srv-setup/31-grantit.sh` on 5820.
+Details in [`docs/deploy.md`](docs/deploy.md).

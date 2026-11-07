@@ -1,12 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build output (.cloudflare holds cf build output and local dev state)
+# Build output
 dist/
 dist-ssr/
 *.tsbuildinfo
-.cloudflare/
-.wrangler/
 
 # Environment & secrets
 .env
