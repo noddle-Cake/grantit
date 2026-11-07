@@ -74,11 +74,12 @@ export function SetupTab({ grant }: { grant: Grant }) {
       >
         <div className="space-y-2">
           {draft.questions.map((q, i) => (
-            <div key={q.id} className="flex gap-2 rounded-lg border border-line-2 p-3">
+            <div key={q.id} className="flex flex-wrap gap-2 rounded-lg border border-line-2 p-3">
               <span className="mt-2 w-5 text-center text-xs font-semibold text-slate-3">{i + 1}</span>
               <Textarea
                 rows={2}
-                className="flex-1"
+                className="min-w-40 flex-1"
+                aria-label={`Question ${i + 1} prompt`}
                 placeholder="Question prompt"
                 value={q.prompt}
                 onChange={(e) => set({ questions: draft.questions.map((x) => (x.id === q.id ? { ...x, prompt: e.target.value } : x)) })}
@@ -114,10 +115,10 @@ export function SetupTab({ grant }: { grant: Grant }) {
         <div className="overflow-hidden rounded-lg border border-line-2">
           {draft.categories.map((c) => (
             <div key={c.id} className="flex items-center gap-2 border-b border-line-2 p-2 last:border-0">
-              <Input className="flex-1" placeholder="Category name" value={c.name} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) })} />
-              <div className="relative w-40">
+              <Input aria-label="Budget category name" className="min-w-0 flex-1" placeholder="Category name" value={c.name} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) })} />
+              <div className="relative w-28 sm:w-40">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-3">$</span>
-                <Input type="number" min={0} className="pl-6 text-right" value={c.budget} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, budget: Number(e.target.value) } : x)) })} />
+                <Input aria-label="Category budget" type="number" min={0} className="pl-6 text-right" value={c.budget} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, budget: Number(e.target.value) } : x)) })} />
               </div>
               {editable && (
                 <button type="button" aria-label="Remove category" onClick={() => set({ categories: draft.categories.filter((x) => x.id !== c.id) })} className="rounded p-2 text-slate-3 hover:bg-bad-soft hover:text-bad"><Trash2 size={14} /></button>
@@ -139,13 +140,13 @@ export function SetupTab({ grant }: { grant: Grant }) {
         <div className="space-y-2">
           {draft.deadlines.map((d) => (
             <div key={d.id} className={clsx('flex flex-wrap items-center gap-2 rounded-lg border border-line-2 p-2', d.done && 'opacity-60')}>
-              <Input className="min-w-40 flex-1" placeholder="Label" value={d.label} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} />
-              <Select className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
+              <Input aria-label="Deadline label" className="min-w-40 flex-1" placeholder="Label" value={d.label} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} />
+              <Select aria-label="Deadline type" className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
                 <option value="application">Application</option>
                 <option value="report">Report</option>
                 <option value="other">Other</option>
               </Select>
-              <Input type="date" className="w-40" value={d.date} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, date: e.target.value } : x)) })} />
+              <Input aria-label="Deadline date" type="date" className="w-40" value={d.date} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, date: e.target.value } : x)) })} />
               <label className="flex items-center gap-1.5 px-2 text-xs text-slate-2">
                 <input type="checkbox" checked={!!d.done} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, done: e.target.checked } : x)) })} /> Done
               </label>
@@ -156,11 +157,11 @@ export function SetupTab({ grant }: { grant: Grant }) {
       </Block>
 
       <Block title="Funder rules & restrictions" desc="One rule per line. Shown beside the record for everyone working on this grant.">
-        <Textarea rows={4} value={draft.rules.join('\n')} onChange={(e) => set({ rules: e.target.value.split('\n') })} placeholder="e.g. Indirect costs capped at 10%" />
+        <Textarea aria-label="Funder rules and restrictions" rows={4} value={draft.rules.join('\n')} onChange={(e) => set({ rules: e.target.value.split('\n') })} placeholder="e.g. Indirect costs capped at 10%" />
       </Block>
 
-      {editable && (
-        <div className={clsx('sticky bottom-0 -mx-5 -mb-5 flex items-center gap-2 border-t border-line-2 bg-white/95 px-5 py-3 backdrop-blur transition', dirty ? 'opacity-100' : 'pointer-events-none opacity-0')}>
+      {editable && dirty && (
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap items-center gap-2 border-t border-line-2 bg-surface/95 px-5 py-3 backdrop-blur">
           <span className="text-sm text-slate-2">You have unsaved changes</span>
           <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setDraft(grant)}>Discard</Button>
           <Button

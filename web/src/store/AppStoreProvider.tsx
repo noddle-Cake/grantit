@@ -55,8 +55,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     (message: string, tone: Toast['tone'] = 'success', action?: Toast['action']) => {
       const id = uid('toast')
       setToasts((t) => [...t, { id, message, tone, action }])
-      // Toasts with an action (Undo) stay long enough to reach.
-      setTimeout(() => dismissToast(id), action ? 8000 : 3200)
+      // Undo stays available until explicitly used or dismissed.
+      if (!action) setTimeout(() => dismissToast(id), 3200)
     },
     [dismissToast],
   )

@@ -61,12 +61,12 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
 
       <div className="px-5 py-4">
         {busy ? (
-          <div className="space-y-2.5 rounded-lg border border-line-2 p-4">
+          <div role="status" aria-live="polite" className="space-y-2.5 rounded-lg border border-line-2 p-4">
             <div className="flex items-center gap-2 text-xs font-medium text-slate-2"><Sparkles size={14} className="text-brand" /> Drafting from approved knowledge…</div>
             {[92, 100, 85, 60].map((w) => <div key={w} className="shimmer h-3 rounded" style={{ width: `${w}%` }} />)}
           </div>
         ) : q.status === 'empty' && !q.answer ? (
-          <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-line bg-gradient-to-br from-brand-soft/60 via-white to-link-soft/50 p-5 sm:flex-row sm:items-center">
+          <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-line bg-gradient-to-br from-brand-soft/60 via-surface to-link-soft/50 p-5 sm:flex-row sm:items-center">
             <Sparkles className="text-brand" size={20} />
             <p className="flex-1 text-sm text-slate-2">Generate a first draft using only approved organizational facts. Every sentence will cite its source.</p>
             {canDraft ? (
@@ -77,13 +77,14 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
           </div>
         ) : (
           <textarea
+            aria-label={`Answer to question ${index + 1}: ${q.prompt}`}
             value={q.answer}
             readOnly={!canDraft || q.status === 'approved'}
             onChange={(e) => updateQuestion(grant.id, q.id, { answer: e.target.value, status: 'draft' })}
             rows={Math.max(4, Math.ceil(words / 14))}
             className={clsx(
-              'w-full resize-y rounded-lg border px-4 py-3 text-[0.875rem] leading-relaxed text-slate focus:outline-none focus:ring-2',
-              over ? 'border-bad/60 focus:ring-bad/20' : 'border-line-2 focus:border-link focus:ring-link/20',
+              'w-full resize-y rounded-lg border bg-surface px-4 py-3 text-[0.875rem] leading-relaxed text-slate focus:ring-2',
+              over ? 'border-bad/60 focus:ring-bad/20' : 'border-control-line focus:border-link focus:ring-link/20',
               q.status === 'approved' && 'bg-canvas',
             )}
           />

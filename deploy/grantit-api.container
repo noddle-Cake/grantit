@@ -1,0 +1,21 @@
+# The Grantit API (api/Dockerfile, built by 31-grantit.sh as localhost/grantit-api). Publishes
+# 127.0.0.1:8787; nginx proxies /api/ to it. Same EnvironmentFile as the database: DATABASE_URL,
+# DEFAULT_ORGANIZATION_ID. Until sign-in exists (#9) requests without X-Organization-Id act for
+# DEFAULT_ORGANIZATION_ID.
+[Unit]
+Description=Grantit API
+Requires=grantit-db.service
+After=grantit-db.service
+
+[Container]
+ContainerName=grantit-api
+Image=localhost/grantit-api:latest
+Network=grantit.network
+PublishPort=127.0.0.1:8787:8787
+EnvironmentFile=/srv/websvc/sites/grantit/api.env
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

@@ -88,7 +88,7 @@ export default function Dashboard() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         <WorkspaceCard icon={<Compass size={16} />} title="Find & apply" to="/apply" cta="Go to opportunities">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Figure label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
             <Figure label="Recommended" value={recs.length} sub="Open opportunities that fit" />
           </div>
@@ -113,7 +113,7 @@ export default function Dashboard() {
         </WorkspaceCard>
 
         <WorkspaceCard icon={<CircleDollarSign size={16} />} title="Manage funds" to="/funds" cta="Go to funded grants">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Figure label="Active funding" value={money(totalAwarded)} sub={`${active.length} active grants`} />
             <Figure label="Remaining" value={money(totalAwarded - totalSpent)} sub="Within each grant's own period" />
           </div>

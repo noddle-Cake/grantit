@@ -6,6 +6,10 @@ Grantit is a static Vite build served from **5820**, the home server, following 
 ```
 Internet → Cloudflare edge → cjservin tunnel → 127.0.0.1:8307 → rootless nginx (user websvc)
                                                                  /srv/websvc/sites/grantit/html
+                                                                  ├─ /          static Vite build
+                                                                  └─ /api/  →   127.0.0.1:8787
+                                                                                 grantit-api quadlet (built from api/Dockerfile)
+                                                                                   └─ grantit-db quadlet (postgres:18-alpine, grantit-pg volume)
 ```
 
 | | |
@@ -68,6 +72,22 @@ It fetches `main`, runs `npm ci` at the workspace root, the checks for `shared/`
 lint, tests) and the web build as `chris`, then replaces the site content and restarts the container. A
 failing check stops the deploy before anything is replaced. The first run also creates the container,
 tunnel ingress and DNS record through `04-new-site.sh`.
+
+### API and database
+
+The same script also deploys the backend, as quadlets under `websvc` on the internal `grantit` network:
+
+| Piece | What it is |
+|---|---|
+| `grantit-db` | `postgres:18-alpine` quadlet, data in the `grantit-pg` volume, no published port |
+| `grantit-api` | Quadlet running `localhost/grantit-api`, built from [`api/Dockerfile`](../api/Dockerfile) (Node 24 runs the TS sources), publishes `127.0.0.1:8787` |
+| `/api/` | nginx proxies to the API container (same origin, per [api.md](api.md)) |
+| `api.env` | `POSTGRES_*`, `DATABASE_URL`, `DEFAULT_ORGANIZATION_ID` — generated 0600 in `/srv/websvc/sites/grantit/` on first deploy |
+| Backups | `grantit-db-backup.timer` (websvc, daily 03:40) runs `deploy/backup/grantit-db-backup.sh`: `pg_dump -Fc` into `/srv/websvc/sites/grantit/db-backups/`, 14-day retention, swept up by the host's nightly srv-backup |
+
+Each deploy rebuilds the API image, applies `drizzle/` migrations (via a throwaway container joined to the
+db's network), and restarts `grantit-api`. Only the first deploy seeds the demo organization. Re-seed
+manually with `sudo -u websvc podman run --rm --network container:grantit-db --env-file /srv/websvc/sites/grantit/api.env localhost/grantit-api:latest node src/db/seed.ts`.
 
 ## CI
 

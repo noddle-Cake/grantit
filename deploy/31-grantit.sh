@@ -50,7 +50,63 @@ if [[ ! -e $QUADLET ]]; then
   bash /home/chris/srv-setup/04-new-site.sh "$NAME" "$PORT" "$HOST"
 fi
 
-say "Installing nginx config (SPA fallback, asset caching)"
+# ─── API + database (grantit-api, grantit-db quadlets on the grantit network) ──
+API_ENV=$SITE/api.env
+UNITS=/srv/websvc/.config/containers/systemd
+USER_UNITS=/srv/websvc/.config/systemd/user
+
+if [[ ! -f $API_ENV ]]; then
+  say "First run: database credentials in $API_ENV"
+  install -o websvc -g websvc -m 700 -d "$SITE"
+  PASS=$(openssl rand -hex 24)
+  install -o websvc -g websvc -m 600 /dev/stdin "$API_ENV" <<EOF
+POSTGRES_USER=grantit
+POSTGRES_PASSWORD=$PASS
+POSTGRES_DB=grantit
+DATABASE_URL=postgres://grantit:$PASS@grantit-db:5432/grantit
+DEFAULT_ORGANIZATION_ID=org-tidepath
+EOF
+fi
+# shellcheck source=/dev/null
+source "$API_ENV"
+
+say "Installing quadlets and the backup timer"
+install -o websvc -g websvc -m 644 "$SRC/deploy/grantit.network" "$UNITS/grantit.network"
+install -o websvc -g websvc -m 644 "$SRC/deploy/grantit-db.container" "$UNITS/grantit-db.container"
+install -o websvc -g websvc -m 644 "$SRC/deploy/grantit-api.container" "$UNITS/grantit-api.container"
+install -o websvc -g websvc -m 755 -d "$SITE/bin"
+install -o websvc -g websvc -m 755 "$SRC/deploy/backup/grantit-db-backup.sh" "$SITE/bin/grantit-db-backup.sh"
+install -o websvc -g websvc -m 755 -d "$USER_UNITS"
+install -o websvc -g websvc -m 644 "$SRC/deploy/backup/grantit-db-backup.service" "$USER_UNITS/grantit-db-backup.service"
+install -o websvc -g websvc -m 644 "$SRC/deploy/backup/grantit-db-backup.timer" "$USER_UNITS/grantit-db-backup.timer"
+$R systemctl --user daemon-reload
+
+say "Building the API image (localhost/grantit-api)"
+# websvc's podman cannot read /home/chris, so stage the build context under the site.
+rm -rf "$SITE/api-build"
+install -d -o websvc -g websvc "$SITE/api-build"
+$AS_CHRIS "cd '$SRC' && tar cf - package.json package-lock.json .dockerignore shared api | tar xf - -C '$SITE/api-build'"
+chown -R websvc:websvc "$SITE/api-build"
+$R podman build --quiet -t localhost/grantit-api:latest -f "$SITE/api-build/api/Dockerfile" "$SITE/api-build"
+
+FIRST_RUN=0
+$R systemctl --user is-active --quiet grantit-db.service || FIRST_RUN=1
+
+say "Starting Postgres and applying migrations"
+$R systemctl --user start grantit-db.service
+for _ in $(seq 1 30); do $R podman exec grantit-db pg_isready -U grantit -d grantit >/dev/null 2>&1 && break; sleep 1; done
+$R podman exec grantit-db pg_isready -U grantit -d grantit >/dev/null || die "grantit-db did not become ready"
+# Join the db container's network so no published port or network-name guesswork is needed.
+$R podman run --rm --network container:grantit-db -e "DATABASE_URL=postgres://grantit:$POSTGRES_PASSWORD@127.0.0.1:5432/grantit" localhost/grantit-api:latest node src/db/migrate.ts
+if [[ $FIRST_RUN -eq 1 ]]; then
+  say "Seeding the demo organization"
+  $R podman run --rm --network container:grantit-db -e "DATABASE_URL=postgres://grantit:$POSTGRES_PASSWORD@127.0.0.1:5432/grantit" localhost/grantit-api:latest node src/db/seed.ts
+fi
+$R systemctl --user enable --now grantit-db-backup.timer
+$R systemctl --user enable grantit-api.service
+$R systemctl --user restart grantit-api.service # restarts on the new image (starts it on first run)
+
+say "Installing nginx config (SPA fallback, /api proxy, asset caching)"
 install -o websvc -g websvc -m 644 "$SRC/deploy/nginx.conf" "$SITE/nginx.conf"
 if ! grep -q "conf.d/default.conf" "$QUADLET"; then
   sed -i "s|^Volume=$SITE/html:/usr/share/nginx/html:ro,Z|&\nVolume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|" "$QUADLET"
@@ -70,5 +126,6 @@ $R systemctl --user restart "$NAME.service"
 sleep 2
 curl -fsS -o /dev/null "http://127.0.0.1:$PORT/" && echo "    origin OK on :$PORT"
 curl -fsS -o /dev/null "http://127.0.0.1:$PORT/knowledge" && echo "    SPA fallback OK (/knowledge)"
+curl -fsS "http://127.0.0.1:$PORT/api/health" | grep -q '"status":"ok"' && echo "    API OK on :$PORT/api" || die "API health check failed"
 curl -fsS -o /dev/null "https://$HOST/" && echo "    public OK: https://$HOST" || echo "    public check failed; DNS can take a minute"
 say "Deployed $REV"

@@ -114,7 +114,7 @@ export default function Opportunities() {
         actions={canAdd && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={<Sparkles size={15} />} label="Recommended" value={recs.length} sub="Open opportunities that fit" />
         <Stat icon={<Compass size={15} />} label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
         <Stat label="Drafting" value={state.grants.filter((g) => g.stage === 'drafting').length} sub="Applications being written" />

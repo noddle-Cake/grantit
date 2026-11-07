@@ -20,5 +20,8 @@
     "db:seed": "npm run db:seed -w api",
     "build": "npm run build -w web",
     "check": "npm run check --workspaces --if-present"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
   }
 }

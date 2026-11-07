@@ -30,7 +30,7 @@ export default function Funds() {
         actions={can(me.role, 'grant:configure') && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add awarded grant</Button>}
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={<CircleDollarSign size={15} />} label="Active funding" value={money(totalAwarded)} sub={`${active.length} active grants`} />
         <Stat icon={<Wallet size={15} />} label="Spent to date" value={money(totalSpent)} sub={`${pct(totalAwarded ? totalSpent / totalAwarded : 0)} of active budgets`} />
         <Stat icon={<CircleDollarSign size={15} />} label="Remaining" value={money(totalAwarded - totalSpent)} sub="Within each grant's own period" />

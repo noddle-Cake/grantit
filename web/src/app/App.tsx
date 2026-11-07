@@ -19,7 +19,8 @@ const Settings = lazy(() => import('@/features/settings/SettingsPage'))
 
 function PageLoading() {
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading">
+    <div role="status" className="space-y-3" aria-label="Loading page">
+      <span className="sr-only">Loading page…</span>
       <div className="shimmer h-8 w-64 rounded" />
       <div className="shimmer h-4 w-96 max-w-full rounded" />
       <div className="shimmer mt-6 h-48 rounded-lg" />
