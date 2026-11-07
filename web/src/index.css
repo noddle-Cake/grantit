@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/*
+ * Tidepath design tokens.
+ * Base language: HubSpot-style CRM (navy rail, orange CTA, slate text, cool grey canvas).
+ * Accents borrowed from Luma: soft gradient covers, date tiles, timeline rails, pill chips.
+ */
+@theme {
+  --font-sans: "Lexend Deca", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* HubSpot-like neutrals */
+  --color-obsidian: #213343;
+  --color-obsidian-2: #2e475d;
+  --color-slate: #33475b;
+  --color-slate-2: #516f90;
+  --color-slate-3: #7c98b6;
+  --color-line: #cbd6e2;
+  --color-line-2: #dfe3eb;
+  --color-canvas: #f5f8fa;
+  --color-canvas-2: #eaf0f6;
+
+  /* Brand + semantic */
+  --color-brand: #ff7a59;
+  --color-brand-dark: #ff5c35;
+  --color-brand-soft: #fff1ee;
+  --color-link: #0091ae;
+  --color-link-soft: #e5f5f8;
+
+  --color-good: #00a38d;
+  --color-good-soft: #e5f8f6;
+  --color-warn: #b07a00;
+  --color-warn-soft: #fef8f0;
+  --color-bad: #d93f4c;
+  --color-bad-soft: #fde8e9;
+
+  /* Data viz (validated reference palette slot 1 + neutral track) */
+  --color-viz-1: #2a78d6;
+  --color-viz-track: #e5ebf1;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-canvas);
+  color: var(--color-slate);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Luma-style cover gradients, indexed by grant.cover */
+.cover-0 { background: radial-gradient(120% 120% at 0% 0%, #ffd3c4 0%, #ff9a7a 45%, #ff7a59 100%); }
+.cover-1 { background: radial-gradient(120% 120% at 100% 0%, #c9f2ec 0%, #69d3c4 50%, #00a38d 100%); }
+.cover-2 { background: radial-gradient(120% 120% at 0% 100%, #dbe7ff 0%, #8fb2f0 50%, #2a78d6 100%); }
+.cover-3 { background: radial-gradient(120% 120% at 100% 100%, #f1e2ff 0%, #b79cf0 50%, #6250d6 100%); }
+.cover-4 { background: radial-gradient(120% 120% at 50% 0%, #fff3cf 0%, #ffd27a 50%, #eda100 100%); }
+.cover-5 { background: radial-gradient(120% 120% at 0% 0%, #e3edf5 0%, #9bb3c9 50%, #516f90 100%); }
+
+.scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd6e2; border-radius: 8px; }
+
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #eaf0f6 0%, #f5f8fa 40%, #eaf0f6 80%);
+  background-size: 800px 100%;
+  animation: shimmer 1.2s linear infinite;
+}
+
+@keyframes slide-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in { animation: slide-in 180ms ease-out; }
+
+@keyframes pop-in {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.animate-pop-in { animation: pop-in 160ms ease-out; }

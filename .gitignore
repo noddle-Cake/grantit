@@ -1,0 +1,19 @@
+# Dependencies & builds
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Python (future backend)
+__pycache__/
+*.pyc
+.venv/
