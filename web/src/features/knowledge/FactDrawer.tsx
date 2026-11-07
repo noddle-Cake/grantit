@@ -2,10 +2,10 @@ import { Check, Lock, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { FACT_CATEGORIES, FACT_STATUS } from '@/lib/labels'
 import { Button, Drawer, Field, Input, Pill, Select, Textarea } from '@/components/ui'
-import { fmtDate, relativeDay } from '@/lib/format'
-import { can, canApproveFact } from '@/lib/permissions'
+import { fmtDate, relativeDay } from '@grantit/shared/format'
+import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Fact, FactCategory, FactStatus } from '@/types'
+import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
 
 export function FactDrawer({ fact, hint, onClose }: { fact: Fact | null | 'new'; hint?: string; onClose: () => void }) {
   const { state, me, saveFact, setFactStatus, deleteFact, notify } = useStore()

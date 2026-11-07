@@ -1,5 +1,5 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { money, moneyCompact, parseDate } from '@/lib/format'
+import { money, moneyCompact, parseDate } from '@grantit/shared/format'
 
 const monthLabel = (ym: string) => parseDate(`${ym}-01`).toLocaleDateString('en-US', { month: 'short' })
 

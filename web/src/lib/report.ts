@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
-import type { Grant, Transaction } from '@/types'
-import { computeFinancials, inPeriod, type Period } from '@/lib/finance'
+import type { Grant, Transaction } from '@grantit/shared/types'
+import { computeFinancials, inPeriod, type Period } from '@grantit/shared/finance'
 
 export function downloadFile(name: string, content: string, type = 'text/csv') {
   const url = URL.createObjectURL(new Blob([content], { type }))

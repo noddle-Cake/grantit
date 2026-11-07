@@ -1,4 +1,4 @@
-import type { FactCategory, Role } from '@/types'
+import type { FactCategory, Role } from './types.ts'
 
 export type Action =
   | 'grant:configure'

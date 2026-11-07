@@ -3,7 +3,7 @@
 #   sudo bash ~/srv-setup/31-grantit.sh
 #
 # Source of truth: deploy/31-grantit.sh in github.com/noddle-Cake/grantit (copied to ~/srv-setup on 5820).
-# Pulls main into ~/Projects/grantit, builds web/ as chris, copies web/dist into the site, and restarts
+# Pulls main into ~/Projects/grantit, builds web/ (npm workspace) as chris, copies web/dist into the site, and restarts
 # the rootless nginx container. First run also creates the container, tunnel ingress and DNS via 04-new-site.sh.
 set -euo pipefail
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -29,8 +29,9 @@ fi
 REV=$($AS_CHRIS "git -C '$SRC' rev-parse --short HEAD")
 echo "    at $REV"
 
-say "Building web/ (npm ci, type-check, tests, vite build)"
-$AS_CHRIS "cd '$SRC/web' && npm ci --no-audit --no-fund && npm run check && npm run build"
+say "Building web/ (npm ci at the workspace root, checks for shared/ and web/, vite build)"
+# web/node_modules is left over from before the npm workspace; the root install replaces it.
+$AS_CHRIS "rm -rf '$SRC/web/node_modules' && cd '$SRC' && npm ci --no-audit --no-fund && npm run check -w shared -w web && npm run build -w web"
 [[ -f $SRC/web/dist/index.html ]] || die "build produced no dist/index.html"
 
 if [[ ! -e $QUADLET ]]; then

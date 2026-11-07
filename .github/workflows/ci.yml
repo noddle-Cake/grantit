@@ -16,34 +16,46 @@ permissions:
   contents: read
 
 jobs:
-  web:
-    name: Web app
+  check:
+    name: Check and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: web
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: grantit
+          POSTGRES_PASSWORD: grantit
+          POSTGRES_DB: grantit_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U grantit -d grantit_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: web/.nvmrc
+          node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: web/package-lock.json
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Type-check
-        run: npm run typecheck
+      - name: Shared (types, rules, sample data)
+        run: npm run check -w shared
 
-      - name: Lint
-        run: npm run lint
+      - name: API (tests run against the Postgres service)
+        run: npm run check -w api
+        env:
+          TEST_DATABASE_URL: postgres://grantit:grantit@localhost:5432/grantit_test
 
-      - name: Unit tests
-        run: npm test
+      - name: Web
+        run: npm run check -w web
 
-      - name: Build
+      - name: Build web
         run: npm run build
 
       - name: Upload build

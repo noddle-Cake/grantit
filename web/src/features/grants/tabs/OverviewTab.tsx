@@ -2,11 +2,11 @@ import { AlertOctagon, CheckCircle2, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Meter, Pill, Stat, StatusPill } from '@/components/ui'
-import { checkApplication } from '@/lib/drafting'
-import { computeFinancials } from '@/lib/finance'
-import { money, pct, wordCount } from '@/lib/format'
+import { checkApplication } from '@grantit/shared/drafting'
+import { computeFinancials } from '@grantit/shared/finance'
+import { money, pct, wordCount } from '@grantit/shared/format'
 import { useStore } from '@/store'
-import type { Grant } from '@/types'
+import type { Grant } from '@grantit/shared/types'
 
 export function OverviewTab({ grant }: { grant: Grant }) {
   const { state } = useStore()

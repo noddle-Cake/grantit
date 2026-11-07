@@ -1,4 +1,4 @@
-import type { AnswerStatus, FactCategory, FactStatus, GrantStage } from '@/types'
+import type { AnswerStatus, FactCategory, FactStatus, GrantStage } from '@grantit/shared/types'
 import type { Tone } from '@/components/ui'
 
 export const STAGES: { id: GrantStage; label: string; tone: Tone }[] = [

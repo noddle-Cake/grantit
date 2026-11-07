@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { seedState } from '@/data/seed'
-import { computeFlags } from '@/lib/finance'
-import { todayISO, uid } from '@/lib/format'
-import type { AppState, Fact, Grant } from '@/types'
+import { seedState } from '@grantit/shared/seed'
+import { computeFlags } from '@grantit/shared/finance'
+import { todayISO, uid } from '@grantit/shared/format'
+import type { AppState, Fact, Grant } from '@grantit/shared/types'
 import { StoreContext, type Store, type Toast } from './context'
 
 const STORAGE_KEY = 'grantit:v1'

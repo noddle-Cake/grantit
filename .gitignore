@@ -25,8 +25,3 @@ npm-debug.log*
 !.vscode/extensions.json
 .DS_Store
 *.sw?
-
-# Python (planned backend)
-__pycache__/
-*.pyc
-.venv/

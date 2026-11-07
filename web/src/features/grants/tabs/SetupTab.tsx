@@ -2,10 +2,10 @@ import clsx from 'clsx'
 import { ArrowDown, ArrowUp, Lock, Plus, Trash2 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button, Field, Input, Select, StatusPill, Textarea } from '@/components/ui'
-import { money, uid } from '@/lib/format'
-import { can } from '@/lib/permissions'
+import { money, uid } from '@grantit/shared/format'
+import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Grant } from '@/types'
+import type { Grant } from '@grantit/shared/types'
 
 function Block({ title, desc, children, action }: { title: string; desc?: string; children: ReactNode; action?: ReactNode }) {
   return (

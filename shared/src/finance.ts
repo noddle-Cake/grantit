@@ -1,5 +1,5 @@
-import type { Grant, Transaction, TxFlag } from '@/types'
-import { parseDate, toISO } from '@/lib/format'
+import type { Grant, Transaction, TxFlag } from './types.ts'
+import { parseDate, toISO } from './format.ts'
 
 export interface Period {
   start: string

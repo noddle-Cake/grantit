@@ -1,0 +1,29 @@
+{
+  "name": "@grantit/shared",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Grantit domain model, business rules, and sample data shared by the web app and API",
+  "type": "module",
+  "exports": {
+    "./types": "./src/types.ts",
+    "./finance": "./src/finance.ts",
+    "./drafting": "./src/drafting.ts",
+    "./permissions": "./src/permissions.ts",
+    "./deadlines": "./src/deadlines.ts",
+    "./format": "./src/format.ts",
+    "./seed": "./src/seed.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "oxlint": "^1.90.0",
+    "typescript": "~7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

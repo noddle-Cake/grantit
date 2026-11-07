@@ -1,8 +1,8 @@
 import clsx from 'clsx'
 import { FileText, FileBarChart2, CalendarClock } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { daysUntil, fmtDate, relativeDay } from '@/lib/format'
-import type { TimelineItem } from '@/lib/deadlines'
+import { daysUntil, fmtDate, relativeDay } from '@grantit/shared/format'
+import type { TimelineItem } from '@grantit/shared/deadlines'
 import { DateTile } from '@/components/ui'
 
 const KIND_ICON = { application: FileText, report: FileBarChart2, other: CalendarClock }

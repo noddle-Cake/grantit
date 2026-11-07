@@ -3,10 +3,10 @@ import Papa from 'papaparse'
 import { Download, FileSpreadsheet, Link2, UploadCloud, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Button, Modal, Pill } from '@/components/ui'
-import { money } from '@/lib/format'
+import { money } from '@grantit/shared/format'
 import { downloadFile } from '@/lib/report'
 import { useStore } from '@/store'
-import type { Transaction } from '@/types'
+import type { Transaction } from '@grantit/shared/types'
 
 type Row = Omit<Transaction, 'id'>
 

@@ -1,4 +1,4 @@
-import type { Deadline, Grant } from '@/types'
+import type { Deadline, Grant } from './types.ts'
 
 export interface TimelineItem {
   deadline: Deadline

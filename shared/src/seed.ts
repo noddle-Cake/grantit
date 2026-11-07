@@ -1,4 +1,4 @@
-import type { AppState, Fact, Grant, Transaction } from '@/types'
+import type { AppState, Fact, Grant, Transaction } from './types.ts'
 
 // Demo data for a fictional nonprofit. Everything here is invented.
 
@@ -417,7 +417,7 @@ const transactions: Transaction[] = [
 ]
 
 export const seedState: AppState = {
-  org: { name: 'Riverbend Learning Collective', ein: '00-0000000', fiscalYearStartMonth: 7 },
+  org: { id: 'org-riverbend', name: 'Riverbend Learning Collective', ein: '00-0000000', fiscalYearStartMonth: 7 },
   users: [
     { id: 'u-maya', name: 'Maya Okafor', role: 'director', title: 'Executive Director', initials: 'MO' },
     { id: 'u-sam', name: 'Sam Reyes', role: 'finance', title: 'Finance Manager', initials: 'SR' },

@@ -1,5 +1,5 @@
-import type { Fact, Question } from '@/types'
-import { wordCount } from '@/lib/format'
+import type { Fact, Question } from './types.ts'
+import { wordCount } from './format.ts'
 
 /**
  * Grounded drafting engine (client-side mock).
