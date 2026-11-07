@@ -1,13 +1,21 @@
 {
-  "name": "web",
+  "name": "grantit-web",
   "private": true,
   "version": "0.0.0",
+  "description": "Grantit web app: grant knowledge base, grounded drafting, and expenditure tracking",
   "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "build": "tsc -b && cf build",
     "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run test",
     "deploy": "cf deploy"
   },
   "dependencies": {
@@ -31,6 +39,7 @@
     "oxlint": "^1.90.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~7.0.2",
-    "vite": "^8.3.6"
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
   }
 }

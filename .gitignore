@@ -1,19 +1,34 @@
-# Dependencies & builds
+# Dependencies
 node_modules/
-dist/
-*.tsbuildinfo
 
-# Environment
+# Build output (.cloudflare holds cf build output and local dev state)
+dist/
+dist-ssr/
+*.tsbuildinfo
+.cloudflare/
+.wrangler/
+
+# Environment & secrets
 .env
 .env.*
 !.env.example
+.dev.vars*
+!.dev.vars.example
+*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
 
 # Editors / OS
 .idea/
-.vscode/
+.vscode/*
+!.vscode/extensions.json
 .DS_Store
+*.sw?
 
-# Python (future backend)
+# Python (planned backend)
 __pycache__/
 *.pyc
 .venv/

@@ -1,0 +1,39 @@
+import { createContext, useContext } from 'react'
+import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@/types'
+
+export interface Toast {
+  id: string
+  message: string
+  tone?: 'success' | 'info' | 'error'
+}
+
+export interface Store {
+  state: AppState
+  me: User
+  flags: Map<string, TxFlag[]>
+  toasts: Toast[]
+  notify: (message: string, tone?: Toast['tone']) => void
+  setCurrentUser: (id: string) => void
+  resetDemo: () => void
+  setFiscalYearStart: (month: number) => void
+  // facts
+  saveFact: (fact: Omit<Fact, 'id' | 'updatedAt' | 'updatedBy'> & { id?: string }) => void
+  setFactStatus: (id: string, status: Fact['status']) => void
+  deleteFact: (id: string) => void
+  // grants
+  createGrant: (g: Omit<Grant, 'id'>) => string
+  updateGrant: (id: string, patch: Partial<Grant>) => void
+  updateQuestion: (grantId: string, qid: string, patch: Partial<Question>) => void
+  // transactions
+  importTransactions: (txs: Omit<Transaction, 'id'>[]) => void
+  setAllocations: (txId: string, allocations: Allocation[]) => void
+  markReviewed: (txIds: string[], reviewed?: boolean) => void
+}
+
+export const StoreContext = createContext<Store | null>(null)
+
+export function useStore() {
+  const s = useContext(StoreContext)
+  if (!s) throw new Error('useStore must be used inside AppStoreProvider')
+  return s
+}

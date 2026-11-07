@@ -1,4 +1,4 @@
-import type { AppState, Fact, Grant, Transaction } from '../types'
+import type { AppState, Fact, Grant, Transaction } from '@/types'
 
 // Demo data for a fictional nonprofit. Everything here is invented.
 

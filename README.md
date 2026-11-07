@@ -1,54 +1,71 @@
-# Tidepath
+# Grantit
 
 Grant management for small nonprofits: a verified knowledge base, grounded AI drafting of applications,
 and grant-by-grant expenditure tracking in each funder's own reporting period.
 
-This repo currently contains the **UI MVP** (`web/`) — a fully clickable front end running on mock data
-persisted in `localStorage`. No backend yet.
+The repo currently holds the **web UI MVP** — a fully clickable front end running on demo data stored in
+the browser. There is no backend yet. See [`docs/requirements.md`](docs/requirements.md) for the
+requirements and what's built.
 
-## Run it
+## Quick start
+
+Requires Node.js 22.18+ (`web/.nvmrc` pins 24).
 
 ```bash
 cd web
 npm install
-npm run dev
+npm run dev        # http://localhost:5173
 ```
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Local dev server |
+| `npm run check` | Type-check, lint, and unit tests (what CI runs) |
+| `npm test` | Unit tests for the domain logic in `src/lib` |
+| `npm run build` | Type-check and build for Cloudflare |
+| `npm run deploy` | Build and deploy to Cloudflare (needs `npx cf auth login`) |
+
+## Repository layout
+
+```
+.
+├── .github/workflows/ci.yml   CI: checks every PR, deploys main to Cloudflare
+├── docs/requirements.md       Functional requirements + build status
+└── web/                       React app (Vite, TypeScript, Tailwind v4)
+    ├── cloudflare.config.ts   Cloudflare Worker (static assets) + custom domain
+    └── src/
+        ├── app/               App root, routes (lazy-loaded), shell/navigation
+        ├── features/          One folder per area of the product
+        │   ├── dashboard/
+        │   ├── grants/        list, record page, tabs/, new-grant modal
+        │   ├── knowledge/     knowledge base + fact editor
+        │   ├── transactions/  ledger, allocation drawer, CSV import
+        │   ├── reports/
+        │   ├── team/
+        │   └── settings/
+        ├── components/        Shared UI: ui/ kit, Logo, timeline, chart
+        ├── lib/               Framework-free domain logic (+ *.test.ts)
+        ├── store/             App state provider and useStore() hook
+        ├── data/seed.ts       Demo organization, grants, and ledger
+        └── types.ts           Domain model
+```
+
+**Conventions**
+
+- Imports use the `@/` alias for `src/`. Files within one feature import each other relatively (`./tabs/…`).
+- Business rules (budget periods, compliance flags, drafting, permissions) live in `src/lib` as pure functions
+  with unit tests. Components stay presentational.
+- `lib/drafting.ts` defines the `DraftResult` contract (text + citations + missing topics) that a real
+  LLM service must return, so the UI won't change when the backend is wired in.
 
 ## Design direction
 
-- **HubSpot-style CRM foundation** — dark navy left nav, orange primary actions, slate type on a cool-grey
-  canvas, data tables with filter chips, table/board views, and three-column record pages
-  (about · tabs · associations) with slide-in side panels.
-- **Luma-inspired accents** — soft gradient covers per grant, date tiles on a dotted timeline for deadlines,
-  relative-day labels ("In 14 days"), segmented pill controls, and the Luma-style "create" sheet
-  (cover, large title, compact property rows) for new grants.
+- **HubSpot-style CRM foundation:** navy side nav, orange primary actions, slate type on a cool-grey canvas,
+  filterable tables with table/board/card views, three-column record pages, and slide-in side panels.
+- **Luma-inspired accents:** gradient covers per grant, date tiles on a dotted deadline timeline,
+  relative-day labels, pill segmented controls, and a Luma-style "create" sheet for new grants.
 
-## What's covered (P0 + selected P1)
+## Deployment
 
-| Area | Screens |
-|---|---|
-| Knowledge base | Facts with draft → needs approval → approved workflow, category coverage + gap detection, source/evidence, past documents, learned writing style |
-| Grant configuration | Per-grant questions & word limits, approved budget categories, funding period independent of fiscal year, funder rules, deadlines, split-allocation permission |
-| AI drafting | Generates answers **only** from approved facts, cites sources per answer, fits word limits, flags missing info instead of inventing it, flags unsupported figures, review / edit / regenerate / approve, application validation |
-| Accounting | CSV import (+ template, QuickBooks sample), assign / split transactions across grants, flags for unassigned, unauthorized category, over budget, outside period, split-not-allowed; bulk review |
-| Dashboards & reports | Org-wide home dashboard, per-grant budget vs actual by category, monthly spend, funder period vs org fiscal-year toggle, CSV expenditure report, reporting checklist |
-| Roles | Director / Finance / Program staff with a permission matrix — switch users from the account menu to preview |
-
-## Structure
-
-```
-web/src
-├── types.ts            domain model
-├── data/seed.ts        demo organization, grants, ledger
-├── store/AppStore.tsx  state + actions (swap for API calls later)
-├── lib/
-│   ├── drafting.ts     grounded drafting contract + mock engine, claim validation
-│   ├── finance.ts      period math, category spend, compliance flags
-│   ├── permissions.ts  role → capability matrix
-│   └── report.ts       expenditure report export
-├── components/         UI kit (ui.tsx), app shell, timeline, chart
-└── pages/              dashboard, grants, grant record tabs, knowledge base, transactions, reports, team, settings
-```
-
-`lib/drafting.ts` exposes `draftAnswer()` with the same `DraftResult` contract a real LLM service should
-return (text + citations + missing topics), so the UI won't change when the backend is wired in.
+Every push to `main` deploys to Cloudflare Workers via GitHub Actions. The workflow needs two repository
+secrets: `CLOUDFLARE_API_TOKEN` (Workers edit + zone DNS) and `CLOUDFLARE_ACCOUNT_ID`.

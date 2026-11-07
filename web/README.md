@@ -1,9 +1,5 @@
-# Tidepath web
+# Grantit web
 
-Vite + React 19 + TypeScript + Tailwind v4 front end. See the root README for the product overview.
+The Grantit front end: Vite, React 19, TypeScript, Tailwind v4, deployed as a Cloudflare Worker with static assets.
 
-```bash
-npm install
-npm run dev     # http://localhost:5173
-npm run build   # type-check + production build
-```
+See the [root README](../README.md) for setup, scripts, and the source layout.

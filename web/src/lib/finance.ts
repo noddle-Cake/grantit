@@ -1,5 +1,5 @@
-import type { Grant, Transaction, TxFlag } from '../types'
-import { parseDate, toISO } from './format'
+import type { Grant, Transaction, TxFlag } from '@/types'
+import { parseDate, toISO } from '@/lib/format'
 
 export interface Period {
   start: string
@@ -17,6 +17,18 @@ export function fiscalYearFor(iso: string, startMonth: number): Period {
   const end = new Date(startYear + 1, startMonth - 1, 0)
   const fyLabel = startMonth === 1 ? `FY${startYear}` : `FY${String(startYear + 1).slice(2)}`
   return { start: toISO(start), end: toISO(end), label: `Org fiscal year ${fyLabel}` }
+}
+
+/** Periods a viewer can report on: the funder's period (default) and each overlapping org fiscal year. */
+export function periodOptions(grant: Grant, fyStartMonth: number): Period[] {
+  const opts: Period[] = [grantPeriod(grant)]
+  let fy = fiscalYearFor(grant.periodStart, fyStartMonth)
+  while (fy.start <= grant.periodEnd && opts.length < 6) {
+    opts.push(fy)
+    const next = new Date(Number(fy.end.slice(0, 4)), Number(fy.end.slice(5, 7)) - 1, Number(fy.end.slice(8)) + 1)
+    fy = fiscalYearFor(toISO(next), fyStartMonth)
+  }
+  return opts
 }
 
 export const inPeriod = (iso: string, p: { start: string; end: string }) => iso >= p.start && iso <= p.end
