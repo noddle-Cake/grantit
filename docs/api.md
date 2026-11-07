@@ -40,13 +40,13 @@ Every Grantit endpoint follows these rules, so the AI application workflow (Chri
 One record:
 
 ```json
-{ "data": { "id": "g-stem", "name": "STEM After-School Expansion", "…": "…" } }
+{ "data": { "id": "g-wellness", "name": "Youth Mental Health Partnership", "…": "…" } }
 ```
 
 A list:
 
 ```json
-{ "data": [ { "id": "g-digital" }, { "id": "g-literacy" } ], "nextCursor": "Zy1saXRlcmFjeQ" }
+{ "data": [ { "id": "g-anchor" }, { "id": "g-camp" } ], "nextCursor": "Zy1jYW1w" }
 ```
 
 Computed values that come from the shared rules (spending per category, compliance flags, word counts) are
@@ -91,7 +91,7 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 
 | Kind | Format | Example |
 |---|---|---|
-| IDs | Strings. The server generates `crypto.randomUUID()` for new records; demo data keeps readable IDs. Clients never invent IDs for records the server stores. | `"g-stem"` |
+| IDs | Strings. The server generates `crypto.randomUUID()` for new records; demo data keeps readable IDs. Clients never invent IDs for records the server stores. | `"g-wellness"` |
 | Calendar dates (deadlines, funding periods, transaction dates) | `YYYY-MM-DD` with no time zone | `"2026-06-30"` |
 | Timestamps | ISO 8601 in UTC | `"2026-11-07T22:31:04Z"` |
 | Money | Dollars as a JSON number with at most 2 decimals, stored as `numeric(12,2)` | `42000`, `1499.95` |
@@ -103,7 +103,7 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
   last page. Cursors are opaque: pass them back unchanged.
 - Each list has a fixed order, stated in its route comment (grants are ordered by `id`).
 - Filters are query parameters named after the field: `/grants?stage=awarded`,
-  `/transactions?grantId=g-stem&reviewed=false`.
+  `/transactions?grantId=g-anchor&reviewed=false`.
 
 ## Organizations and (later) auth
 

@@ -3,7 +3,8 @@ import { seedState } from './seed.ts'
 import { computeFinancials, computeFlags, fiscalYearFor, periodOptions } from './finance.ts'
 import type { Grant, Transaction } from './types.ts'
 
-const literacy = seedState.grants.find((g) => g.id === 'g-literacy')!
+const anchor = seedState.grants.find((g) => g.id === 'g-anchor')! // funder year Jan–Dec 2026
+const counseling = seedState.grants.find((g) => g.id === 'g-counseling')! // funder year Oct 2025 – Sep 2026, allowSplit: false
 const flagsFor = (id: string) => (computeFlags(seedState.grants, seedState.transactions).get(id) ?? []).map((f) => f.kind)
 
 describe('fiscalYearFor', () => {
@@ -19,25 +20,26 @@ describe('fiscalYearFor', () => {
 
 describe('periodOptions', () => {
   it('lists the funder period first, then every overlapping org fiscal year', () => {
-    const labels = periodOptions(literacy, 7).map((p) => p.label)
-    expect(labels).toEqual(['Grant funding period', 'Org fiscal year FY26', 'Org fiscal year FY27'])
+    // An October funder year against Tidepath's calendar fiscal year overlaps two org years.
+    const labels = periodOptions(counseling, seedState.org.fiscalYearStartMonth).map((p) => p.label)
+    expect(labels).toEqual(['Grant funding period', 'Org fiscal year FY2025', 'Org fiscal year FY2026'])
   })
 })
 
 describe('computeFinancials', () => {
-  const f = computeFinancials(literacy, seedState.transactions)
+  const f = computeFinancials(anchor, seedState.transactions)
 
   it('only counts spending inside the grant funding period', () => {
-    // The Dec 2025 supplies order falls before the Jan 2026 start and must be excluded.
-    expect(f.spent).toBe(94_000)
-    expect(f.budget).toBe(120_000)
-    expect(f.remaining).toBe(26_000)
+    // The Dec 2025 event deposit falls before the Jan 2026 start and must be excluded.
+    expect(f.spent).toBe(81_300)
+    expect(f.budget).toBe(96_000)
+    expect(f.remaining).toBe(14_700)
   })
 
   it('reports category status against each approved budget line', () => {
-    const supplies = f.categories.find((c) => c.name === 'Program Supplies')!
-    expect(supplies).toMatchObject({ spent: 18_600, remaining: -600, status: 'over' })
-    expect(f.categories.find((c) => c.name === 'Personnel')!.status).toBe('ok')
+    const activities = f.categories.find((c) => c.name === 'Youth Activities')!
+    expect(activities).toMatchObject({ spent: 15_600, remaining: -600, status: 'over' })
+    expect(f.categories.find((c) => c.name === 'Mentor Coordinator')!.status).toBe('ok')
   })
 
   it('separates spend in categories the funder did not approve', () => {
@@ -45,9 +47,9 @@ describe('computeFinancials', () => {
   })
 
   it('marks categories at or above 85% as approaching', () => {
-    const stem = seedState.grants.find((g) => g.id === 'g-stem')!
-    const equipment = computeFinancials(stem, seedState.transactions).categories.find((c) => c.name === 'Equipment')!
-    expect(equipment.status).toBe('approaching')
+    expect(f.categories.find((c) => c.name === 'Mentor Training')!.status).toBe('approaching')
+    const counselors = computeFinancials(counseling, seedState.transactions).categories.find((c) => c.name === 'Counselors')!
+    expect(counselors).toMatchObject({ spent: 71_500, status: 'approaching' })
   })
 })
 
@@ -57,39 +59,38 @@ describe('computeFlags', () => {
   })
 
   it('flags unauthorized categories', () => {
-    expect(flagsFor('t-l8')).toContain('unauthorized-category')
+    expect(flagsFor('t-a8')).toContain('unauthorized-category')
   })
 
   it('flags transactions dated outside the funding period', () => {
-    expect(flagsFor('t-l11')).toContain('outside-period')
+    expect(flagsFor('t-a11')).toContain('outside-period')
   })
 
   it('flags the transaction that pushes a category over budget, not earlier ones', () => {
-    expect(flagsFor('t-l4')).toContain('over-budget')
-    expect(flagsFor('t-l1')).not.toContain('over-budget')
+    expect(flagsFor('t-a4')).toContain('over-budget')
+    expect(flagsFor('t-a1')).not.toContain('over-budget')
   })
 
   it('leaves compliant transactions unflagged', () => {
-    expect(flagsFor('t-l1')).toEqual([])
+    expect(flagsFor('t-a1')).toEqual([])
   })
 
   it('flags splits when a funder does not allow shared costs', () => {
-    const stem = seedState.grants.find((g) => g.id === 'g-stem')! // allowSplit: false
     const tx: Transaction = {
       id: 'split',
       date: '2026-03-01',
-      vendor: 'Maker Supply',
-      description: 'Shared supplies',
+      vendor: 'Family Pantry Partners',
+      description: 'Shared grocery cards',
       account: '6400',
       amount: 200,
       reviewed: false,
       source: 'manual',
       allocations: [
-        { grantId: literacy.id, category: 'Program Supplies', amount: 100 },
-        { grantId: stem.id, category: 'Program Supplies', amount: 100 },
+        { grantId: anchor.id, category: 'Youth Activities', amount: 100 },
+        { grantId: counseling.id, category: 'Family Support', amount: 100 },
       ],
     }
-    const grants: Grant[] = [literacy, stem]
+    const grants: Grant[] = [anchor, counseling]
     expect(computeFlags(grants, [tx]).get('split')!.map((f) => f.kind)).toContain('split-not-allowed')
   })
 })

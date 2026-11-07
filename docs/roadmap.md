@@ -97,6 +97,7 @@ In parallel: Chris builds the AI application workflow; Sam builds financial trac
 | P0 | Enforce word limits on generated answers | Chris | AI drafting | ai |
 | P1 | Report missing information instead of inventing it | Chris | knowledge base | ai |
 | P0 | Grounding evaluation suite | Chris | AI drafting | ai, ops |
+| P1 | Match the organization's tone and writing style | Chris | AI drafting | ai |
 
 ### Find funding
 
@@ -159,7 +160,6 @@ After the demo: accounts and roles, documents, QuickBooks, exports, alerts, and 
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
-| P1 | Match the organization's tone and writing style | AI drafting | ai |
 | P1 | Reuse relevant answers from past applications | AI drafting | ai |
 | P1 | Usage limits and cost logging for drafting | AI drafting | ai, ops |
 

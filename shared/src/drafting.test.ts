@@ -30,22 +30,33 @@ describe('draftAnswer', () => {
   })
 
   it('leaves out facts that are not yet approved and reports them as blocked', () => {
-    const r = draftAnswer({ prompt: 'Describe the proposed mentorship program and its activities.', wordLimit: 200 }, facts)
-    expect(r.missing).toContain('mentorship program details')
-    expect(r.blockedBy).toContain('f-mentor') // pending approval
-    expect(r.citations).not.toContain('f-mentor')
+    const r = draftAnswer({ prompt: 'Briefly describe the support parents and caregivers in your community need.', wordLimit: 250 }, facts)
+    expect(r.missing).toContain('parent support group details')
+    expect(r.blockedBy).toContain('f-parents') // pending approval
+    expect(r.citations).not.toContain('f-parents')
+  })
+
+  it('drafts the demo application within its 250- and 1,000-word limits', () => {
+    const wellness = seedState.grants.find((g) => g.id === 'g-wellness')!
+    expect(wellness.questions.map((x) => x.wordLimit)).toContain(1000)
+    for (const question of wellness.questions) {
+      const r = draftAnswer(question, facts)
+      expect(r.text.length).toBeGreaterThan(0)
+      expect(wordCount(r.text)).toBeLessThanOrEqual(question.wordLimit)
+      for (const id of r.citations) expect(approved.has(id)).toBe(true)
+    }
   })
 })
 
 describe('findUnsupportedClaims', () => {
   it('flags figures that do not appear in any approved fact', () => {
-    const issues = findUnsupportedClaims('We served 412 students. Graduation rates rose 95%.', facts)
+    const issues = findUnsupportedClaims('We reached 1,340 students. Graduation rates rose 95%.', facts)
     expect(issues).toHaveLength(1)
     expect(issues[0].sentence).toBe('Graduation rates rose 95%.')
   })
 
   it('accepts text without figures', () => {
-    expect(findUnsupportedClaims('We pair students with volunteer tutors.', facts)).toEqual([])
+    expect(findUnsupportedClaims('We pair young people with volunteer mentors.', facts)).toEqual([])
   })
 })
 
@@ -53,7 +64,7 @@ describe('checkApplication', () => {
   const q = (over: Partial<Question>): Question => ({ id: 'q', prompt: 'p', wordLimit: 5, answer: '', citations: [], status: 'empty', missing: [], ...over })
 
   it('is ready only when every answer is approved, in limit, and supported', () => {
-    expect(checkApplication([q({ answer: 'Founded in 2012.', status: 'approved' })], facts).ready).toBe(true)
+    expect(checkApplication([q({ answer: 'Founded in 2011.', status: 'approved' })], facts).ready).toBe(true)
   })
 
   it('counts each kind of problem', () => {

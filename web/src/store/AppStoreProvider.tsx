@@ -7,7 +7,7 @@ import { todayISO, uid } from '@grantit/shared/format'
 import type { AppState, Fact, Grant } from '@grantit/shared/types'
 import { StoreContext, type Store, type Toast } from './context'
 
-const STORAGE_KEY = 'grantit:v1'
+const STORAGE_KEY = 'grantit:v2' // v2: Tidepath demo data; bumping drops older saved demo state
 const DISMISSED_KEY = 'grantit:dismissed-opportunities:v1'
 
 function load(): AppState {
