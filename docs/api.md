@@ -134,6 +134,9 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 | `PUT /transactions/:transactionId/allocations` | done | #79 |
 | `GET /grants/:grantId/financials?start=&end=` | done | #79 |
 | `POST /transaction-imports` (CSV) | done | #6 |
+| `GET/PATCH /organization` | done | #80 |
+| `GET /users`, `GET /documents` | done | #80 |
+| `GET /opportunities`, `POST /opportunities/:opportunityId/grants` | done | #8 |
 
 Notes on the built endpoints:
 
