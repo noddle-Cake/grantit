@@ -1,242 +1,876 @@
 {
   "$comment": "Source for the GitHub backlog. create-issues.mjs turns each epic into a parent issue and each item into a sub-issue. Edit here, then re-run; existing titles are skipped.",
   "milestones": [
-    { "title": "M1 · Backend & accounts", "description": "Real persistence, sign-in, organizations and server-enforced roles. Replaces browser demo storage." },
-    { "title": "M2 · Real AI drafting", "description": "Swap the mock drafting engine for a grounded LLM service behind the DraftResult contract." },
-    { "title": "M3 · Documents & QuickBooks", "description": "Upload past applications/reports, extract facts, and connect QuickBooks for transactions." },
-    { "title": "M4 · Reports & automation", "description": "Funder exports, auto-drafted reports, email alerts and an audit trail." }
+    {
+      "title": "M0 · Web UI MVP",
+      "description": "Clickable web UI on demo data: every requirement marked built in docs/requirements.md."
+    },
+    {
+      "title": "Phase 1 · Foundations",
+      "description": "Together: define the database schema, sample data, API conventions, and project structure."
+    },
+    {
+      "title": "Phase 2 · Parallel build",
+      "description": "In parallel: Chris builds the AI application workflow; Sam builds financial tracking and validation."
+    },
+    {
+      "title": "Phase 3 · Integration",
+      "description": "Connect both workflows through a shared grant detail page."
+    },
+    {
+      "title": "Phase 4 · Testing & demo",
+      "description": "Demonstrate a fact-grounded application and a correctly identified spending violation."
+    },
+    {
+      "title": "Later",
+      "description": "After the demo: accounts and roles, documents, QuickBooks, exports, alerts, and operations."
+    }
   ],
   "labels": [
-    { "name": "epic", "color": "3e4b9e", "description": "Parent issue grouping related work" },
-    { "name": "area: backend", "color": "1d76db", "description": "API, database, hosting" },
-    { "name": "area: auth", "color": "5319e7", "description": "Sign-in, organizations, roles, approvals" },
-    { "name": "area: ai", "color": "d93f0b", "description": "Grounded drafting and the LLM service" },
-    { "name": "area: knowledge", "color": "0e8a16", "description": "Knowledge base, facts, documents" },
-    { "name": "area: finance", "color": "fbca04", "description": "Transactions, QuickBooks, compliance" },
-    { "name": "area: reports", "color": "c5def5", "description": "Dashboards, exports, alerts" },
-    { "name": "area: ops", "color": "bfdadc", "description": "Testing, monitoring, deploy" },
-    { "name": "P0", "color": "b60205", "description": "Required for MVP" },
-    { "name": "P1", "color": "e99695", "description": "High-priority extension" },
-    { "name": "P2", "color": "f9d0c4", "description": "Stretch goal" }
+    {
+      "name": "epic",
+      "color": "3e4b9e",
+      "description": "Parent issue grouping related work"
+    },
+    {
+      "name": "area: backend",
+      "color": "1d76db",
+      "description": "API, database, hosting"
+    },
+    {
+      "name": "area: auth",
+      "color": "5319e7",
+      "description": "Sign-in, organizations, roles, approvals"
+    },
+    {
+      "name": "area: ai",
+      "color": "d93f0b",
+      "description": "Grounded drafting and the LLM service"
+    },
+    {
+      "name": "area: knowledge",
+      "color": "0e8a16",
+      "description": "Knowledge base, facts, documents"
+    },
+    {
+      "name": "area: finance",
+      "color": "fbca04",
+      "description": "Transactions, QuickBooks, compliance"
+    },
+    {
+      "name": "area: reports",
+      "color": "c5def5",
+      "description": "Dashboards, exports, alerts"
+    },
+    {
+      "name": "area: ops",
+      "color": "bfdadc",
+      "description": "Testing, monitoring, deploy"
+    },
+    {
+      "name": "P0",
+      "color": "b60205",
+      "description": "Required for MVP"
+    },
+    {
+      "name": "P1",
+      "color": "e99695",
+      "description": "High-priority extension"
+    },
+    {
+      "name": "P2",
+      "color": "f9d0c4",
+      "description": "Stretch goal"
+    },
+    {
+      "name": "req: knowledge base",
+      "color": "ededed",
+      "description": "Requirements §1 Organization knowledge base"
+    },
+    {
+      "name": "req: grant setup",
+      "color": "ededed",
+      "description": "Requirements §2 Grant-specific configuration"
+    },
+    {
+      "name": "req: AI drafting",
+      "color": "ededed",
+      "description": "Requirements §3 AI grant application drafting"
+    },
+    {
+      "name": "req: accounting",
+      "color": "ededed",
+      "description": "Requirements §4 Grant accounting and expenditure verification"
+    },
+    {
+      "name": "req: dashboards & reports",
+      "color": "ededed",
+      "description": "Requirements §5 Dashboards and reports"
+    },
+    {
+      "name": "req: roles & workflow",
+      "color": "ededed",
+      "description": "Requirements §6 User roles and workflow"
+    }
   ],
   "epics": [
     {
+      "key": "mvp",
+      "title": "Epic: Web UI MVP",
+      "milestone": "M0 · Web UI MVP",
+      "done": true,
+      "labels": [
+        "P0"
+      ],
+      "summary": "Requirements already built in the clickable web UI (demo data in the browser, no backend). Each sub-issue is one requirement from `docs/requirements.md`, closed as done. Real persistence and the live AI service are tracked in Phases 1–4.",
+      "issues": [
+        {
+          "title": "Store an organization's mission, programs, services, beneficiaries, and measurable outcomes",
+          "labels": [
+            "req: knowledge base",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), knowledge base.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/knowledge`."
+        },
+        {
+          "title": "Allow staff to add, edit, and approve organizational facts",
+          "labels": [
+            "req: knowledge base",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), knowledge base.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/knowledge`."
+        },
+        {
+          "title": "Generate application responses using only approved organizational facts",
+          "labels": [
+            "req: knowledge base",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), knowledge base.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/knowledge`."
+        },
+        {
+          "title": "Show which stored facts support each generated response",
+          "labels": [
+            "req: knowledge base",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), knowledge base.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/knowledge`."
+        },
+        {
+          "title": "Identify missing information rather than inventing it",
+          "labels": [
+            "req: knowledge base",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), knowledge base.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/knowledge`."
+        },
+        {
+          "title": "Create and manage individual grant records",
+          "labels": [
+            "req: grant setup",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Define a unique set of application questions for each grant",
+          "labels": [
+            "req: grant setup",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Configure individual word limits for every question",
+          "labels": [
+            "req: grant setup",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Define each grant's approved budget and spending categories",
+          "labels": [
+            "req: grant setup",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Configure each grant's reporting year or funding period independently of the organization's fiscal year",
+          "labels": [
+            "req: grant setup",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Store individual funder rules, restrictions, and reporting requirements",
+          "labels": [
+            "req: grant setup",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Track application and reporting deadlines",
+          "labels": [
+            "req: grant setup",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Support multiple simultaneous grants with different configurations",
+          "labels": [
+            "req: grant setup",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), grant setup.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/grants`."
+        },
+        {
+          "title": "Enforce each question's word limit automatically",
+          "labels": [
+            "req: AI drafting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), AI drafting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/drafting.ts` and the grant record's application tab."
+        },
+        {
+          "title": "Ensure generated statements are supported by approved information",
+          "labels": [
+            "req: AI drafting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), AI drafting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/drafting.ts` and the grant record's application tab."
+        },
+        {
+          "title": "Allow users to review, edit, approve, and regenerate answers",
+          "labels": [
+            "req: AI drafting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), AI drafting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/drafting.ts` and the grant record's application tab."
+        },
+        {
+          "title": "Validate completed applications for unanswered questions, unsupported claims, and exceeded word limits",
+          "labels": [
+            "req: AI drafting",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), AI drafting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/drafting.ts` and the grant record's application tab."
+        },
+        {
+          "title": "Import a set of financial transactions, initially through CSV or sample QuickBooks data",
+          "labels": [
+            "req: accounting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Assign transactions to grants and approved spending categories",
+          "labels": [
+            "req: accounting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Calculate spending for each grant within its own funding period or fiscal year",
+          "labels": [
+            "req: accounting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Display approved budget, actual spending, and remaining balances for each category",
+          "labels": [
+            "req: accounting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Flag transactions assigned to unauthorized categories or exceeding approved category budgets",
+          "labels": [
+            "req: accounting",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Detect categories approaching their spending limits",
+          "labels": [
+            "req: accounting",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Allow staff to review and correct transaction classifications",
+          "labels": [
+            "req: accounting",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Support allocating a transaction across multiple grants when permitted",
+          "labels": [
+            "req: accounting",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), accounting.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/transactions` and `web/src/lib/finance.ts`."
+        },
+        {
+          "title": "Show a grant overview with its funding amount, spending, and remaining balance",
+          "labels": [
+            "req: dashboards & reports",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Visualize expenditure by grant spending category",
+          "labels": [
+            "req: dashboards & reports",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Display financial information using the funder's configured reporting period",
+          "labels": [
+            "req: dashboards & reports",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Provide an organization-wide dashboard summarizing multiple grants",
+          "labels": [
+            "req: dashboards & reports",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Track application status, deadlines, and reporting obligations",
+          "labels": [
+            "req: dashboards & reports",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Generate grant-specific expenditure reports",
+          "labels": [
+            "req: dashboards & reports",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), dashboards & reports.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/features/dashboard`, `web/src/features/reports`, `web/src/lib/report.ts`."
+        },
+        {
+          "title": "Allow the director to configure grants, draft applications, and approve information",
+          "labels": [
+            "req: roles & workflow",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), roles & workflow.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/permissions.ts` and `web/src/features/team`."
+        },
+        {
+          "title": "Allow financial staff to review transactions, categories, and spending compliance",
+          "labels": [
+            "req: roles & workflow",
+            "P0"
+          ],
+          "body": "Requirement (P0) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), roles & workflow.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/permissions.ts` and `web/src/features/team`."
+        },
+        {
+          "title": "Allow program staff to contribute and approve program information",
+          "labels": [
+            "req: roles & workflow",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), roles & workflow.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/permissions.ts` and `web/src/features/team`."
+        },
+        {
+          "title": "Track the status of applications, narrative drafts, financial checks, and reports",
+          "labels": [
+            "req: roles & workflow",
+            "P1"
+          ],
+          "body": "Requirement (P1) from [docs/requirements.md](https://github.com/noddle-Cake/grantit/blob/main/docs/requirements.md), roles & workflow.\n\nBuilt in the web UI MVP on demo data. Where: `web/src/lib/permissions.ts` and `web/src/features/team`."
+        }
+      ]
+    },
+    {
       "key": "backend",
       "title": "Epic: Backend & persistence",
-      "milestone": "M1 · Backend & accounts",
-      "labels": ["area: backend", "P0"],
+      "milestone": "Phase 1 · Foundations",
+      "labels": [
+        "area: backend",
+        "P0"
+      ],
       "summary": "The web app runs entirely on demo data in the browser (`web/src/store`, `web/src/data/seed.ts`). Add an API and database so organizations keep real data, without changing the UI.",
       "issues": [
         {
           "title": "Decide backend stack and hosting (ADR)",
-          "labels": ["area: backend", "P0"],
-          "body": "Write `docs/adr/0001-backend.md` choosing the API runtime, database and hosting.\n\nInputs:\n- Today the site is a static build served from 5820 through the Cloudflare Tunnel (`docs/deploy.md`).\n- `web/src/types.ts` is framework-free and meant to be shared with the API.\n- `web/src/lib` holds pure domain logic (finance, permissions, drafting) that the server should reuse.\n\nAcceptance criteria:\n- [ ] Options compared (e.g. Node API + Postgres on 5820 vs. Cloudflare Workers + D1)\n- [ ] Decision covers backups, secrets and how `/api` is routed next to the static site\n- [ ] Decision recorded and linked from the README"
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "Write `docs/adr/0001-backend.md` choosing the API runtime, database and hosting.\n\nInputs:\n- Today the site is a static build served from 5820 through the Cloudflare Tunnel (`docs/deploy.md`).\n- `web/src/types.ts` is framework-free and meant to be shared with the API.\n- `web/src/lib` holds pure domain logic (finance, permissions, drafting) that the server should reuse.\n\nAcceptance criteria:\n- [ ] Options compared (e.g. Node API + Postgres on 5820 vs. Cloudflare Workers + D1)\n- [ ] Decision covers backups, secrets and how `/api` is routed next to the static site\n- [ ] Decision recorded and linked from the README",
+          "milestone": "Phase 1 · Foundations"
+        },
+        {
+          "title": "Set up project structure for the API and shared code",
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "Lay out the repo so the web app and API share the domain model and rules.\n\nAcceptance criteria:\n- [ ] `api/` workspace next to `web/`, with its own `check` script wired into CI\n- [ ] `web/src/types.ts` and the pure rules in `web/src/lib` (finance, drafting contract, permissions) moved to a shared package both import\n- [ ] README layout section updated",
+          "milestone": "Phase 1 · Foundations"
         },
         {
           "title": "Database schema and migrations for the domain model",
-          "labels": ["area: backend", "P0"],
-          "body": "Model `Organization`, `User`, `Fact`, `PastDocument`, `Grant` (with `BudgetCategory`, `Question`, `Deadline`), `Transaction` and `Allocation` from `web/src/types.ts`.\n\nAcceptance criteria:\n- [ ] Every table scoped by `organization_id`\n- [ ] Migrations run from one command in dev and on deploy\n- [ ] Seed script loads the current demo organization from `web/src/data/seed.ts`"
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "Model `Organization`, `User`, `Fact`, `PastDocument`, `Grant` (with `BudgetCategory`, `Question`, `Deadline`), `Transaction` and `Allocation` from `web/src/types.ts`.\n\nAcceptance criteria:\n- [ ] Every table scoped by `organization_id`\n- [ ] Migrations run from one command in dev and on deploy\n- [ ] Seed script loads the current demo organization from `web/src/data/seed.ts`",
+          "milestone": "Phase 1 · Foundations"
         },
         {
-          "title": "REST API for grants, facts, questions and transactions",
-          "labels": ["area: backend", "P0"],
-          "body": "CRUD endpoints for the entities the UI edits today, reusing the shared types.\n\nAcceptance criteria:\n- [ ] Request/response validation shared with `web/src/types.ts`\n- [ ] Grant spending computed server-side with `web/src/lib/finance.ts` in each grant's own funding period\n- [ ] Compliance flags (unauthorized category, over budget, nearing limit) returned with transactions\n- [ ] API tests in CI"
+          "title": "Define API conventions",
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "Agree the conventions both workstreams follow before building in parallel. Write them in `docs/api.md`.\n\nAcceptance criteria:\n- [ ] Resource naming, IDs, pagination and date/money formats\n- [ ] One error shape and status-code rules\n- [ ] Validation approach shared with the types\n- [ ] Where organization scoping and (later) auth plug in\n- [ ] One example endpoint implemented to the conventions",
+          "milestone": "Phase 1 · Foundations"
+        },
+        {
+          "title": "REST API for grants, facts and questions",
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "CRUD endpoints for grants, application questions/answers and knowledge-base facts, following the API conventions from Phase 1.\n\nAcceptance criteria:\n- [ ] Request/response validation shared with `web/src/types.ts`\n- [ ] Fact approval status and answer status (`draft`/`approved`) persisted\n- [ ] Endpoints the drafting service needs: approved facts for an organization, questions for a grant\n- [ ] API tests in CI",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
+        },
+        {
+          "title": "Finance API: transactions, allocations, spending and compliance flags",
+          "labels": [
+            "area: backend",
+            "area: finance",
+            "P0",
+            "req: accounting"
+          ],
+          "body": "Endpoints for transactions and allocations, plus computed spending, using `web/src/lib/finance.ts` on the server.\n\nAcceptance criteria:\n- [ ] Spending per grant and category within each grant's own funding period\n- [ ] Budget, actual and remaining per category\n- [ ] Flags for unauthorized categories, over-budget and nearing-limit categories returned with transactions\n- [ ] Split allocations across grants only where the grant allows it\n- [ ] API tests in CI",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "sam"
         },
         {
           "title": "Move the web store from browser storage to the API",
-          "labels": ["area: backend", "P0"],
-          "body": "Replace the in-browser state in `web/src/store/AppStoreProvider.tsx` with API calls while keeping the `useStore()` surface so feature components don't change.\n\nAcceptance criteria:\n- [ ] Loading and error states on every page\n- [ ] Optimistic updates for edits (fact edits, allocations, answer approval)\n- [ ] A demo mode that still runs on seed data with no account"
+          "labels": [
+            "area: backend",
+            "P0"
+          ],
+          "body": "Replace the in-browser state in `web/src/store/AppStoreProvider.tsx` with API calls while keeping the `useStore()` surface so feature components don't change.\n\nAcceptance criteria:\n- [ ] Loading and error states on every page\n- [ ] Optimistic updates for edits (fact edits, allocations, answer approval)\n- [ ] A demo mode that still runs on seed data with no account",
+          "milestone": "Phase 3 · Integration"
         },
         {
           "title": "Server-side CSV transaction import",
-          "labels": ["area: backend", "area: finance", "P0"],
-          "body": "The CSV import in `web/src/features/transactions/ImportModal.tsx` parses in the browser. Persist imports through the API.\n\nAcceptance criteria:\n- [ ] Duplicate detection (date + amount + vendor) on re-import\n- [ ] Import batch recorded so a bad import can be rolled back\n- [ ] Clear errors for malformed rows"
+          "labels": [
+            "area: backend",
+            "area: finance",
+            "P0",
+            "req: accounting"
+          ],
+          "body": "The CSV import in `web/src/features/transactions/ImportModal.tsx` parses in the browser. Persist imports through the API.\n\nAcceptance criteria:\n- [ ] Duplicate detection (date + amount + vendor) on re-import\n- [ ] Import batch recorded so a bad import can be rolled back\n- [ ] Clear errors for malformed rows",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "sam"
         },
         {
           "title": "Deploy the API on 5820 with database backups",
-          "labels": ["area: backend", "area: ops", "P0"],
-          "body": "Extend `deploy/31-grantit.sh` and `deploy/nginx.conf` to run the API behind the tunnel.\n\nAcceptance criteria:\n- [ ] `/api` routed to the API container; static site unchanged\n- [ ] Secrets kept out of the repo\n- [ ] Nightly database backup included in `srv-backup`, restore tested once\n- [ ] `docs/deploy.md` updated"
+          "labels": [
+            "area: backend",
+            "area: ops",
+            "P0"
+          ],
+          "body": "Extend `deploy/31-grantit.sh` and `deploy/nginx.conf` to run the API behind the tunnel.\n\nAcceptance criteria:\n- [ ] `/api` routed to the API container; static site unchanged\n- [ ] Secrets kept out of the repo\n- [ ] Nightly database backup included in `srv-backup`, restore tested once\n- [ ] `docs/deploy.md` updated",
+          "milestone": "Phase 4 · Testing & demo"
         }
       ]
     },
     {
       "key": "auth",
       "title": "Epic: Accounts, organizations & roles",
-      "milestone": "M1 · Backend & accounts",
-      "labels": ["area: auth", "P0"],
+      "milestone": "Later",
+      "labels": [
+        "area: auth",
+        "P0"
+      ],
       "summary": "Roles (director, finance, program staff) are simulated in the UI with no sign-in. Add real accounts, organizations and server-enforced permissions.",
       "issues": [
         {
           "title": "User sign-in",
-          "labels": ["area: auth", "P0"],
-          "body": "Add sign-in (email magic link or Google) with sessions.\n\nAcceptance criteria:\n- [ ] Sign in, sign out and session expiry\n- [ ] Signed-out users only see the demo or the sign-in page\n- [ ] Role switcher in the UI removed outside demo mode"
+          "labels": [
+            "area: auth",
+            "P0",
+            "req: roles & workflow"
+          ],
+          "body": "Add sign-in (email magic link or Google) with sessions.\n\nAcceptance criteria:\n- [ ] Sign in, sign out and session expiry\n- [ ] Signed-out users only see the demo or the sign-in page\n- [ ] Role switcher in the UI removed outside demo mode",
+          "milestone": "Later"
         },
         {
           "title": "Organizations and team invites",
-          "labels": ["area: auth", "P0"],
-          "body": "Create an organization on first sign-in and invite teammates from `web/src/features/team/TeamPage.tsx` with a role.\n\nAcceptance criteria:\n- [ ] Invite by email with role (director, finance, program)\n- [ ] Directors can change roles and remove members\n- [ ] Data never crosses organizations (tested)"
+          "labels": [
+            "area: auth",
+            "P0",
+            "req: roles & workflow"
+          ],
+          "body": "Create an organization on first sign-in and invite teammates from `web/src/features/team/TeamPage.tsx` with a role.\n\nAcceptance criteria:\n- [ ] Invite by email with role (director, finance, program)\n- [ ] Directors can change roles and remove members\n- [ ] Data never crosses organizations (tested)",
+          "milestone": "Later"
         },
         {
           "title": "Enforce role permissions on the server",
-          "labels": ["area: auth", "P2"],
-          "body": "Apply the matrix in `web/src/lib/permissions.ts` (`can`, `canApproveFact`) to every API write, not only in the UI.\n\nAcceptance criteria:\n- [ ] Every mutating endpoint checks the action\n- [ ] Program staff can only approve program-side facts\n- [ ] Tests for each role × action"
+          "labels": [
+            "area: auth",
+            "P2",
+            "req: roles & workflow"
+          ],
+          "body": "Apply the matrix in `web/src/lib/permissions.ts` (`can`, `canApproveFact`) to every API write, not only in the UI.\n\nAcceptance criteria:\n- [ ] Every mutating endpoint checks the action\n- [ ] Program staff can only approve program-side facts\n- [ ] Tests for each role × action",
+          "milestone": "Later"
         },
         {
           "title": "Multi-user approval workflow for facts and answers",
-          "labels": ["area: auth", "area: knowledge", "P2"],
-          "body": "Let an organization require a second approver for facts and application answers.\n\nAcceptance criteria:\n- [ ] Request review → approve / request changes, with comments\n- [ ] Approver cannot be the author when two-person approval is on\n- [ ] Pending approvals listed on the dashboard"
+          "labels": [
+            "area: auth",
+            "area: knowledge",
+            "P2",
+            "req: roles & workflow"
+          ],
+          "body": "Let an organization require a second approver for facts and application answers.\n\nAcceptance criteria:\n- [ ] Request review → approve / request changes, with comments\n- [ ] Approver cannot be the author when two-person approval is on\n- [ ] Pending approvals listed on the dashboard",
+          "milestone": "Later"
         }
       ]
     },
     {
       "key": "ai",
       "title": "Epic: Grounded AI drafting",
-      "milestone": "M2 · Real AI drafting",
-      "labels": ["area: ai", "P0"],
+      "milestone": "Phase 2 · Parallel build",
+      "labels": [
+        "area: ai",
+        "P0"
+      ],
       "summary": "`web/src/lib/drafting.ts` is a keyword-matching mock. Replace it with an LLM service that answers only from approved facts and returns the same `DraftResult` (text, citations, missing, blockedBy), so the UI doesn't change.",
       "issues": [
         {
           "title": "Drafting service behind the DraftResult contract",
-          "labels": ["area: ai", "P0"],
-          "body": "Server endpoint that drafts an answer to a grant question using only approved facts as context and returns `DraftResult`.\n\nAcceptance criteria:\n- [ ] Only facts with `status: approved` from the caller's organization are sent\n- [ ] Response cites fact IDs per sentence\n- [ ] Funder rules from the grant included as constraints\n- [ ] API key held server-side only\n- [ ] UI swaps from `draftAnswer` to the endpoint with no component changes"
+          "labels": [
+            "area: ai",
+            "P0",
+            "req: AI drafting"
+          ],
+          "body": "Server endpoint that drafts an answer to a grant question using only approved facts as context and returns `DraftResult`.\n\nAcceptance criteria:\n- [ ] Only facts with `status: approved` from the caller's organization are sent\n- [ ] Response cites fact IDs per sentence\n- [ ] Funder rules from the grant included as constraints\n- [ ] API key held server-side only\n- [ ] UI swaps from `draftAnswer` to the endpoint with no component changes",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Validate citations and reject unsupported claims",
-          "labels": ["area: ai", "P0"],
-          "body": "After generation, check every sentence cites an approved fact that exists, and flag or drop sentences that don't.\n\nAcceptance criteria:\n- [ ] Unknown or unapproved fact IDs are rejected\n- [ ] Uncited sentences removed or flagged in the UI\n- [ ] Unit tests with fabricated citations"
+          "labels": [
+            "area: ai",
+            "P0",
+            "req: AI drafting"
+          ],
+          "body": "After generation, check every sentence cites an approved fact that exists, and flag or drop sentences that don't.\n\nAcceptance criteria:\n- [ ] Unknown or unapproved fact IDs are rejected\n- [ ] Uncited sentences removed or flagged in the UI\n- [ ] Unit tests with fabricated citations",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Enforce word limits on generated answers",
-          "labels": ["area: ai", "P0"],
-          "body": "Guarantee answers fit each question's `wordLimit`, trimming at sentence boundaries like `fitToLimit` does today or regenerating shorter.\n\nAcceptance criteria:\n- [ ] No returned answer exceeds its limit\n- [ ] Trimming never cuts mid-sentence"
+          "labels": [
+            "area: ai",
+            "P0",
+            "req: AI drafting"
+          ],
+          "body": "Guarantee answers fit each question's `wordLimit`, trimming at sentence boundaries like `fitToLimit` does today or regenerating shorter.\n\nAcceptance criteria:\n- [ ] No returned answer exceeds its limit\n- [ ] Trimming never cuts mid-sentence",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Report missing information instead of inventing it",
-          "labels": ["area: ai", "P1"],
-          "body": "Populate `missing` (gaps with no fact) and `blockedBy` (facts that exist but aren't approved) from the model.\n\nAcceptance criteria:\n- [ ] Gaps shown as the existing 'missing information' chips\n- [ ] One click from a gap to create the fact in the knowledge base"
+          "labels": [
+            "area: ai",
+            "P1",
+            "req: knowledge base"
+          ],
+          "body": "Populate `missing` (gaps with no fact) and `blockedBy` (facts that exist but aren't approved) from the model.\n\nAcceptance criteria:\n- [ ] Gaps shown as the existing 'missing information' chips\n- [ ] One click from a gap to create the fact in the knowledge base",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Grounding evaluation suite",
-          "labels": ["area: ai", "area: ops", "P0"],
-          "body": "A repeatable eval over the demo organization's questions and facts.\n\nAcceptance criteria:\n- [ ] Scores citation accuracy, unsupported-claim rate, word-limit compliance and gap detection\n- [ ] Runs from one command; results saved for comparison across prompt/model changes"
+          "labels": [
+            "area: ai",
+            "area: ops",
+            "P0",
+            "req: AI drafting"
+          ],
+          "body": "A repeatable eval over the demo organization's questions and facts.\n\nAcceptance criteria:\n- [ ] Scores citation accuracy, unsupported-claim rate, word-limit compliance and gap detection\n- [ ] Runs from one command; results saved for comparison across prompt/model changes",
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Match the organization's tone and writing style",
-          "labels": ["area: ai", "P1"],
-          "body": "Use the organization's style profile (see the documents epic) when drafting.\n\nAcceptance criteria:\n- [ ] Style examples passed as guidance, never as a source of facts\n- [ ] Eval shows no drop in grounding with style on"
+          "labels": [
+            "area: ai",
+            "P1",
+            "req: AI drafting"
+          ],
+          "body": "Use the organization's style profile (see the documents epic) when drafting.\n\nAcceptance criteria:\n- [ ] Style examples passed as guidance, never as a source of facts\n- [ ] Eval shows no drop in grounding with style on",
+          "milestone": "Later"
         },
         {
           "title": "Reuse relevant answers from past applications",
-          "labels": ["area: ai", "P1"],
-          "body": "Suggest prior approved answers for similar questions and adapt them, without copying blindly.\n\nAcceptance criteria:\n- [ ] Similar past answers shown with their grant and date\n- [ ] Adapted answers still cite current approved facts; stale numbers flagged"
+          "labels": [
+            "area: ai",
+            "P1",
+            "req: AI drafting"
+          ],
+          "body": "Suggest prior approved answers for similar questions and adapt them, without copying blindly.\n\nAcceptance criteria:\n- [ ] Similar past answers shown with their grant and date\n- [ ] Adapted answers still cite current approved facts; stale numbers flagged",
+          "milestone": "Later"
         },
         {
           "title": "Usage limits and cost logging for drafting",
-          "labels": ["area: ai", "area: ops", "P1"],
-          "body": "Track tokens and cost per organization and rate-limit drafting.\n\nAcceptance criteria:\n- [ ] Per-organization daily limit with a clear message when reached\n- [ ] Usage visible in Settings"
+          "labels": [
+            "area: ai",
+            "area: ops",
+            "P1",
+            "req: AI drafting"
+          ],
+          "body": "Track tokens and cost per organization and rate-limit drafting.\n\nAcceptance criteria:\n- [ ] Per-organization daily limit with a clear message when reached\n- [ ] Usage visible in Settings",
+          "milestone": "Later"
         }
       ]
     },
     {
       "key": "knowledge",
       "title": "Epic: Knowledge base documents",
-      "milestone": "M3 · Documents & QuickBooks",
-      "labels": ["area: knowledge", "P1"],
+      "milestone": "Later",
+      "labels": [
+        "area: knowledge",
+        "P1"
+      ],
       "summary": "Past applications and reports are a list with no files, and the style profile is static. Store real documents and turn them into reviewable facts and a style profile.",
       "issues": [
         {
           "title": "Upload past applications and reports",
-          "labels": ["area: knowledge", "P1"],
-          "body": "Upload PDF/DOCX files against `PastDocument` records.\n\nAcceptance criteria:\n- [ ] File storage scoped to the organization\n- [ ] Preview and download from the knowledge base\n- [ ] Size/type limits enforced"
+          "labels": [
+            "area: knowledge",
+            "P1",
+            "req: knowledge base"
+          ],
+          "body": "Upload PDF/DOCX files against `PastDocument` records.\n\nAcceptance criteria:\n- [ ] File storage scoped to the organization\n- [ ] Preview and download from the knowledge base\n- [ ] Size/type limits enforced",
+          "milestone": "Later"
         },
         {
           "title": "Extract candidate facts from uploaded documents",
-          "labels": ["area: knowledge", "area: ai", "P1"],
-          "body": "Pull mission, program, beneficiary and outcome statements from uploads into facts with `status: pending` and a `source` link.\n\nAcceptance criteria:\n- [ ] Extracted facts never auto-approved\n- [ ] Each fact links back to the document and page\n- [ ] Duplicates of existing facts flagged"
+          "labels": [
+            "area: knowledge",
+            "area: ai",
+            "P1",
+            "req: knowledge base"
+          ],
+          "body": "Pull mission, program, beneficiary and outcome statements from uploads into facts with `status: pending` and a `source` link.\n\nAcceptance criteria:\n- [ ] Extracted facts never auto-approved\n- [ ] Each fact links back to the document and page\n- [ ] Duplicates of existing facts flagged",
+          "milestone": "Later"
         },
         {
           "title": "Build a writing style profile from approved examples",
-          "labels": ["area: knowledge", "area: ai", "P1"],
-          "body": "Replace the static style profile with one derived from documents staff mark as good examples.\n\nAcceptance criteria:\n- [ ] Staff choose which documents count as examples\n- [ ] Profile is viewable and editable in the knowledge base"
+          "labels": [
+            "area: knowledge",
+            "area: ai",
+            "P1",
+            "req: knowledge base"
+          ],
+          "body": "Replace the static style profile with one derived from documents staff mark as good examples.\n\nAcceptance criteria:\n- [ ] Staff choose which documents count as examples\n- [ ] Profile is viewable and editable in the knowledge base",
+          "milestone": "Later"
         }
       ]
     },
     {
       "key": "finance",
       "title": "Epic: QuickBooks & expenditure audit",
-      "milestone": "M3 · Documents & QuickBooks",
-      "labels": ["area: finance", "P1"],
+      "milestone": "Later",
+      "labels": [
+        "area: finance",
+        "P1"
+      ],
       "summary": "Transactions come from CSV only. Connect QuickBooks Online and keep a full history of expenditure changes.",
       "issues": [
         {
           "title": "Connect QuickBooks Online",
-          "labels": ["area: finance", "P1"],
-          "body": "OAuth connection to QuickBooks Online from Settings.\n\nAcceptance criteria:\n- [ ] Connect, reconnect and disconnect\n- [ ] Tokens stored encrypted and refreshed automatically\n- [ ] Works against the QuickBooks sandbox in dev"
+          "labels": [
+            "area: finance",
+            "P1",
+            "req: accounting"
+          ],
+          "body": "OAuth connection to QuickBooks Online from Settings.\n\nAcceptance criteria:\n- [ ] Connect, reconnect and disconnect\n- [ ] Tokens stored encrypted and refreshed automatically\n- [ ] Works against the QuickBooks sandbox in dev",
+          "milestone": "Later"
         },
         {
           "title": "Sync QuickBooks transactions and map accounts to categories",
-          "labels": ["area: finance", "P1"],
-          "body": "Incremental sync of expenses into `Transaction`, with a saved mapping from QuickBooks accounts/classes to grant spending categories.\n\nAcceptance criteria:\n- [ ] Re-sync never duplicates or overwrites manual allocations\n- [ ] Unmapped accounts land in the review queue"
+          "labels": [
+            "area: finance",
+            "P1",
+            "req: accounting"
+          ],
+          "body": "Incremental sync of expenses into `Transaction`, with a saved mapping from QuickBooks accounts/classes to grant spending categories.\n\nAcceptance criteria:\n- [ ] Re-sync never duplicates or overwrites manual allocations\n- [ ] Unmapped accounts land in the review queue",
+          "milestone": "Later"
         },
         {
           "title": "Audit trail for expenditure changes and approvals",
-          "labels": ["area: finance", "P2"],
-          "body": "Record who changed an allocation, category or approval, when, and the before/after values.\n\nAcceptance criteria:\n- [ ] History panel in the allocation drawer\n- [ ] Audit log exportable per grant\n- [ ] Entries are append-only"
+          "labels": [
+            "area: finance",
+            "P2",
+            "req: accounting"
+          ],
+          "body": "Record who changed an allocation, category or approval, when, and the before/after values.\n\nAcceptance criteria:\n- [ ] History panel in the allocation drawer\n- [ ] Audit log exportable per grant\n- [ ] Entries are append-only",
+          "milestone": "Later"
         }
       ]
     },
     {
       "key": "reports",
       "title": "Epic: Reports, exports & alerts",
-      "milestone": "M4 · Reports & automation",
-      "labels": ["area: reports", "P2"],
+      "milestone": "Later",
+      "labels": [
+        "area: reports",
+        "P2"
+      ],
       "summary": "Reports export as CSV and alerts are in-app only. Add funder-ready exports, auto-drafted reports and email alerts.",
       "issues": [
         {
           "title": "Export applications to DOCX and PDF",
-          "labels": ["area: reports", "P2"],
-          "body": "Export a grant's approved answers in question order, with word counts, to DOCX and PDF.\n\nAcceptance criteria:\n- [ ] Per-funder template option (headings, fonts, cover page)\n- [ ] Export blocked or warned when validation finds unanswered questions or over-limit answers"
+          "labels": [
+            "area: reports",
+            "P2",
+            "req: AI drafting"
+          ],
+          "body": "Export a grant's approved answers in question order, with word counts, to DOCX and PDF.\n\nAcceptance criteria:\n- [ ] Per-funder template option (headings, fonts, cover page)\n- [ ] Export blocked or warned when validation finds unanswered questions or over-limit answers",
+          "milestone": "Later"
         },
         {
           "title": "PDF expenditure report per grant",
-          "labels": ["area: reports", "P1"],
-          "body": "Add a PDF alongside the existing CSV in `web/src/lib/report.ts`: budget vs. actual by category for the grant's own reporting period.\n\nAcceptance criteria:\n- [ ] Matches the figures on the grant's budget tab\n- [ ] Includes the reporting period and generated date"
+          "labels": [
+            "area: reports",
+            "P1",
+            "req: dashboards & reports"
+          ],
+          "body": "Add a PDF alongside the existing CSV in `web/src/lib/report.ts`: budget vs. actual by category for the grant's own reporting period.\n\nAcceptance criteria:\n- [ ] Matches the figures on the grant's budget tab\n- [ ] Includes the reporting period and generated date",
+          "milestone": "Later"
         },
         {
           "title": "Auto-draft narrative and financial reports before deadlines",
-          "labels": ["area: reports", "area: ai", "P2"],
-          "body": "When a report deadline is near, draft the narrative from approved facts and the financial section from grant spending.\n\nAcceptance criteria:\n- [ ] Drafts created N days before the deadline (configurable)\n- [ ] Same grounding and citation rules as application drafting"
+          "labels": [
+            "area: reports",
+            "area: ai",
+            "P2",
+            "req: dashboards & reports"
+          ],
+          "body": "When a report deadline is near, draft the narrative from approved facts and the financial section from grant spending.\n\nAcceptance criteria:\n- [ ] Drafts created N days before the deadline (configurable)\n- [ ] Same grounding and citation rules as application drafting",
+          "milestone": "Later"
         },
         {
           "title": "Email alerts for deadlines and projected overruns",
-          "labels": ["area: reports", "P2"],
-          "body": "Email the right people about upcoming deadlines (`web/src/lib/deadlines.ts`) and categories projected to exceed budget.\n\nAcceptance criteria:\n- [ ] Per-user notification settings\n- [ ] Weekly digest option\n- [ ] Alerts link straight to the grant"
+          "labels": [
+            "area: reports",
+            "P2",
+            "req: dashboards & reports"
+          ],
+          "body": "Email the right people about upcoming deadlines (`web/src/lib/deadlines.ts`) and categories projected to exceed budget.\n\nAcceptance criteria:\n- [ ] Per-user notification settings\n- [ ] Weekly digest option\n- [ ] Alerts link straight to the grant",
+          "milestone": "Later"
         }
       ]
     },
     {
       "key": "ops",
       "title": "Epic: Quality & operations",
-      "milestone": "M1 · Backend & accounts",
-      "labels": ["area: ops", "P1"],
+      "milestone": "Later",
+      "labels": [
+        "area: ops",
+        "P1"
+      ],
       "summary": "CI runs type-check, lint, unit tests and build. Add end-to-end coverage, monitoring and an accessibility pass.",
       "issues": [
         {
           "title": "End-to-end tests for core flows",
-          "labels": ["area: ops", "P1"],
-          "body": "Playwright tests in CI for: create grant → add questions → draft and approve answers; import CSV → allocate → see budget flags; approve a fact.\n\nAcceptance criteria:\n- [ ] Runs on every PR\n- [ ] Traces uploaded on failure"
+          "labels": [
+            "area: ops",
+            "P1"
+          ],
+          "body": "Playwright tests in CI for: create grant → add questions → draft and approve answers; import CSV → allocate → see budget flags; approve a fact.\n\nAcceptance criteria:\n- [ ] Runs on every PR\n- [ ] Traces uploaded on failure",
+          "milestone": "Phase 4 · Testing & demo"
         },
         {
           "title": "Error monitoring for web and API",
-          "labels": ["area: ops", "P1"],
-          "body": "Add error reporting with source maps and release tagging.\n\nAcceptance criteria:\n- [ ] Frontend and API errors reported with the deployed commit (`version.txt`)\n- [ ] Alert on new errors"
+          "labels": [
+            "area: ops",
+            "P1"
+          ],
+          "body": "Add error reporting with source maps and release tagging.\n\nAcceptance criteria:\n- [ ] Frontend and API errors reported with the deployed commit (`version.txt`)\n- [ ] Alert on new errors",
+          "milestone": "Later"
         },
         {
           "title": "Accessibility audit and fixes",
-          "labels": ["area: ops", "accessibility", "P1"],
-          "body": "Audit keyboard navigation, focus management in drawers/modals, contrast and screen-reader labels.\n\nAcceptance criteria:\n- [ ] Automated axe checks in the E2E suite\n- [ ] Drawers and modals trap and restore focus"
+          "labels": [
+            "area: ops",
+            "accessibility",
+            "P1"
+          ],
+          "body": "Audit keyboard navigation, focus management in drawers/modals, contrast and screen-reader labels.\n\nAcceptance criteria:\n- [ ] Automated axe checks in the E2E suite\n- [ ] Drawers and modals trap and restore focus",
+          "milestone": "Later"
+        }
+      ]
+    },
+    {
+      "key": "integration",
+      "title": "Epic: Integration & demo",
+      "milestone": "Phase 3 · Integration",
+      "labels": [
+        "P0"
+      ],
+      "summary": "Connect the AI application workflow and the financial tracking workflow through the shared grant detail page, then demo both end to end.",
+      "issues": [
+        {
+          "title": "Shared grant detail page on the live API",
+          "labels": [
+            "area: backend",
+            "P0",
+            "req: grant setup"
+          ],
+          "body": "Wire the grant record page (`web/src/features/grants/GrantRecordPage.tsx` and its tabs) to the API so one page shows the drafted application and the grant's spending.\n\nAcceptance criteria:\n- [ ] Application tab drafts, edits and approves answers through the drafting service\n- [ ] Budget tab shows budget vs. actual and compliance flags from the finance API\n- [ ] Both read the same grant configuration (questions, word limits, categories, funding period)",
+          "milestone": "Phase 3 · Integration"
+        },
+        {
+          "title": "Demo: fact-grounded application and a flagged spending violation",
+          "labels": [
+            "area: ops",
+            "P0"
+          ],
+          "milestone": "Phase 4 · Testing & demo",
+          "body": "A repeatable demo on seeded data.\n\nAcceptance criteria:\n- [ ] Seed scenario: a grant with questions and word limits, approved and unapproved facts, and transactions including one in an unauthorized category and one that exceeds a category budget\n- [ ] Draft the application: every sentence cites an approved fact, a gap is reported as missing, word limits hold\n- [ ] Import the transactions: the violation is flagged on the grant detail page\n- [ ] Demo script in `docs/demo.md`"
         }
       ]
     }
-  ]
+  ],
+  "people": {
+    "chris": "noddle-Cake",
+    "sam": null
+  }
 }
