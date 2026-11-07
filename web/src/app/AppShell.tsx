@@ -1,26 +1,53 @@
 import clsx from 'clsx'
-import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, FileBarChart2, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { todayISO } from '@grantit/shared/format'
+import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { ROLE_LABEL, ROLE_SUMMARY } from '@grantit/shared/permissions'
+import { workspaceOf } from '@grantit/shared/workspaces'
+import { WORKSPACES } from '@/lib/labels'
 import { useStore } from '@/store'
 import { Logo } from '@/components/Logo'
 import { Avatar } from '@/components/ui'
 
-const NAV = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/grants', label: 'Grants', icon: HandCoins },
-  { to: '/knowledge', label: 'Knowledge base', icon: BookOpenText },
-  { to: '/transactions', label: 'Transactions', icon: Receipt },
-  { to: '/reports', label: 'Reports', icon: FileBarChart2 },
-  { to: '/team', label: 'Team & roles', icon: Users },
+// Two workspaces: finding and applying for funding, and managing money that was awarded.
+const NAV: { heading?: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
+  { items: [{ to: '/', label: 'Home', icon: Home, end: true }] },
+  {
+    heading: WORKSPACES.apply.label,
+    items: [
+      { to: '/apply', label: 'Opportunities', icon: Compass, end: true },
+      { to: '/apply/applications', label: 'Applications', icon: FileText },
+      { to: '/apply/knowledge', label: 'Knowledge base', icon: BookOpenText },
+    ],
+  },
+  {
+    heading: WORKSPACES.funds.label,
+    items: [
+      { to: '/funds', label: 'Funded grants', icon: HandCoins, end: true },
+      { to: '/funds/spending', label: 'Spending', icon: Receipt },
+      { to: '/funds/reports', label: 'Reports', icon: FileBarChart2 },
+    ],
+  },
+  { items: [{ to: '/team', label: 'Team & roles', icon: Users }] },
 ]
 
 function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed: boolean; onToggle: () => void; mobileOpen: boolean; onCloseMobile: () => void }) {
-  const { state, flags } = useStore()
+  const { state, flags, opportunities, dismissedOpportunities } = useStore()
+  const { pathname } = useLocation()
   const pendingFacts = state.facts.filter((f) => f.status === 'pending').length
   const flagged = [...flags.values()].filter((f) => f.length).length
-  const badges: Record<string, number> = { '/knowledge': pendingFacts, '/transactions': flagged }
+  const recommended = useMemo(
+    () => recommendOpportunities(opportunities, state.facts, state.grants, { today: todayISO(), dismissed: dismissedOpportunities }).length,
+    [opportunities, state.facts, state.grants, dismissedOpportunities],
+  )
+  const badges: Record<string, number> = { '/apply': recommended, '/apply/knowledge': pendingFacts, '/funds/spending': flagged }
+
+  // A grant's record page belongs to the workspace for its stage, so highlight that workspace's list.
+  const grantId = matchPath('/grants/:id', pathname)?.params.id
+  const recordGrant = grantId ? state.grants.find((g) => g.id === grantId) : undefined
+  const activeOverride = recordGrant ? WORKSPACES[workspaceOf(recordGrant.stage)].home : undefined
 
   return (
     <>
@@ -35,8 +62,17 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
         <div className="mb-6 px-4">
           <Logo collapsed={collapsed} />
         </div>
-        <ul className="flex-1 space-y-0.5 px-2.5">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+        <div className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-2.5">
+          {NAV.map((group, gi) => (
+          <div key={group.heading ?? gi}>
+          {group.heading &&
+            (collapsed ? (
+              <div className="mx-3 mb-2 border-t border-white/10" />
+            ) : (
+              <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#7f95a8]">{group.heading}</div>
+            ))}
+          <ul className="space-y-0.5">
+          {group.items.map(({ to, label, icon: Icon, end }) => (
             <li key={to}>
               <NavLink
                 to={to}
@@ -46,13 +82,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
                 className={({ isActive }) =>
                   clsx(
                     'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-colors',
-                    isActive ? 'bg-white/12 text-white' : 'text-[#b6c7d6] hover:bg-white/6 hover:text-white',
+                    isActive || to === activeOverride ? 'bg-white/12 text-white' : 'text-[#b6c7d6] hover:bg-white/6 hover:text-white',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-brand" />}
+                    {(isActive || to === activeOverride) && <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r bg-brand" />}
                     <Icon size={18} strokeWidth={1.8} className="shrink-0" />
                     {!collapsed && <span className="flex-1 truncate">{label}</span>}
                     {badges[to] > 0 &&
@@ -66,7 +102,10 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
               </NavLink>
             </li>
           ))}
-        </ul>
+          </ul>
+          </div>
+          ))}
+        </div>
         <div className="px-2.5">
           <NavLink
             to="/settings"
@@ -142,7 +181,7 @@ function GlobalSearch() {
   const results = term
     ? [
         ...state.grants.filter((g) => (g.name + g.funder).toLowerCase().includes(term)).map((g) => ({ kind: 'Grant', label: g.name, sub: g.funder, to: `/grants/${g.id}` })),
-        ...state.facts.filter((f) => (f.title + f.content).toLowerCase().includes(term)).map((f) => ({ kind: 'Fact', label: f.title, sub: f.content, to: `/knowledge?fact=${f.id}` })),
+        ...state.facts.filter((f) => (f.title + f.content).toLowerCase().includes(term)).map((f) => ({ kind: 'Fact', label: f.title, sub: f.content, to: `/apply/knowledge?fact=${f.id}` })),
       ].slice(0, 7)
     : []
 

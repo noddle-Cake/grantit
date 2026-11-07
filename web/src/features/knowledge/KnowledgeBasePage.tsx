@@ -53,6 +53,7 @@ export default function KnowledgeBase() {
   return (
     <>
       <PageHeader
+        eyebrow="Find & apply"
         title="Knowledge base"
         subtitle="The single source of truth for applications. Only approved facts are used in drafts."
         actions={can(me.role, 'fact:edit') && <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>}

@@ -104,7 +104,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
               {citedFacts.map((f) => (
                 <Link
                   key={f.id}
-                  to={`/knowledge?fact=${f.id}`}
+                  to={`/apply/knowledge?fact=${f.id}`}
                   title={f.content}
                   className={clsx(
                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs hover:shadow-sm',
@@ -127,7 +127,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
                 <div className="flex-1">
                   <span className="font-medium text-slate">Missing information — not invented.</span>{' '}
                   <span className="text-slate-2">No approved facts cover: {q.missing.join(', ')}.</span>{' '}
-                  <Link to={`/knowledge?new=1&hint=${encodeURIComponent(q.missing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
+                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(q.missing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
                 </div>
               </div>
             )}
@@ -137,7 +137,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
                 <div className="text-slate-2">
                   Related facts awaiting approval were left out:{' '}
                   {blockedFacts.map((f, i) => (
-                    <span key={f!.id}>{i > 0 && ', '}<Link className="font-medium text-link hover:underline" to={`/knowledge?fact=${f!.id}`}>{f!.title}</Link></span>
+                    <span key={f!.id}>{i > 0 && ', '}<Link className="font-medium text-link hover:underline" to={`/apply/knowledge?fact=${f!.id}`}>{f!.title}</Link></span>
                   ))}
                 </div>
               </div>

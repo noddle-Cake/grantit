@@ -1,15 +1,14 @@
 import clsx from 'clsx'
-import { CalendarClock, Columns3, LayoutGrid, List, Plus, Search } from 'lucide-react'
+import { CalendarClock, Columns3, LayoutGrid, List, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { NewGrantModal } from './NewGrantModal'
 import { stageMeta, STAGES } from '@/lib/labels'
-import { Avatar, Button, Card, Meter, PageHeader, Pill, Segmented } from '@/components/ui'
+import { Avatar, Card, Meter, Pill, Segmented } from '@/components/ui'
 import { computeFinancials } from '@grantit/shared/finance'
 import { daysUntil, fmtDate, money, relativeDay } from '@grantit/shared/format'
-import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
+import { WORKSPACE_STAGES, type Workspace } from '@grantit/shared/workspaces'
 
 type View = 'table' | 'board' | 'cards'
 
@@ -29,39 +28,52 @@ function DeadlineCell({ g }: { g: Grant }) {
   )
 }
 
-export default function Grants() {
-  const { state, me } = useStore()
+function AnswersCell({ g }: { g: Grant }) {
+  if (!g.questions.length) return <span className="text-xs text-slate-3">No questions yet</span>
+  const answered = g.questions.filter((q) => q.answer.trim()).length
+  const approved = g.questions.filter((q) => q.status === 'approved').length
+  return (
+    <>
+      <Meter value={answered} max={g.questions.length} height={6} />
+      <div className="mt-1 text-xs tabular-nums text-slate-3">
+        {answered}/{g.questions.length} answered · {approved} approved
+      </div>
+    </>
+  )
+}
+
+/**
+ * The grants in one workspace: the application pipeline (apply) or awarded grants (funds),
+ * as a table, board or cards. Pages supply their own header.
+ */
+export function GrantList({ scope }: { scope: Workspace }) {
+  const { state } = useStore()
   const [params, setParams] = useSearchParams()
-  const view = (params.get('view') as View) ?? 'table'
+  const view = (params.get('view') as View) ?? (scope === 'apply' ? 'board' : 'table')
   const [q, setQ] = useState('')
   const [stage, setStage] = useState<string>('all')
-  const [newOpen, setNewOpen] = useState(false)
+  const stages = STAGES.filter((s) => WORKSPACE_STAGES[scope].includes(s.id))
 
   const rows = useMemo(
     () =>
       state.grants
+        .filter((g) => WORKSPACE_STAGES[scope].includes(g.stage))
         .filter((g) => stage === 'all' || g.stage === stage)
         .filter((g) => (g.name + g.funder).toLowerCase().includes(q.toLowerCase()))
         .map((g) => ({ g, f: computeFinancials(g, state.transactions) })),
-    [state.grants, state.transactions, q, stage],
+    [state.grants, state.transactions, q, stage, scope],
   )
   const owner = (id: string) => state.users.find((u) => u.id === id)
 
   return (
     <>
-      <PageHeader
-        title="Grants"
-        subtitle={`${state.grants.length} records · each with its own questions, budget, and funding period`}
-        actions={can(me.role, 'grant:configure') && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Create grant</Button>}
-      />
-
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants or funders" className="h-9 w-64 rounded-[3px] border border-line bg-white pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {[{ id: 'all', label: 'All' }, ...STAGES].map((s) => (
+          {[{ id: 'all', label: 'All' }, ...stages].map((s) => (
             <button
               key={s.id}
               onClick={() => setStage(s.id)}
@@ -74,7 +86,12 @@ export default function Grants() {
         <div className="ml-auto">
           <Segmented<View>
             value={view}
-            onChange={(v) => setParams({ view: v })}
+            onChange={(v) =>
+              setParams((p) => {
+                p.set('view', v)
+                return p
+              })
+            }
             options={[
               { id: 'table', label: <><List size={14} /> Table</> },
               { id: 'board', label: <><Columns3 size={14} /> Board</> },
@@ -92,9 +109,9 @@ export default function Grants() {
                 <tr className="border-b border-line-2">
                   <th className="px-5 py-3">Grant</th>
                   <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Funding period</th>
-                  <th className="px-4 py-3 w-48">Spent</th>
+                  <th className="px-4 py-3 text-right">{scope === 'apply' ? 'Requested' : 'Amount'}</th>
+                  {scope === 'funds' && <th className="px-4 py-3">Funding period</th>}
+                  <th className="px-4 py-3 w-48">{scope === 'apply' ? 'Application' : 'Spent'}</th>
                   <th className="px-4 py-3">Next deadline</th>
                   <th className="px-4 py-3">Owner</th>
                 </tr>
@@ -113,9 +130,13 @@ export default function Grants() {
                     </td>
                     <td className="px-4 py-3"><Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill></td>
                     <td className="px-4 py-3 text-right tabular-nums">{money(g.amount)}</td>
-                    <td className="px-4 py-3 text-slate-2">{fmtDate(g.periodStart, { month: 'short', year: 'numeric' })} – {fmtDate(g.periodEnd, { month: 'short', year: 'numeric' })}</td>
+                    {scope === 'funds' && (
+                      <td className="px-4 py-3 text-slate-2">{fmtDate(g.periodStart, { month: 'short', year: 'numeric' })} – {fmtDate(g.periodEnd, { month: 'short', year: 'numeric' })}</td>
+                    )}
                     <td className="px-4 py-3">
-                      {f.budget > 0 ? (
+                      {scope === 'apply' ? (
+                        <AnswersCell g={g} />
+                      ) : f.budget > 0 ? (
                         <>
                           <Meter value={f.spent} max={f.budget} height={6} />
                           <div className="mt-1 text-xs tabular-nums text-slate-3">{money(f.spent)} of {money(f.budget)}</div>
@@ -143,7 +164,7 @@ export default function Grants() {
 
       {view === 'board' && (
         <div className="scrollbar-thin flex gap-3 overflow-x-auto pb-4">
-          {STAGES.filter((s) => stage === 'all' || s.id === stage).map((s) => {
+          {stages.filter((s) => stage === 'all' || s.id === stage).map((s) => {
             const col = rows.filter((r) => r.g.stage === s.id)
             return (
               <div key={s.id} className="flex w-72 shrink-0 flex-col rounded-lg bg-canvas-2/70">
@@ -191,15 +212,18 @@ export default function Grants() {
                   <span className="font-medium tabular-nums">{money(g.amount)}</span>
                   <span className="text-xs text-slate-3">{fmtDate(g.periodStart, { month: 'short', year: 'numeric' })} – {fmtDate(g.periodEnd, { month: 'short', year: 'numeric' })}</span>
                 </div>
-                {f.spent > 0 && <Meter className="mt-3" value={f.spent} max={f.budget} height={6} />}
+                {scope === 'funds' && f.spent > 0 && <Meter className="mt-3" value={f.spent} max={f.budget} height={6} />}
+                {scope === 'apply' && g.questions.length > 0 && (
+                  <div className="mt-3">
+                    <AnswersCell g={g} />
+                  </div>
+                )}
                 {nextDeadline(g) && <div className="mt-3 flex items-center gap-1.5 text-xs text-slate-2"><CalendarClock size={13} /> {nextDeadline(g)!.label} · {relativeDay(nextDeadline(g)!.date)}</div>}
               </div>
             </Link>
           ))}
         </div>
       )}
-
-      <NewGrantModal open={newOpen} onClose={() => setNewOpen(false)} />
     </>
   )
 }

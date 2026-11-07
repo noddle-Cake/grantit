@@ -21,7 +21,7 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
 const bare = 'w-full min-w-0 bg-transparent text-sm text-slate placeholder:text-slate-3 focus:outline-none'
 
 /** Luma-style "create" sheet: cover, big title, compact property rows. */
-export function NewGrantModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { open: boolean; onClose: () => void; defaultStage?: GrantStage }) {
   const { createGrant, me, notify } = useStore()
   const nav = useNavigate()
   const [year] = useState(() => new Date().getFullYear() + 1)
@@ -32,7 +32,7 @@ export function NewGrantModal({ open, onClose }: { open: boolean; onClose: () =>
   const [start, setStart] = useState(`${year}-01-01`)
   const [end, setEnd] = useState(`${year}-12-31`)
   const [deadline, setDeadline] = useState('')
-  const [stage, setStage] = useState<GrantStage>('prospect')
+  const [stage, setStage] = useState<GrantStage>(defaultStage)
 
   const valid = name.trim() && funder.trim() && Number(amount) > 0 && start < end
 

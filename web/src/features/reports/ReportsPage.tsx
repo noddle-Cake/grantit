@@ -40,6 +40,7 @@ export default function Reports() {
   return (
     <>
       <PageHeader
+        eyebrow="Manage funds"
         title="Reports"
         subtitle="Grant-specific expenditure reports in each funder's reporting period."
         actions={
@@ -117,8 +118,8 @@ export default function Reports() {
             </ol>
             {(grantFlags.length > 0 || unreviewed.length > 0) && (
               <div className="mt-4 space-y-2 border-t border-line-2 pt-4">
-                {grantFlags.length > 0 && <Link to={`/transactions?view=flagged&grant=${grant.id}`} className="block"><StatusPill tone="bad">{grantFlags.length} flagged transactions</StatusPill></Link>}
-                {unreviewed.length > 0 && <Link to={`/transactions?view=unreviewed&grant=${grant.id}`} className="block"><StatusPill tone="warn">{unreviewed.length} awaiting review</StatusPill></Link>}
+                {grantFlags.length > 0 && <Link to={`/funds/spending?view=flagged&grant=${grant.id}`} className="block"><StatusPill tone="bad">{grantFlags.length} flagged transactions</StatusPill></Link>}
+                {unreviewed.length > 0 && <Link to={`/funds/spending?view=unreviewed&grant=${grant.id}`} className="block"><StatusPill tone="warn">{unreviewed.length} awaiting review</StatusPill></Link>}
               </div>
             )}
           </Card>

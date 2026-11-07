@@ -6,7 +6,7 @@ import { ApplicationTab } from './tabs/ApplicationTab'
 import { BudgetTab } from './tabs/BudgetTab'
 import { OverviewTab } from './tabs/OverviewTab'
 import { SetupTab } from './tabs/SetupTab'
-import { factCategoryLabel, stageMeta, STAGES } from '@/lib/labels'
+import { factCategoryLabel, stageMeta, STAGES, workspaceFor } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { EmptyState, Pill, Tabs } from '@/components/ui'
 import { checkApplication } from '@grantit/shared/drafting'
@@ -45,10 +45,15 @@ export default function GrantRecord() {
   const { state, me, updateGrant, notify } = useStore()
   const [params, setParams] = useSearchParams()
   const grant = state.grants.find((g) => g.id === id)
-  const tab = (params.get('tab') as Tab) ?? 'overview'
 
   if (!grant)
-    return <EmptyState icon={<BookOpenText />} title="Grant not found" action={<Link to="/grants" className="text-link">Back to grants</Link>} />
+    return <EmptyState icon={<BookOpenText />} title="Grant not found" action={<Link to="/" className="text-link">Back to home</Link>} />
+
+  // Before award the application comes first; after award, the money does.
+  const workspace = workspaceFor(grant.stage)
+  const funded = workspace.home === '/funds'
+  const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : grant.questions.length ? 'application' : 'overview'
+  const tab = (params.get('tab') as Tab) ?? defaultTab
 
   const owner = state.users.find((u) => u.id === grant.ownerId)
   const check = checkApplication(grant.questions, state.facts)
@@ -57,8 +62,8 @@ export default function GrantRecord() {
 
   return (
     <>
-      <Link to="/grants" className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
-        <ArrowLeft size={14} /> Grants
+      <Link to={workspace.home} className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
+        <ArrowLeft size={14} /> {workspace.label} · {workspace.listLabel}
       </Link>
 
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
@@ -110,18 +115,21 @@ export default function GrantRecord() {
             <Tabs<Tab>
               value={tab}
               onChange={(t) => setParams({ tab: t })}
-              tabs={[
-                { id: 'overview', label: 'Overview' },
-                {
-                  id: 'application',
+              tabs={(() => {
+                const application = {
+                  id: 'application' as const,
                   label: 'Application',
                   badge: grant.questions.length ? (
                     <Pill tone={check.ready ? 'good' : 'neutral'}>{grant.questions.filter((q) => q.status === 'approved').length}/{grant.questions.length}</Pill>
                   ) : undefined,
-                },
-                { id: 'budget', label: 'Budget & spending' },
-                { id: 'setup', label: 'Configuration' },
-              ]}
+                }
+                const budget = { id: 'budget' as const, label: 'Budget & spending' }
+                return [
+                  { id: 'overview' as const, label: 'Overview' },
+                  ...(funded ? [budget, application] : [application, budget]),
+                  { id: 'setup' as const, label: 'Configuration' },
+                ]
+              })()}
             />
           </div>
           <div className="rounded-b-lg border border-line-2 bg-white p-5">
@@ -152,7 +160,7 @@ export default function GrantRecord() {
               {cited.length ? (
                 cited.map((f) => (
                   <li key={f!.id}>
-                    <Link to={`/knowledge?fact=${f!.id}`} className="block px-5 py-2.5 hover:bg-canvas">
+                    <Link to={`/apply/knowledge?fact=${f!.id}`} className="block px-5 py-2.5 hover:bg-canvas">
                       <div className="text-sm text-link">{f!.title}</div>
                       <div className="text-xs text-slate-3">{factCategoryLabel(f!.category)}</div>
                     </Link>

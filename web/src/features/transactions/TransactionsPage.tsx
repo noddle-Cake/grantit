@@ -53,7 +53,8 @@ export default function Transactions() {
   return (
     <>
       <PageHeader
-        title="Transactions"
+        eyebrow="Manage funds"
+        title="Spending"
         subtitle="Assign expenses to grants and approved categories. Compliance checks run automatically."
         actions={can(me.role, 'finance:import') && <Button icon={<Upload size={16} />} onClick={() => setImportOpen(true)}>Import</Button>}
       />

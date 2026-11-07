@@ -111,6 +111,11 @@
       "name": "req: roles & workflow",
       "color": "ededed",
       "description": "Requirements §6 User roles and workflow"
+    },
+    {
+      "name": "area: discovery",
+      "color": "0052cc",
+      "description": "Finding and recommending new funding opportunities"
     }
   ],
   "epics": [
@@ -865,6 +870,49 @@
           ],
           "milestone": "Phase 4 · Testing & demo",
           "body": "A repeatable demo on seeded data.\n\nAcceptance criteria:\n- [ ] Seed scenario: a grant with questions and word limits, approved and unapproved facts, and transactions including one in an unauthorized category and one that exceeds a category budget\n- [ ] Draft the application: every sentence cites an approved fact, a gap is reported as missing, word limits hold\n- [ ] Import the transactions: the violation is flagged on the grant detail page\n- [ ] Demo script in `docs/demo.md`"
+        }
+      ]
+    },
+    {
+      "key": "discovery",
+      "title": "Epic: Find funding",
+      "milestone": "Phase 2 · Parallel build",
+      "labels": [
+        "area: discovery",
+        "P1"
+      ],
+      "summary": "The web app is split into two workspaces: Find & apply (opportunities, applications, knowledge base) and Manage funds (funded grants, spending, reports). Find & apply recommends new opportunities that match the organization’s approved facts. Today the listings are demo data; this epic makes them real.",
+      "issues": [
+        {
+          "title": "Split the web app into Find & apply and Manage funds",
+          "labels": [
+            "area: discovery",
+            "P1"
+          ],
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris",
+          "body": "Two workspaces in the sidebar, each with its own landing page.\n\n- **Find & apply:** Opportunities (recommendations + pipeline), Applications (readiness per application), Knowledge base\n- **Manage funds:** Funded grants, Spending, Reports\n\nAcceptance criteria:\n- [ ] Grants appear in the workspace for their stage (`shared/src/workspaces.ts`)\n- [ ] Grant record pages open on the application before award and on the budget after\n- [ ] Old URLs (/grants, /knowledge, /transactions, /reports) redirect with their query strings\n- [ ] Recommendations ranked against approved facts only, with the facts that back each match"
+        },
+        {
+          "title": "Serve opportunity recommendations from the API",
+          "labels": [
+            "area: discovery",
+            "area: backend",
+            "P1"
+          ],
+          "milestone": "Later",
+          "owner": "chris",
+          "body": "Move recommendations from the browser to the API using `recommendOpportunities` from `@grantit/shared/opportunities`.\n\nAcceptance criteria:\n- [ ] `opportunities` table (not organization-scoped) and per-organization dismissals\n- [ ] `GET /api/opportunities/recommended` ranked against the organization’s approved facts\n- [ ] `POST /api/opportunities/:id/pipeline` creates the prospect grant (`grantFromOpportunity`)\n- [ ] Follows docs/api.md, with tests"
+        },
+        {
+          "title": "Search public grant listings for new opportunities",
+          "labels": [
+            "area: discovery",
+            "P1"
+          ],
+          "milestone": "Later",
+          "owner": "chris",
+          "body": "Replace the demo listings with real ones.\n\nAcceptance criteria:\n- [ ] Pick sources and check their terms of use (e.g. the public Grants.gov search API; state and community-foundation listings)\n- [ ] Scheduled import that maps listings to the `Opportunity` shape, with focus areas normalized to the knowledge-base tags\n- [ ] Expired listings drop out; duplicates across sources merged\n- [ ] Source and link shown on each recommendation"
         }
       ]
     }

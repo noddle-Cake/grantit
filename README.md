@@ -3,6 +3,13 @@
 Grant management for small nonprofits: a verified knowledge base, grounded AI drafting of applications,
 and grant-by-grant expenditure tracking in each funder's own reporting period.
 
+The web app has two workspaces:
+
+- **Find & apply**: opportunities recommended from the organization's approved facts, the application
+  pipeline, each application's readiness, and the knowledge base drafts are grounded in.
+- **Manage funds**: awarded grants, spending checked against each grant's categories in the funder's own
+  period, and reports.
+
 The **web UI MVP** is a fully clickable front end running on demo data stored in the browser. The **API**
 (Hono + Postgres) is being built in phases; see [`docs/roadmap.md`](docs/roadmap.md) and the
 [requirements](docs/requirements.md).
@@ -52,6 +59,8 @@ npm run dev:api        # API on http://127.0.0.1:8787/api (Vite proxies /api to 
 │       ├── finance.ts         Spending per funding period, compliance flags (+ tests)
 │       ├── drafting.ts        DraftResult contract, word limits, validation (+ tests)
 │       ├── permissions.ts     Role × action matrix
+│       ├── workspaces.ts      Which stages belong to Find & apply vs. Manage funds
+│       ├── opportunities.ts   Recommending opportunities from approved facts (+ tests)
 │       ├── deadlines.ts, format.ts
 │       └── seed.ts            Demo organization, grants, and ledger
 ├── api/                       @grantit/api: Hono HTTP API
@@ -64,7 +73,7 @@ npm run dev:api        # API on http://127.0.0.1:8787/api (Vite proxies /api to 
 └── web/                       React app (Vite, TypeScript, Tailwind v4)
     └── src/
         ├── app/               App root, routes (lazy-loaded), shell/navigation
-        ├── features/          One folder per area of the product
+        ├── features/          apply/ and funds/ workspaces, plus grants, knowledge, transactions, reports
         ├── components/        Shared UI: ui/ kit, Logo, timeline, chart
         ├── lib/               UI-only helpers (labels, CSV report export)
         └── store/             App state provider and useStore() hook
