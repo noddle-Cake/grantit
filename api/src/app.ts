@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Db } from './db/client.ts'
 import { organizations } from './db/schema.ts'
-import { errorResponse, handleError, organizationScope, type AppEnv } from './http.ts'
+import { errorResponse, handleError, organizationScope, sessionUser, type AppEnv } from './http.ts'
+import { authRoutes } from './routes/auth.ts'
 import { documentRoutes } from './routes/documents.ts'
 import { factRoutes } from './routes/facts.ts'
 import { grantRoutes } from './routes/grants.ts'
@@ -30,12 +31,16 @@ export function createApp({ db, defaultOrganizationId }: AppOptions) {
     c.set('db', db)
     await next()
   })
-  app.use(
-    organizationScope({
-      defaultOrganizationId,
-      exists: async (id) => Boolean(await db.query.organizations.findFirst({ where: eq(organizations.id, id), columns: { id: true } })),
-    }),
-  )
+  // Sign-in is outside the organization scope: the session picks the organization.
+  app.route('/auth', authRoutes)
+  const scope = organizationScope({
+    defaultOrganizationId,
+    exists: async (id) => Boolean(await db.query.organizations.findFirst({ where: eq(organizations.id, id), columns: { id: true } })),
+    session: (token) => sessionUser(db, token),
+  })
+  for (const path of ['/organization/*', '/users/*', '/documents/*', '/opportunities/*', '/grants/*', '/facts/*', '/transactions/*', '/transaction-imports/*']) {
+    app.use(path, scope)
+  }
 
   app.route('/organization', organizationRoutes)
   app.route('/users', userRoutes)

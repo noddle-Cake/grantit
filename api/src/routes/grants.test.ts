@@ -1,4 +1,4 @@
-import type { DraftResult } from '@grantit/shared/drafting'
+import type { ApplicationCheck, DraftResult } from '@grantit/shared/drafting'
 import type { GrantFinancials } from '@grantit/shared/finance'
 import { todayISO } from '@grantit/shared/format'
 import { seedState } from '@grantit/shared/seed'
@@ -228,6 +228,20 @@ describe.skipIf(!hasTestDb)('grants API', () => {
     it('rejects an inverted range and 404s on a foreign grant', async () => {
       expect((await get('/grants/g-anchor/financials?start=2026-05-01&end=2026-01-01')).status).toBe(400)
       expect((await get('/grants/g-other/financials')).status).toBe(404)
+    })
+  })
+
+  describe('GET /grants/:grantId/check', () => {
+    it('reports application readiness like the review UI', async () => {
+      const res = await get('/grants/g-anchor/check')
+      expect(res.status).toBe(200)
+      const { data: check } = (await res.json()) as { data: ApplicationCheck }
+      expect(check).toMatchObject({ unanswered: 0, overLimit: 0, unapproved: expect.any(Number), unsupported: expect.any(Number) })
+      expect(typeof check.ready).toBe('boolean')
+    })
+
+    it('404s on a foreign grant', async () => {
+      expect((await get('/grants/g-other/check')).status).toBe(404)
     })
   })
 

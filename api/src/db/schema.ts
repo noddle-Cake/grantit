@@ -70,6 +70,20 @@ export const users = pgTable(
   (t) => [index().on(t.organizationId)],
 )
 
+// Bearer-token sessions until real credentials exist: POST /auth/sign-in { userId } issues one.
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text().primaryKey(), // the bearer token itself
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId)],
+)
+
 export const facts = pgTable(
   'facts',
   {
