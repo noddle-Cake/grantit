@@ -1,0 +1,47 @@
+name: Deploy
+
+# Continuous deployment to https://grantit.joseyandco.com (the 5820 home server).
+#
+# 5820 is reachable only through its outbound Cloudflare Tunnel, so GitHub can't push to it. Instead the
+# grantit-autodeploy timer on 5820 checks every 2 minutes for the newest main commit whose CI run passed
+# and deploys it (deploy/autodeploy/, docs/deploy.md). This workflow runs after CI passes on main and waits
+# until the live site reports that commit, so every merge gets a deployment result in GitHub.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  live:
+    name: Live on grantit.joseyandco.com
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: https://grantit.joseyandco.com
+    steps:
+      - name: Wait for 5820 to deploy ${{ github.event.workflow_run.head_sha }}
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # A deploy runs npm ci, the checks and the build on 5820, so allow ~12 minutes.
+          for i in $(seq 1 72); do
+            live=$(curl -fsS --max-time 10 "https://grantit.joseyandco.com/version.txt?ci=$i" | tr -d '[:space:]' || true)
+            if [[ $live =~ ^[0-9a-f]{7,40}$ && $SHA == "$live"* ]]; then
+              echo "Live: $live"
+              exit 0
+            fi
+            echo "Waiting… live version: ${live:0:12}"
+            sleep 10
+          done
+          echo "::error::grantit.joseyandco.com is not serving ${SHA:0:7}. Check on 5820: journalctl -u grantit-autodeploy"
+          exit 1
