@@ -1,9 +1,11 @@
+import { and, asc, eq } from 'drizzle-orm'
 import type { Context, MiddlewareHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { validator } from 'hono/validator'
 import { z } from 'zod'
 import type { Db } from './db/client.ts'
+import { users } from './db/schema.ts'
 
 // Shared HTTP plumbing for every route, implementing docs/api.md.
 
@@ -115,4 +117,28 @@ export function organizationScope(opts: { defaultOrganizationId?: string; exists
     c.set('organizationId', id)
     await next()
   }
+}
+
+/**
+ * The user a write is attributed to (facts' updatedBy/approvedBy, a new grant's ownerId). Until sign-in
+ * exists (#9) it comes from the X-User-Id header, falling back to the organization's first user. Sign-in
+ * will take it from the session instead.
+ */
+export async function actorId(c: Context<AppEnv>): Promise<string> {
+  const db = c.get('db')
+  const organizationId = c.get('organizationId')
+  const header = c.req.header('x-user-id')
+  if (header) {
+    const u = await db.query.users.findFirst({ where: and(eq(users.id, header), eq(users.organizationId, organizationId)), columns: { id: true } })
+    if (!u) throw notFound('User', header)
+    return u.id
+  }
+  const [first] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.organizationId, organizationId))
+    .orderBy(asc(users.createdAt), asc(users.id))
+    .limit(1)
+  if (!first) throw new ApiError('validation_failed', 'Organization has no users to attribute the change to')
+  return first.id
 }
