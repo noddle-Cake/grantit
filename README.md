@@ -28,11 +28,11 @@ npm run dev        # http://localhost:5173
 
 ```
 .
-├── .github/workflows/ci.yml   CI on the self-hosted 5820 runner: checks + build
+├── .github/workflows/ci.yml   CI on GitHub-hosted runners: checks + build
 ├── deploy/                    5820 deploy script and nginx config
 ├── docs/
 │   ├── requirements.md        Functional requirements + build status
-│   └── deploy.md              Hosting, deploys, CI runner
+│   └── deploy.md              Hosting, deploys, CI
 └── web/                       React app (Vite, TypeScript, Tailwind v4)
     └── src/
         ├── app/               App root, routes (lazy-loaded), shell/navigation
@@ -69,5 +69,5 @@ npm run dev        # http://localhost:5173
 ## Deployment
 
 Live at **https://grantit.joseyandco.com**, served from the 5820 home server through the Cloudflare Tunnel.
-CI runs on the self-hosted runner; deploys are `sudo bash ~/srv-setup/31-grantit.sh` on 5820.
+CI runs on GitHub-hosted runners; deploys are `sudo bash ~/srv-setup/31-grantit.sh` on 5820.
 Details in [`docs/deploy.md`](docs/deploy.md).

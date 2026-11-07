@@ -40,20 +40,12 @@ scp deploy/31-grantit.sh chris@100.64.241.102:~/srv-setup/31-grantit.sh
 
 ## CI
 
-`.github/workflows/ci.yml` runs on the ephemeral self-hosted runner (`runs-on: [self-hosted, 5820]`) for every
-pull request and every push to `main`: type-check, lint, unit tests, build, and the built `dist/` as an artifact.
+`.github/workflows/ci.yml` runs on GitHub-hosted runners (`ubuntu-latest`) for every pull request and every
+push to `main`: type-check, lint, unit tests, build, and the built `dist/` as an artifact.
 
-The runner VM cannot reach the host (by design), so CI does not deploy. Deploy after CI is green.
+CI does not deploy: 5820 is reachable only through its outbound tunnel. Deploy after CI is green.
 
-Register this repo's runner once (one instance per private repo):
-
-```bash
-ssh chris@100.64.241.102
-ssh gh-runner
-sudo gh-runner-configure      # repo: noddle-Cake/grantit
-```
-
-**Keep the repo private.** On a public repo, a fork's pull request would run a stranger's code on 5820.
+The 5820 self-hosted runner is not used for this repo. Your host guide allows it only for private repos.
 
 ## Remove
 

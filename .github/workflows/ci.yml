@@ -1,7 +1,6 @@
 name: CI
 
-# Runs on the ephemeral self-hosted runner on 5820 (private repo only; see ~/srv-setup/CLAUDE.md on 5820).
-# The runner VM is isolated from the host, so CI verifies and builds; deploys are
+# Runs on GitHub-hosted runners. CI verifies and builds; deploys are
 # `sudo bash ~/srv-setup/31-grantit.sh` on 5820 (see docs/deploy.md).
 on:
   pull_request:
@@ -19,7 +18,7 @@ permissions:
 jobs:
   web:
     name: Web app
-    runs-on: [self-hosted, 5820]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
