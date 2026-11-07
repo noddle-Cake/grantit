@@ -24,7 +24,7 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
   const soon = daysUntil(o.deadline) <= 30
 
   return (
-    <li className="flex flex-col rounded-xl border border-line-2 bg-white p-4">
+    <li className="flex flex-col rounded-xl border border-line-2 bg-surface p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs text-slate-3">{o.funder}</div>
@@ -77,7 +77,7 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
             icon={<Plus size={14} />}
             onClick={() => {
               const id = addOpportunity(o)
-              notify(`${o.program} added to your pipeline`)
+              notify(`${o.program} added to the pipeline`)
               nav(`/grants/${id}?tab=setup`)
             }}
           >
@@ -85,7 +85,7 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
           </Button>
         )}
         <Button size="sm" variant="ghost" icon={<X size={14} />} onClick={() => dismissOpportunity(o.id)}>
-          Not a fit
+          Dismiss
         </Button>
       </div>
     </li>
@@ -116,7 +116,7 @@ export default function Opportunities() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat icon={<Sparkles size={15} />} label="Recommended" value={recs.length} sub="Open opportunities that fit" />
-        <Stat icon={<Compass size={15} />} label="In your pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
+        <Stat icon={<Compass size={15} />} label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
         <Stat label="Drafting" value={state.grants.filter((g) => g.stage === 'drafting').length} sub="Applications being written" />
         <Stat label="Submitted" value={state.grants.filter((g) => g.stage === 'submitted').length} sub="Awaiting a decision" />
       </div>
@@ -162,7 +162,7 @@ export default function Opportunities() {
         )}
       </Card>
 
-      <h2 className="mb-3 text-base font-semibold text-slate">Your pipeline</h2>
+      <h2 className="mb-3 text-base font-semibold text-slate">Pipeline</h2>
       <GrantList scope="apply" />
 
       <NewGrantModal open={newOpen} onClose={() => setNewOpen(false)} defaultStage="prospect" />

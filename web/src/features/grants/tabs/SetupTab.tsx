@@ -91,7 +91,7 @@ export function SetupTab({ grant }: { grant: Grant }) {
                   value={q.wordLimit}
                   onChange={(e) => set({ questions: draft.questions.map((x) => (x.id === q.id ? { ...x, wordLimit: Number(e.target.value) } : x)) })}
                 />
-                <span className="mt-1 block text-center text-[11px] text-slate-3">word limit</span>
+                <span className="mt-1 block text-center text-[0.6875rem] text-slate-3">word limit</span>
               </div>
               {editable && (
                 <div className="flex flex-col">

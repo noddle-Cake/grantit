@@ -15,7 +15,8 @@
     "lint": "oxlint",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "check": "npm run typecheck && npm run lint && npm run test"
+    "check": "npm run typecheck && npm run lint && npm run contrast && npm run test",
+    "contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@grantit/shared": "*",

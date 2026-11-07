@@ -70,14 +70,14 @@ export function GrantList({ scope }: { scope: Workspace }) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants or funders" className="h-9 w-64 rounded-[3px] border border-line bg-white pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants or funders" className="h-9 w-64 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {[{ id: 'all', label: 'All' }, ...stages].map((s) => (
             <button
               key={s.id}
               onClick={() => setStage(s.id)}
-              className={clsx('rounded-full border px-3 py-1 text-[13px]', stage === s.id ? 'border-obsidian-2 bg-obsidian-2 text-white' : 'border-line-2 bg-white text-slate-2 hover:border-line')}
+              className={clsx('rounded-full border px-3 py-1 text-[0.8125rem]', stage === s.id ? 'border-obsidian-2 bg-obsidian-2 text-white' : 'border-line-2 bg-surface text-slate-2 hover:border-line')}
             >
               {s.label}
             </button>
@@ -173,7 +173,7 @@ export function GrantList({ scope }: { scope: Workspace }) {
                 </div>
                 <div className="flex-1 space-y-2 px-2 pb-2">
                   {col.map(({ g }) => (
-                    <Link key={g.id} to={`/grants/${g.id}`} className="block rounded-lg border border-line-2 bg-white p-3 shadow-[0_1px_2px_rgba(33,51,67,.06)] hover:border-line">
+                    <Link key={g.id} to={`/grants/${g.id}`} className="block rounded-lg border border-line-2 bg-surface p-3 shadow-[0_1px_2px_rgba(33,51,67,.06)] hover:border-line">
                       <div className="flex items-start gap-2.5">
                         <span className={clsx('mt-0.5 h-7 w-7 shrink-0 rounded-lg', `cover-${g.cover}`)} />
                         <div className="min-w-0">
@@ -201,9 +201,9 @@ export function GrantList({ scope }: { scope: Workspace }) {
       {view === 'cards' && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {rows.map(({ g, f }) => (
-            <Link key={g.id} to={`/grants/${g.id}`} className="group overflow-hidden rounded-2xl border border-line-2 bg-white transition hover:-translate-y-0.5 hover:shadow-lg">
+            <Link key={g.id} to={`/grants/${g.id}`} className="group overflow-hidden rounded-2xl border border-line-2 bg-surface transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className={clsx('relative h-24', `cover-${g.cover}`)}>
-                <span className="absolute left-3 top-3"><Pill tone={stageMeta(g.stage).tone} dot className="bg-white/90">{stageMeta(g.stage).label}</Pill></span>
+                <span className="absolute left-3 top-3"><Pill tone={stageMeta(g.stage).tone} dot className="bg-surface/90">{stageMeta(g.stage).label}</Pill></span>
               </div>
               <div className="p-4">
                 <div className="text-xs text-slate-3">{g.funder}</div>

@@ -8,7 +8,7 @@ import { useStore } from '@/store'
 import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
 
 export function FactDrawer({ fact, hint, onClose }: { fact: Fact | null | 'new'; hint?: string; onClose: () => void }) {
-  const { state, me, saveFact, setFactStatus, deleteFact, notify } = useStore()
+  const { state, me, saveFact, setFactStatus, deleteFact, restoreFact, notify } = useStore()
   const isNew = fact === 'new'
   const existing = isNew ? null : fact
   const [category, setCategory] = useState<FactCategory>(existing?.category ?? 'program')
@@ -57,8 +57,9 @@ export function FactDrawer({ fact, hint, onClose }: { fact: Fact | null | 'new';
                 className="ml-auto"
                 icon={<Trash2 size={14} />}
                 onClick={() => {
-                  deleteFact(existing.id)
-                  notify('Fact deleted')
+                  const deleted = existing
+                  deleteFact(deleted.id)
+                  notify(`Deleted “${deleted.title}”`, 'info', { label: 'Undo', run: () => restoreFact(deleted) })
                   onClose()
                 }}
               >

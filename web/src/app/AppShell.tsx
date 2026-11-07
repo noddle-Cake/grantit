@@ -69,7 +69,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
             (collapsed ? (
               <div className="mx-3 mb-2 border-t border-white/10" />
             ) : (
-              <div className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#7f95a8]">{group.heading}</div>
+              <div className="px-3 pb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wider text-rail-muted">{group.heading}</div>
             ))}
           <ul className="space-y-0.5">
           {group.items.map(({ to, label, icon: Icon, end }) => (
@@ -79,10 +79,11 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
                 end={end}
                 onClick={onCloseMobile}
                 title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
                 className={({ isActive }) =>
                   clsx(
-                    'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[14px] transition-colors',
-                    isActive || to === activeOverride ? 'bg-white/12 text-white' : 'text-[#b6c7d6] hover:bg-white/6 hover:text-white',
+                    'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-[0.875rem] transition-colors',
+                    isActive || to === activeOverride ? 'bg-white/12 text-white' : 'text-rail-text hover:bg-white/6 hover:text-white',
                   )
                 }
               >
@@ -95,7 +96,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
                       (collapsed ? (
                         <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" />
                       ) : (
-                        <span className="rounded-full bg-brand px-1.5 text-[11px] font-semibold leading-[18px] text-white">{badges[to]}</span>
+                        <span className="rounded-full bg-accent px-1.5 text-[0.6875rem] font-semibold leading-[1.125rem] text-white">{badges[to]}</span>
                       ))}
                   </>
                 )}
@@ -109,12 +110,13 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
         <div className="px-2.5">
           <NavLink
             to="/settings"
-            className={({ isActive }) => clsx('flex items-center gap-3 rounded-md px-3 py-2.5 text-[14px]', isActive ? 'bg-white/12 text-white' : 'text-[#b6c7d6] hover:bg-white/6 hover:text-white')}
+            aria-label={collapsed ? 'Settings' : undefined}
+            className={({ isActive }) => clsx('flex items-center gap-3 rounded-md px-3 py-2.5 text-[0.875rem]', isActive ? 'bg-white/12 text-white' : 'text-rail-text hover:bg-white/6 hover:text-white')}
           >
             <Settings size={18} strokeWidth={1.8} />
             {!collapsed && 'Settings'}
           </NavLink>
-          <button onClick={onToggle} className="mt-1 hidden w-full items-center gap-3 rounded-md px-3 py-2.5 text-[13px] text-[#b6c7d6] hover:bg-white/6 hover:text-white lg:flex">
+          <button onClick={onToggle} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} aria-expanded={!collapsed} className="mt-1 hidden w-full items-center gap-3 rounded-md px-3 py-2.5 text-[0.8125rem] text-rail-text hover:bg-white/6 hover:text-white lg:flex">
             {collapsed ? <ChevronsRight size={18} /> : <ChevronsLeft size={18} />}
             {!collapsed && 'Collapse'}
           </button>
@@ -139,13 +141,13 @@ function UserMenu() {
       <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-canvas-2">
         <Avatar initials={me.initials} size={30} />
         <div className="hidden text-left leading-tight sm:block">
-          <div className="text-[13px] font-medium text-slate">{me.name}</div>
-          <div className="text-[11px] text-slate-3">{ROLE_LABEL[me.role]}</div>
+          <div className="text-[0.8125rem] font-medium text-slate">{me.name}</div>
+          <div className="text-[0.6875rem] text-slate-3">{ROLE_LABEL[me.role]}</div>
         </div>
         <ChevronDown size={14} className="text-slate-3" />
       </button>
       {open && (
-        <div className="animate-pop-in absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line-2 bg-white shadow-xl">
+        <div className="animate-pop-in absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line-2 bg-surface shadow-xl">
           <div className="border-b border-line-2 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-3">Switch user (demo)</div>
           {state.users.map((u) => (
             <button
@@ -161,7 +163,7 @@ function UserMenu() {
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-medium text-slate">{u.name}</div>
                 <div className="text-xs text-slate-2">{u.title}</div>
-                <div className="mt-0.5 text-[11px] text-slate-3">{ROLE_SUMMARY[u.role]}</div>
+                <div className="mt-0.5 text-[0.6875rem] text-slate-3">{ROLE_SUMMARY[u.role]}</div>
               </div>
               {u.id === me.id && <Check size={16} className="mt-1 text-good" />}
             </button>
@@ -194,10 +196,10 @@ function GlobalSearch() {
         onFocus={() => setFocus(true)}
         onBlur={() => setTimeout(() => setFocus(false), 150)}
         placeholder="Search grants, funders, facts…"
-        className="h-9 w-full rounded-full border border-line-2 bg-canvas pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link focus:bg-white focus:outline-none"
+        className="h-9 w-full rounded-full border border-line-2 bg-canvas pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link focus:bg-surface focus:outline-none"
       />
       {focus && results.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-line-2 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-line-2 bg-surface shadow-xl">
           {results.map((r) => (
             <button
               key={r.to}
@@ -207,7 +209,7 @@ function GlobalSearch() {
               }}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-canvas"
             >
-              <span className="w-10 shrink-0 text-[11px] font-medium uppercase text-slate-3">{r.kind}</span>
+              <span className="w-10 shrink-0 text-[0.6875rem] font-medium uppercase text-slate-3">{r.kind}</span>
               <span className="min-w-0">
                 <span className="block truncate text-sm text-slate">{r.label}</span>
                 <span className="block truncate text-xs text-slate-3">{r.sub}</span>
@@ -221,16 +223,29 @@ function GlobalSearch() {
 }
 
 function Toasts() {
-  const { toasts } = useStore()
+  const { toasts, dismissToast } = useStore()
   const icon = { success: CheckCircle2, info: Info, error: AlertOctagon }
   return (
-    <div className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+    // A polite live region so screen readers announce confirmations without interrupting.
+    <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
       {toasts.map((t) => {
         const I = icon[t.tone ?? 'success']
         return (
           <div key={t.id} className="animate-pop-in flex items-center gap-2 rounded-full bg-obsidian px-4 py-2.5 text-sm text-white shadow-lg">
-            <I size={16} className={t.tone === 'error' ? 'text-[#ff8f96]' : t.tone === 'info' ? 'text-[#7fd3e6]' : 'text-[#5fe0c8]'} />
+            {/* The toast is always dark, so these tints read in both appearances. */}
+            <I size={16} aria-hidden="true" className={t.tone === 'error' ? 'text-[#ff8f96]' : t.tone === 'info' ? 'text-[#7fd3e6]' : 'text-[#5fe0c8]'} />
             {t.message}
+            {t.action && (
+              <button
+                onClick={() => {
+                  t.action!.run()
+                  dismissToast(t.id)
+                }}
+                className="pointer-events-auto -my-1 ml-1 rounded-full px-2.5 py-1 font-semibold text-[#7fd3e6] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-white"
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         )
       })}
@@ -251,13 +266,13 @@ export default function AppShell() {
     <div className="flex h-full">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line-2 bg-white px-4 lg:px-6">
+        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line-2 bg-surface px-4 lg:px-6">
           <button className="rounded p-1.5 text-slate-2 hover:bg-canvas-2 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
             <Menu size={20} />
           </button>
           <GlobalSearch />
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-[13px] text-slate-3 md:inline">{state.org.name}</span>
+            <span className="hidden text-[0.8125rem] text-slate-3 md:inline">{state.org.name}</span>
             <UserMenu />
           </div>
         </header>

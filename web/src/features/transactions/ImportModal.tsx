@@ -78,7 +78,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
   }
 
   return (
-    <Modal open={open} onClose={() => { reset(); onClose() }} width={680}>
+    <Modal open={open} onClose={() => { reset(); onClose() }} width={680} label="Import transactions">
       <div className="flex items-center justify-between border-b border-line-2 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate">Import transactions</h2>
         <button onClick={() => { reset(); onClose() }} aria-label="Close" className="rounded-full p-1.5 text-slate-2 hover:bg-canvas-2"><X size={18} /></button>

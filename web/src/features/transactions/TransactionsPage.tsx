@@ -70,13 +70,13 @@ export default function Transactions() {
             { id: 'unreviewed', label: `Needs review ${counts.unreviewed}` },
           ]}
         />
-        <Select value={grantFilter} onChange={(e) => setParam('grant', e.target.value)} className="!h-9 !w-60 !bg-white">
+        <Select value={grantFilter} onChange={(e) => setParam('grant', e.target.value)} className="!h-9 !w-60 !bg-surface">
           <option value="all">All grants</option>
           {state.grants.filter((g) => g.categories.length).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </Select>
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Vendor, memo, account" className="h-9 w-56 rounded-[3px] border border-line bg-white pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Vendor, memo, account" className="h-9 w-56 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
         </div>
       </div>
 

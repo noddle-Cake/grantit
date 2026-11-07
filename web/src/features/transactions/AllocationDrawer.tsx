@@ -45,7 +45,7 @@ export function AllocationDrawer({ tx, onClose }: { tx: Transaction; onClose: ()
     >
       <div className="rounded-xl bg-canvas p-4">
         <div className="text-xs text-slate-3">{fmtDate(tx.date)} · {tx.account} · {tx.source === 'csv' ? 'CSV import' : 'QuickBooks sample'}</div>
-        <div className="mt-1 text-[15px] font-medium text-slate">{tx.description}</div>
+        <div className="mt-1 text-[0.9375rem] font-medium text-slate">{tx.description}</div>
         <div className="text-sm text-slate-2">{tx.vendor}</div>
         <div className="mt-2 text-2xl font-semibold tabular-nums text-slate">{moneyExact(tx.amount)}</div>
       </div>

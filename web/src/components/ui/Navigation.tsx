@@ -34,8 +34,8 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
           key={o.id}
           onClick={() => onChange(o.id)}
           className={clsx(
-            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-medium transition',
-            value === o.id ? 'bg-white text-slate shadow-sm' : 'text-slate-2 hover:text-slate',
+            'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[0.8125rem] font-medium transition',
+            value === o.id ? 'bg-surface text-slate shadow-sm' : 'text-slate-2 hover:text-slate',
           )}
         >
           {o.label}

@@ -50,11 +50,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const me = state.users.find((u) => u.id === state.currentUserId) ?? state.users[0]
   const flags = useMemo(() => computeFlags(state.grants, state.transactions), [state.grants, state.transactions])
 
-  const notify = useCallback((message: string, tone: Toast['tone'] = 'success') => {
-    const id = uid('toast')
-    setToasts((t) => [...t, { id, message, tone }])
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200)
-  }, [])
+  const dismissToast = useCallback((id: string) => setToasts((t) => t.filter((x) => x.id !== id)), [])
+  const notify = useCallback(
+    (message: string, tone: Toast['tone'] = 'success', action?: Toast['action']) => {
+      const id = uid('toast')
+      setToasts((t) => [...t, { id, message, tone, action }])
+      // Toasts with an action (Undo) stay long enough to reach.
+      setTimeout(() => dismissToast(id), action ? 8000 : 3200)
+    },
+    [dismissToast],
+  )
 
   const updateGrants = (fn: (g: Grant) => Grant, id: string) =>
     setState((s) => ({ ...s, grants: s.grants.map((g) => (g.id === id ? fn(g) : g)) }))
@@ -65,6 +70,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     flags,
     toasts,
     notify,
+    dismissToast,
     setCurrentUser: (id) => setState((s) => ({ ...s, currentUserId: id })),
     resetDemo: () => {
       setState(structuredClone(seedState))
@@ -93,6 +99,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         ),
       })),
     deleteFact: (id) => setState((s) => ({ ...s, facts: s.facts.filter((f) => f.id !== id) })),
+    restoreFact: (fact) => setState((s) => (s.facts.some((f) => f.id === fact.id) ? s : { ...s, facts: [fact, ...s.facts] })),
 
     createGrant: (g) => {
       const id = uid('g')

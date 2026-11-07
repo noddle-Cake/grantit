@@ -68,7 +68,7 @@ export default function GrantRecord() {
 
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
         {/* ── Left: record summary (HubSpot "about" column) ── */}
-        <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-white">
+        <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
           <div className={clsx('h-20', `cover-${grant.cover}`)} />
           <div className="px-5 pb-4 pt-4">
             <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
@@ -81,7 +81,7 @@ export default function GrantRecord() {
                     updateGrant(grant.id, { stage: e.target.value as GrantStage })
                     notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
                   }}
-                  className="h-8 rounded-full border border-line bg-white px-3 text-[13px] font-medium text-slate focus:outline-none"
+                  className="h-8 rounded-full border border-line bg-surface px-3 text-[0.8125rem] font-medium text-slate focus:outline-none"
                 >
                   {STAGES.map((s) => (
                     <option key={s.id} value={s.id}>{s.label}</option>
@@ -111,7 +111,7 @@ export default function GrantRecord() {
 
         {/* ── Middle: tabs ── */}
         <div className="min-w-0">
-          <div className="rounded-t-lg border border-b-0 border-line-2 bg-white px-2">
+          <div className="rounded-t-lg border border-b-0 border-line-2 bg-surface px-2">
             <Tabs<Tab>
               value={tab}
               onChange={(t) => setParams({ tab: t })}
@@ -132,7 +132,7 @@ export default function GrantRecord() {
               })()}
             />
           </div>
-          <div className="rounded-b-lg border border-line-2 bg-white p-5">
+          <div className="rounded-b-lg border border-line-2 bg-surface p-5">
             {tab === 'overview' && <OverviewTab grant={grant} />}
             {tab === 'application' && <ApplicationTab grant={grant} />}
             {tab === 'budget' && <BudgetTab grant={grant} />}
@@ -142,19 +142,19 @@ export default function GrantRecord() {
 
         {/* ── Right: associations ── */}
         <aside className="space-y-4 self-start">
-          <div className="rounded-lg border border-line-2 bg-white">
+          <div className="rounded-lg border border-line-2 bg-surface">
             <div className="px-5 py-3 text-sm font-semibold text-slate">Upcoming deadlines</div>
             <div className="border-t border-line-2 p-5">
               <DeadlineTimeline items={grant.deadlines.map((d) => ({ deadline: d, grant }))} showGrant={false} empty="No deadlines set" />
             </div>
           </div>
-          <div className="rounded-lg border border-line-2 bg-white">
+          <div className="rounded-lg border border-line-2 bg-surface">
             <div className="flex items-center gap-2 px-5 py-3 text-sm font-semibold text-slate"><Scale size={15} /> Funder rules <span className="font-normal text-slate-3">({grant.rules.length})</span></div>
             <ul className="space-y-2 border-t border-line-2 px-5 py-4 text-sm text-slate-2">
               {grant.rules.length ? grant.rules.map((r) => <li key={r} className="flex gap-2"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-3" />{r}</li>) : <li className="text-slate-3">No rules recorded</li>}
             </ul>
           </div>
-          <div className="rounded-lg border border-line-2 bg-white">
+          <div className="rounded-lg border border-line-2 bg-surface">
             <div className="flex items-center gap-2 px-5 py-3 text-sm font-semibold text-slate"><BookOpenText size={15} /> Knowledge used <span className="font-normal text-slate-3">({cited.length})</span></div>
             <ul className="divide-y divide-line-2 border-t border-line-2">
               {cited.length ? (

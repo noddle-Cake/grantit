@@ -51,7 +51,7 @@ export default function Reports() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Select value={grantId} onChange={(e) => { setGrantId(e.target.value); setPIdx(0) }} className="!h-9 !w-72 !bg-white">
+        <Select value={grantId} onChange={(e) => { setGrantId(e.target.value); setPIdx(0) }} className="!h-9 !w-72 !bg-surface">
           {reportable.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </Select>
         <Segmented<string>
