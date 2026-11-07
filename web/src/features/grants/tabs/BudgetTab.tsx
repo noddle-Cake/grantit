@@ -154,7 +154,7 @@ export function BudgetTab({ grant }: { grant: Grant }) {
             })}
           </ul>
         </div>
-        <Link to={`/transactions?grant=${grant.id}`} className="mt-2 inline-block text-sm text-link hover:underline">Review in Transactions →</Link>
+        <Link to={`/funds/spending?grant=${grant.id}`} className="mt-2 inline-block text-sm text-link hover:underline">Review in Spending →</Link>
       </div>
     </div>
   )

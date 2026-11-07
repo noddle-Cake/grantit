@@ -1,4 +1,5 @@
 import type { AnswerStatus, FactCategory, FactStatus, GrantStage } from '@grantit/shared/types'
+import { workspaceOf, type Workspace } from '@grantit/shared/workspaces'
 import type { Tone } from '@/components/ui'
 
 export const STAGES: { id: GrantStage; label: string; tone: Tone }[] = [
@@ -34,3 +35,9 @@ export const ANSWER_STATUS: Record<AnswerStatus, { label: string; tone: Tone }> 
   draft: { label: 'Draft', tone: 'brand' },
   approved: { label: 'Approved', tone: 'good' },
 }
+
+export const WORKSPACES: Record<Workspace, { label: string; home: string; listLabel: string }> = {
+  apply: { label: 'Find & apply', home: '/apply', listLabel: 'Opportunities' },
+  funds: { label: 'Manage funds', home: '/funds', listLabel: 'Funded grants' },
+}
+export const workspaceFor = (stage: GrantStage) => WORKSPACES[workspaceOf(stage)]

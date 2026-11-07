@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { grantFromOpportunity } from '@grantit/shared/opportunities'
+import { demoOpportunities } from '@grantit/shared/opportunities-demo'
 import { seedState } from '@grantit/shared/seed'
 import { computeFlags } from '@grantit/shared/finance'
 import { todayISO, uid } from '@grantit/shared/format'
@@ -6,6 +8,7 @@ import type { AppState, Fact, Grant } from '@grantit/shared/types'
 import { StoreContext, type Store, type Toast } from './context'
 
 const STORAGE_KEY = 'grantit:v1'
+const DISMISSED_KEY = 'grantit:dismissed-opportunities:v1'
 
 function load(): AppState {
   try {
@@ -20,6 +23,21 @@ function load(): AppState {
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(load)
   const [toasts, setToasts] = useState<Toast[]>([])
+  const [dismissedOpportunities, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(DISMISSED_KEY) ?? '[]') as string[]
+    } catch {
+      return []
+    }
+  })
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(dismissedOpportunities))
+    } catch {
+      /* per-browser convenience only */
+    }
+  }, [dismissedOpportunities])
 
   useEffect(() => {
     try {
@@ -48,7 +66,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     toasts,
     notify,
     setCurrentUser: (id) => setState((s) => ({ ...s, currentUserId: id })),
-    resetDemo: () => setState(structuredClone(seedState)),
+    resetDemo: () => {
+      setState(structuredClone(seedState))
+      setDismissed([])
+    },
     setFiscalYearStart: (m) => setState((s) => ({ ...s, org: { ...s.org, fiscalYearStartMonth: m } })),
 
     saveFact: (input) =>
@@ -88,6 +109,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, transactions: s.transactions.map((t) => (t.id === txId ? { ...t, allocations } : t)) })),
     markReviewed: (ids, reviewed = true) =>
       setState((s) => ({ ...s, transactions: s.transactions.map((t) => (ids.includes(t.id) ? { ...t, reviewed } : t)) })),
+
+    opportunities: demoOpportunities,
+    dismissedOpportunities,
+    dismissOpportunity: (id) => setDismissed((d) => (d.includes(id) ? d : [...d, id])),
+    restoreOpportunities: () => setDismissed([]),
+    addOpportunity: (o) => {
+      const id = uid('g')
+      const grant = grantFromOpportunity(o, state.currentUserId, Math.floor(Math.random() * 6))
+      setState((s) => ({ ...s, grants: [{ ...grant, id }, ...s.grants] }))
+      return id
+    },
   }
 
   return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>

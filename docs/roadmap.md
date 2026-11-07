@@ -98,6 +98,12 @@ In parallel: Chris builds the AI application workflow; Sam builds financial trac
 | P1 | Report missing information instead of inventing it | Chris | knowledge base | ai |
 | P0 | Grounding evaluation suite | Chris | AI drafting | ai, ops |
 
+### Find funding
+
+| Priority | Issue | Owner | Requirement | Area |
+|---|---|---|---|---|
+| P1 | Split the web app into Find & apply and Manage funds | Chris |  | discovery |
+
 ## Phase 3 · Integration
 
 Connect both workflows through a shared grant detail page.
@@ -188,3 +194,10 @@ After the demo: accounts and roles, documents, QuickBooks, exports, alerts, and 
 |---|---|---|---|
 | P1 | Error monitoring for web and API |  | ops |
 | P1 | Accessibility audit and fixes |  | ops |
+
+### Find funding
+
+| Priority | Issue | Owner | Requirement | Area |
+|---|---|---|---|---|
+| P1 | Serve opportunity recommendations from the API | Chris |  | discovery, backend |
+| P1 | Search public grant listings for new opportunities | Chris |  | discovery |

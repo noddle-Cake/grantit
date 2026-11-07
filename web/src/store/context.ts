@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { Opportunity } from '@grantit/shared/opportunities'
 import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@grantit/shared/types'
 
 export interface Toast {
@@ -28,6 +29,13 @@ export interface Store {
   importTransactions: (txs: Omit<Transaction, 'id'>[]) => void
   setAllocations: (txId: string, allocations: Allocation[]) => void
   markReviewed: (txIds: string[], reviewed?: boolean) => void
+  // funding opportunities (demo listings until a real search exists)
+  opportunities: Opportunity[]
+  dismissedOpportunities: string[]
+  dismissOpportunity: (id: string) => void
+  restoreOpportunities: () => void
+  /** Creates a prospect grant from the opportunity and returns its id. */
+  addOpportunity: (o: Opportunity) => string
 }
 
 export const StoreContext = createContext<Store | null>(null)

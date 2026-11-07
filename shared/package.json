@@ -11,7 +11,10 @@
     "./permissions": "./src/permissions.ts",
     "./deadlines": "./src/deadlines.ts",
     "./format": "./src/format.ts",
-    "./seed": "./src/seed.ts"
+    "./seed": "./src/seed.ts",
+    "./workspaces": "./src/workspaces.ts",
+    "./opportunities": "./src/opportunities.ts",
+    "./opportunities-demo": "./src/opportunities-demo.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",
