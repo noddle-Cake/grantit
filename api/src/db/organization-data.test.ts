@@ -1,7 +1,7 @@
 import { seedState } from '@grantit/shared/seed'
 import { sql } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { hasTestDb, useTestDb } from '../test/db.ts'
+import { clearData, hasTestDb, useTestDb } from '../test/db.ts'
 import { loadOrganization, replaceOrganization, type OrganizationData } from './organization-data.ts'
 import * as t from './schema.ts'
 import { demoOrganization } from './seed.ts'
@@ -18,7 +18,10 @@ const normalize = (d: OrganizationData) => ({
 
 describe.skipIf(!hasTestDb)('organization data', () => {
   const db = useTestDb()
-  beforeEach(() => replaceOrganization(db, demoOrganization()))
+  beforeEach(async () => {
+    await clearData(db)
+    await replaceOrganization(db, demoOrganization())
+  })
 
   it('round-trips the demo organization exactly', async () => {
     const loaded = await loadOrganization(db, seedState.org.id)

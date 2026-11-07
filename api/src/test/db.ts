@@ -1,5 +1,6 @@
 import { afterAll } from 'vitest'
-import { createDb } from '../db/client.ts'
+import { createDb, type Db } from '../db/client.ts'
+import { organizations } from '../db/schema.ts'
 
 export const hasTestDb = Boolean(process.env.TEST_DATABASE_URL)
 
@@ -9,3 +10,6 @@ export function useTestDb() {
   afterAll(close)
   return db
 }
+
+/** Delete every organization (and, by cascade, everything they own). */
+export const clearData = (db: Db) => db.delete(organizations)
