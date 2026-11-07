@@ -16,34 +16,30 @@ permissions:
   contents: read
 
 jobs:
-  web:
-    name: Web app
+  check:
+    name: Check and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    defaults:
-      run:
-        working-directory: web
     steps:
       - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v6
         with:
-          node-version-file: web/.nvmrc
+          node-version-file: .nvmrc
           cache: npm
-          cache-dependency-path: web/package-lock.json
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Type-check
-        run: npm run typecheck
+      - name: Shared (types, rules, sample data)
+        run: npm run check -w shared
 
-      - name: Lint
-        run: npm run lint
+      - name: API
+        run: npm run check -w api
 
-      - name: Unit tests
-        run: npm test
+      - name: Web
+        run: npm run check -w web
 
-      - name: Build
+      - name: Build web
         run: npm run build
 
       - name: Upload build

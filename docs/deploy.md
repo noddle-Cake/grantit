@@ -26,7 +26,8 @@ On 5820 (needs your sudo password):
 sudo bash ~/srv-setup/31-grantit.sh
 ```
 
-It pulls `main`, runs `npm ci`, `npm run check` (type-check, lint, tests) and `npm run build` as `chris`,
+It pulls `main`, runs `npm ci` at the workspace root, the checks for `shared/` and `web/` (type-check, lint,
+tests) and the web build as `chris`,
 then replaces the site content and restarts the container. A failing check stops the deploy before anything
 is replaced. The first run also creates the container, tunnel ingress and DNS record through
 `04-new-site.sh`.

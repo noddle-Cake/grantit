@@ -4,9 +4,9 @@ import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { Button, Modal } from '@/components/ui'
-import { uid } from '@/lib/format'
+import { uid } from '@grantit/shared/format'
 import { useStore } from '@/store'
-import type { GrantStage } from '@/types'
+import type { GrantStage } from '@grantit/shared/types'
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (

@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FACT_CATEGORIES, FACT_STATUS, factCategoryLabel } from '@/lib/labels'
 import { Avatar, Button, Card, EmptyState, PageHeader, Pill, Segmented, StatusPill } from '@/components/ui'
-import { relativeDay } from '@/lib/format'
-import { can, canApproveFact } from '@/lib/permissions'
+import { relativeDay } from '@grantit/shared/format'
+import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Fact, FactCategory, FactStatus } from '@/types'
+import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
 import { FactDrawer } from './FactDrawer'
 
 type StatusFilter = 'all' | FactStatus

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { seedState } from '@/data/seed'
-import { computeFinancials, computeFlags, fiscalYearFor, periodOptions } from '@/lib/finance'
-import type { Grant, Transaction } from '@/types'
+import { seedState } from './seed.ts'
+import { computeFinancials, computeFlags, fiscalYearFor, periodOptions } from './finance.ts'
+import type { Grant, Transaction } from './types.ts'
 
 const literacy = seedState.grants.find((g) => g.id === 'g-literacy')!
 const flagsFor = (id: string) => (computeFlags(seedState.grants, seedState.transactions).get(id) ?? []).map((f) => f.kind)

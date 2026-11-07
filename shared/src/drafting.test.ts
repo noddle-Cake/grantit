@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { seedState } from '@/data/seed'
-import { checkApplication, draftAnswer, findUnsupportedClaims } from '@/lib/drafting'
-import { wordCount } from '@/lib/format'
-import type { Question } from '@/types'
+import { seedState } from './seed.ts'
+import { checkApplication, draftAnswer, findUnsupportedClaims } from './drafting.ts'
+import { wordCount } from './format.ts'
+import type { Question } from './types.ts'
 
 const facts = seedState.facts
 const approved = new Map(facts.filter((f) => f.status === 'approved').map((f) => [f.id, f]))

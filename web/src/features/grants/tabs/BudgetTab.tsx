@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MonthlySpendChart } from '@/components/MonthlySpendChart'
 import { Button, EmptyState, Meter, Segmented, Stat, StatusPill } from '@/components/ui'
-import { computeFinancials, FLAG_LABEL, inPeriod, periodOptions } from '@/lib/finance'
-import { fmtDate, money, moneyExact, pct } from '@/lib/format'
+import { computeFinancials, FLAG_LABEL, inPeriod, periodOptions } from '@grantit/shared/finance'
+import { fmtDate, money, moneyExact, pct } from '@grantit/shared/format'
 import { downloadFile, expenditureReportCsv } from '@/lib/report'
 import { useStore } from '@/store'
-import type { Grant } from '@/types'
+import type { Grant } from '@grantit/shared/types'
 
 export function BudgetTab({ grant }: { grant: Grant }) {
   const { state, flags } = useStore()

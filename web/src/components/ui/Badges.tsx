@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { AlertTriangle, CheckCircle2, AlertOctagon, Info } from 'lucide-react'
 import { type ReactNode } from 'react'
-import { parseDate } from '@/lib/format'
+import { parseDate } from '@grantit/shared/format'
 
 // ─── Chips & badges (Luma-like pills) ───────────────────────────────────────
 

@@ -2,11 +2,11 @@ import clsx from 'clsx'
 import { AlertOctagon, CheckCheck, Lock, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Drawer, Field, Input, Select } from '@/components/ui'
-import { FLAG_LABEL } from '@/lib/finance'
-import { fmtDate, moneyExact } from '@/lib/format'
-import { can } from '@/lib/permissions'
+import { FLAG_LABEL } from '@grantit/shared/finance'
+import { fmtDate, moneyExact } from '@grantit/shared/format'
+import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Allocation, Transaction } from '@/types'
+import type { Allocation, Transaction } from '@grantit/shared/types'
 
 export function AllocationDrawer({ tx, onClose }: { tx: Transaction; onClose: () => void }) {
   const { state, flags, me, setAllocations, markReviewed, notify } = useStore()

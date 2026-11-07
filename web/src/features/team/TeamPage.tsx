@@ -1,8 +1,8 @@
 import { Check, Minus } from 'lucide-react'
 import { Avatar, Card, PageHeader, Pill } from '@/components/ui'
-import { can, ROLE_LABEL, ROLE_SUMMARY, type Action } from '@/lib/permissions'
+import { can, ROLE_LABEL, ROLE_SUMMARY, type Action } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Role } from '@/types'
+import type { Role } from '@grantit/shared/types'
 
 const ACTIONS: { id: Action; label: string }[] = [
   { id: 'grant:configure', label: 'Configure grants, questions & budgets' },

@@ -133,6 +133,7 @@ export interface TxFlag {
 // Organization -----------------------------------------------------------------
 
 export interface Organization {
+  id: string
   name: string
   ein: string
   fiscalYearStartMonth: number // 1-12

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react'
-import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@/types'
+import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@grantit/shared/types'
 
 export interface Toast {
   id: string

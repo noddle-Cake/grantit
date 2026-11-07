@@ -1,0 +1,27 @@
+{
+  "name": "@grantit/api",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Grantit HTTP API",
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/server.ts",
+    "start": "node src/server.ts",
+    "typecheck": "tsc -p .",
+    "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run lint && npm run test"
+  },
+  "dependencies": {
+    "@grantit/shared": "*",
+    "@hono/node-server": "2.1.5",
+    "hono": "4.13.13"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "oxlint": "^1.90.0",
+    "typescript": "~7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

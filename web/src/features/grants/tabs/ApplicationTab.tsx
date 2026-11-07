@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Button, EmptyState, Pill, StatusPill } from '@/components/ui'
-import { checkApplication, draftAnswerAsync, findUnsupportedClaims } from '@/lib/drafting'
-import { wordCount } from '@/lib/format'
-import { can } from '@/lib/permissions'
+import { checkApplication, draftAnswerAsync, findUnsupportedClaims } from '@grantit/shared/drafting'
+import { wordCount } from '@grantit/shared/format'
+import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Grant, Question } from '@/types'
+import type { Grant, Question } from '@grantit/shared/types'
 
 function WordMeter({ count, limit }: { count: number; limit: number }) {
   const over = count > limit
