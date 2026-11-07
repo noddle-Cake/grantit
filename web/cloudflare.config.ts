@@ -2,7 +2,7 @@ import { defineConfig } from "cf/config";
 
 export default defineConfig({
   worker: {
-    name: "tidepath",
+    name: "grantit",
     compatibilityDate: "2026-11-04",
     observability: {
       enabled: true,
@@ -12,6 +12,6 @@ export default defineConfig({
       notFoundHandling: "single-page-application",
     },
     // Production traffic only; Cloudflare creates the DNS record and certificate on deploy.
-    domains: ["tidepath.joseyandco.com"],
+    domains: ["grantit.joseyandco.com"],
   },
 });
