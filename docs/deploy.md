@@ -35,7 +35,7 @@ The script's source of truth is [`deploy/31-grantit.sh`](../deploy/31-grantit.sh
 copy it to 5820:
 
 ```bash
-scp deploy/31-grantit.sh chris@100.64.241.102:~/srv-setup/31-grantit.sh
+scp deploy/31-grantit.sh 5820:~/srv-setup/31-grantit.sh   # 5820: the host's name on your tailnet
 ```
 
 ## CI
