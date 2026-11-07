@@ -17,10 +17,11 @@
   --color-canvas-2: #eaf0f6; /* subtle fills, hover */
   --color-line: #cbd6e2;
   --color-line-2: #dfe3eb;
+  --color-control-line: #74879c;
 
   /* Text */
   --color-slate: #33475b; /* primary text */
-  --color-slate-2: #516f90; /* secondary text */
+  --color-slate-2: #4f6c8c; /* secondary text, including on status fills */
   --color-slate-3: #546b83; /* tertiary text: captions, metadata */
 
   /* Navigation rail and toasts (dark in both appearances) */
@@ -67,6 +68,7 @@
     --color-canvas-2: #1e2f3e;
     --color-line: #34495d;
     --color-line-2: #263848;
+    --color-control-line: #637d96;
 
     --color-slate: #e6edf4;
     --color-slate-2: #b4c5d6;
@@ -102,12 +104,14 @@
     --color-slate-3: var(--color-slate-2);
     --color-line: #8da2b8;
     --color-line-2: #a9bbcc;
+    --color-control-line: #516f90;
   }
 }
 @media (prefers-contrast: more) and (prefers-color-scheme: dark) {
   :root {
     --color-line: #5d7690;
     --color-line-2: #4a6178;
+    --color-control-line: #9fb3c6;
   }
 }
 
@@ -126,6 +130,30 @@
 :root {
   color-scheme: light dark;
 }
+
+.dialog-shell::backdrop {
+  background: color-mix(in srgb, var(--color-obsidian) 45%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+@layer base {
+  button { min-width: 28px; min-height: 28px; }
+}
+
+/* Touch targets include plain HTML fields, icon buttons and checkbox labels. */
+@media (pointer: coarse) {
+  button, input:not([type="checkbox"]):not([type="radio"]), select {
+    min-height: 44px;
+  }
+  button, nav a, label:has(> input[type="checkbox"]), label:has(> input[type="radio"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+button:active:not(:disabled) { filter: brightness(0.95); }
 
 /* Every interactive element shows where keyboard focus is (HIG: Accessibility > Mobility). */
 :focus-visible {

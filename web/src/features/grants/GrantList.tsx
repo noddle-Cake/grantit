@@ -49,7 +49,8 @@ function AnswersCell({ g }: { g: Grant }) {
 export function GrantList({ scope }: { scope: Workspace }) {
   const { state } = useStore()
   const [params, setParams] = useSearchParams()
-  const view = (params.get('view') as View) ?? (scope === 'apply' ? 'board' : 'table')
+  const requestedView = params.get('view')
+  const view: View = ['table', 'board', 'cards'].includes(requestedView ?? '') ? requestedView as View : scope === 'apply' ? 'board' : 'table'
   const [q, setQ] = useState('')
   const [stage, setStage] = useState<string>('all')
   const stages = STAGES.filter((s) => WORKSPACE_STAGES[scope].includes(s.id))
@@ -70,12 +71,13 @@ export function GrantList({ scope }: { scope: Workspace }) {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants or funders" className="h-9 w-64 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+          <input aria-label="Search grants or funders" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search grants or funders" className="h-9 w-64 rounded-[3px] border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {[{ id: 'all', label: 'All' }, ...stages].map((s) => (
             <button
               key={s.id}
+              aria-pressed={stage === s.id}
               onClick={() => setStage(s.id)}
               className={clsx('rounded-full border px-3 py-1 text-[0.8125rem]', stage === s.id ? 'border-obsidian-2 bg-obsidian-2 text-white' : 'border-line-2 bg-surface text-slate-2 hover:border-line')}
             >
@@ -85,6 +87,7 @@ export function GrantList({ scope }: { scope: Workspace }) {
         </div>
         <div className="ml-auto">
           <Segmented<View>
+          label="Grant view"
             value={view}
             onChange={(v) =>
               setParams((p) => {

@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { Building2, CalendarRange, CircleDollarSign, Flag, Shuffle, X } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { Button, Modal } from '@/components/ui'
@@ -10,15 +10,15 @@ import type { GrantStage } from '@grantit/shared/types'
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-canvas px-3.5 py-2.5">
+    <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-center gap-3 rounded-xl bg-canvas px-3.5 py-2.5 sm:grid-cols-[1rem_7rem_minmax(0,1fr)]">
       <span className="text-slate-3">{icon}</span>
-      <span className="w-28 shrink-0 text-[0.8125rem] text-slate-2">{label}</span>
-      <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
+      <span className="text-[0.8125rem] text-slate-2">{label}</span>
+      <div className="col-span-2 flex min-w-0 items-center gap-2 sm:col-span-1">{children}</div>
     </div>
   )
 }
 
-const bare = 'w-full min-w-0 bg-transparent text-sm text-slate placeholder:text-slate-3 focus:outline-none'
+const bare = 'w-full min-w-0 bg-transparent text-sm text-slate placeholder:text-slate-3'
 
 /** Luma-style "create" sheet: cover, big title, compact property rows. */
 export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { open: boolean; onClose: () => void; defaultStage?: GrantStage }) {
@@ -34,7 +34,9 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
   const [deadline, setDeadline] = useState('')
   const [stage, setStage] = useState<GrantStage>(defaultStage)
 
-  const valid = name.trim() && funder.trim() && Number(amount) > 0 && start < end
+  const validationId = useId()
+  const validation = !name.trim() ? 'Enter a grant name.' : !funder.trim() ? 'Enter a funder.' : !Number.isFinite(Number(amount)) || Number(amount) <= 0 ? 'Enter an amount greater than zero.' : !start || !end || start >= end ? 'Choose a funding end date after the start date.' : ''
+  const valid = !validation
 
   function submit() {
     if (!valid) return
@@ -60,11 +62,11 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
 
   return (
     <Modal open={open} onClose={onClose} label="New grant">
-      <div className={clsx('relative h-28', `cover-${cover}`)}>
+      <div className={clsx('relative h-28 pointer-coarse:h-44', `cover-${cover}`)}>
         <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-surface/80 p-1.5 text-slate hover:bg-surface">
           <X size={16} />
         </button>
-        <div className="absolute bottom-3 right-3 flex gap-1.5">
+        <div className="absolute bottom-3 left-3 right-3 flex flex-wrap justify-end gap-1.5">
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <button
               key={i}
@@ -81,30 +83,33 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
       </div>
       <div className="space-y-4 p-6">
         <input
-          autoFocus
+          aria-label="Grant name"
+          required
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Grant name"
-          className="w-full bg-transparent text-2xl font-semibold text-slate placeholder:text-slate-3/70 focus:outline-none"
+          className="w-full bg-transparent text-2xl font-semibold text-slate placeholder:text-slate-3"
         />
         <div className="space-y-2">
           <Row icon={<Building2 size={16} />} label="Funder">
-            <input className={bare} value={funder} onChange={(e) => setFunder(e.target.value)} placeholder="Foundation, agency, or donor" />
+            <input aria-label="Funder" required className={bare} value={funder} onChange={(e) => setFunder(e.target.value)} placeholder="Foundation, agency, or donor" />
           </Row>
           <Row icon={<CircleDollarSign size={16} />} label="Amount">
             <span className="text-sm text-slate-3">$</span>
-            <input className={bare} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="0" />
+            <input aria-label="Grant amount" required className={bare} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="0" />
           </Row>
           <Row icon={<CalendarRange size={16} />} label="Funding period">
-            <input type="date" className={bare} value={start} onChange={(e) => setStart(e.target.value)} />
-            <span className="text-slate-3">→</span>
-            <input type="date" className={bare} value={end} onChange={(e) => setEnd(e.target.value)} />
+            <div className="grid min-w-0 w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <input aria-label="Funding period start" required type="date" className={bare} value={start} onChange={(e) => setStart(e.target.value)} />
+              <span aria-hidden="true" className="hidden text-slate-3 sm:inline">→</span>
+              <input aria-label="Funding period end" required type="date" className={bare} value={end} onChange={(e) => setEnd(e.target.value)} />
+            </div>
           </Row>
           <Row icon={<CalendarRange size={16} />} label="Application due">
-            <input type="date" className={bare} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
+            <input aria-label="Application due date" type="date" className={bare} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </Row>
           <Row icon={<Flag size={16} />} label="Stage">
-            <select className={bare} value={stage} onChange={(e) => setStage(e.target.value as GrantStage)}>
+            <select aria-label="Grant stage" className={bare} value={stage} onChange={(e) => setStage(e.target.value as GrantStage)}>
               {STAGES.map((s) => (
                 <option key={s.id} value={s.id}>{s.label}</option>
               ))}
@@ -112,7 +117,8 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
           </Row>
         </div>
         <p className="text-xs text-slate-3">The funding period is tracked separately from your organization's fiscal year.</p>
-        <Button className="w-full" onClick={submit} disabled={!valid}>Create grant</Button>
+        {validation && <p id={validationId} className="text-xs text-slate-2">{validation}</p>}
+        <Button className="w-full" aria-describedby={validation ? validationId : undefined} onClick={submit} disabled={!valid}>Create grant</Button>
       </div>
     </Modal>
   )

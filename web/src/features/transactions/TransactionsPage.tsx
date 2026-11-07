@@ -16,7 +16,8 @@ type View = 'all' | 'flagged' | 'unassigned' | 'unreviewed'
 export default function Transactions() {
   const { state, flags, me, markReviewed, notify } = useStore()
   const [params, setParams] = useSearchParams()
-  const view = (params.get('view') as View) ?? 'all'
+  const requestedView = params.get('view')
+  const view: View = ['all', 'flagged', 'unassigned', 'unreviewed'].includes(requestedView ?? '') ? requestedView as View : 'all'
   const grantFilter = params.get('grant') ?? 'all'
   const [q, setQ] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -61,6 +62,7 @@ export default function Transactions() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented<View>
+          label="Transaction status"
           value={view}
           onChange={(v) => setParam('view', v)}
           options={[
@@ -70,23 +72,23 @@ export default function Transactions() {
             { id: 'unreviewed', label: `Needs review ${counts.unreviewed}` },
           ]}
         />
-        <Select value={grantFilter} onChange={(e) => setParam('grant', e.target.value)} className="!h-9 !w-60 !bg-surface">
+        <Select aria-label="Filter by grant" value={grantFilter} onChange={(e) => setParam('grant', e.target.value)} className="!h-9 !w-60 !bg-surface">
           <option value="all">All grants</option>
           {state.grants.filter((g) => g.categories.length).map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </Select>
         <div className="relative">
           <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Vendor, memo, account" className="h-9 w-56 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+          <input aria-label="Search transactions" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Vendor, memo, account" className="h-9 w-56 rounded-[3px] border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link" />
         </div>
       </div>
 
       {selected.size > 0 && canReview && (
         <div className="animate-pop-in mb-3 flex items-center gap-3 rounded-lg bg-obsidian-2 px-4 py-2.5 text-sm text-white">
           <span>{selected.size} selected</span>
-          <button className="rounded px-2 py-1 font-medium hover:bg-white/10" onClick={() => { markReviewed([...selected]); notify(`${selected.size} marked reviewed`); setSelected(new Set()) }}>
+          <button className="rounded px-2 py-1 font-medium hover:bg-white/10 focus-visible:outline-white" onClick={() => { markReviewed([...selected]); notify(`${selected.size} marked reviewed`); setSelected(new Set()) }}>
             <CheckCheck size={14} className="mr-1 inline" /> Mark reviewed
           </button>
-          <button className="ml-auto text-white/70 hover:text-white" onClick={() => setSelected(new Set())}>Clear</button>
+          <button className="ml-auto text-rail-text hover:text-white focus-visible:outline-white" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
 
@@ -96,7 +98,7 @@ export default function Transactions() {
             <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
               <tr className="border-b border-line-2">
                 <th className="w-10 px-4 py-3">
-                  <input type="checkbox" aria-label="Select all" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))} />
+                  <label className="inline-flex items-center justify-center"><input type="checkbox" aria-label="Select all" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((r) => r.id)))} /></label>
                 </th>
                 <th className="px-3 py-3">Date</th>
                 <th className="px-3 py-3">Description</th>
@@ -113,16 +115,16 @@ export default function Transactions() {
                 return (
                   <tr key={t.id} onClick={() => setOpenTx(t)} className={clsx('cursor-pointer hover:bg-canvas', selected.has(t.id) && 'bg-link-soft/50')}>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      <input
+                      <label className="inline-flex items-center justify-center"><input
                         type="checkbox"
                         aria-label={`Select ${t.description}`}
                         checked={selected.has(t.id)}
                         onChange={() => setSelected((s) => { const n = new Set(s); if (n.has(t.id)) n.delete(t.id); else n.add(t.id); return n })}
-                      />
+                      /></label>
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-slate-2">{fmtDate(t.date)}</td>
                     <td className="px-3 py-3">
-                      <div className="font-medium text-slate">{t.description}</div>
+                      <button type="button" className="text-left font-medium text-link hover:underline" onClick={(e) => { e.stopPropagation(); setOpenTx(t) }} aria-label={`Review transaction: ${t.description}`}>{t.description}</button>
                       <div className="text-xs text-slate-3">{t.vendor}</div>
                     </td>
                     <td className="px-3 py-3 text-xs text-slate-2">{t.account}</td>

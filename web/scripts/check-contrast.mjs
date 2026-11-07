@@ -1,4 +1,4 @@
-// Checks that every text/background pair the UI uses meets the HIG minimum contrast (4.5:1, WCAG AA) in
+// Checks registered text/background pairs against the HIG minimum contrast (4.5:1, WCAG AA) in
 // light, dark, and increased-contrast appearances. Tokens are read from src/index.css, so changing a color
 // there is checked automatically. Part of `npm run check`; see docs/design.md.
 import { readFileSync } from 'node:fs'
@@ -58,21 +58,24 @@ const ratio = (a, b) => {
 const WHITE = '#ffffff'
 // [foreground, background]: token names, or WHITE. Text uses 4.5:1 regardless of size.
 const PAIRS = [
-  ...['slate', 'slate-2', 'slate-3'].flatMap((fg) => ['surface', 'canvas', 'canvas-2'].map((bg) => [fg, bg])),
+  ...['slate', 'slate-2', 'slate-3'].flatMap((fg) => ['surface', 'canvas', 'canvas-2', 'brand-soft', 'link-soft', 'good-soft', 'warn-soft', 'bad-soft'].map((bg) => [fg, bg])),
   ['link', 'surface'], ['link', 'canvas'], ['link', 'link-soft'],
   ['brand-dark', 'surface'], ['brand-dark', 'canvas'], ['brand-dark', 'brand-soft'],
-  ['good', 'good-soft'], ['good', 'surface'],
-  ['warn', 'warn-soft'], ['warn', 'surface'],
-  ['bad', 'bad-soft'], ['bad', 'surface'],
+  ['good', 'good-soft'], ['good', 'surface'], ['good', 'canvas'],
+  ['warn', 'warn-soft'], ['warn', 'surface'], ['warn', 'canvas'],
+  ['bad', 'bad-soft'], ['bad', 'surface'], ['bad', 'canvas'],
   [WHITE, 'accent'], [WHITE, 'accent-hover'], [WHITE, 'obsidian'], [WHITE, 'obsidian-2'],
   ['rail-text', 'obsidian'], ['rail-muted', 'obsidian'],
+  ['rail-text', 'obsidian-2'],
   ...[1, 2, 3, 4, 5].map((i) => [WHITE, `avatar-${i}`]),
 ]
 const MIN = 4.5
+const CONTROL_PAIRS = ['surface', 'canvas', 'canvas-2'].map((bg) => ['control-line', bg])
 
 let failures = 0
 for (const [mode, tokens] of Object.entries(modes)) {
-  for (const [fg, bg] of PAIRS) {
+  for (const [fg, bg] of [...PAIRS, ...CONTROL_PAIRS]) {
+    const minimum = fg === 'control-line' ? 3 : MIN
     const f = fg === WHITE ? WHITE : resolve(tokens, tokens[fg] ?? '')
     const b = resolve(tokens, tokens[bg] ?? '')
     if (!/^#[0-9a-f]{3,6}$/i.test(f) || !/^#[0-9a-f]{3,6}$/i.test(b)) {
@@ -81,8 +84,8 @@ for (const [mode, tokens] of Object.entries(modes)) {
       continue
     }
     const r = ratio(f, b)
-    if (r < MIN) {
-      console.error(`✗ ${mode}: ${fg} (${f}) on ${bg} (${b}) is ${r.toFixed(2)}:1, needs ${MIN}:1`)
+    if (r < minimum) {
+      console.error(`✗ ${mode}: ${fg} (${f}) on ${bg} (${b}) is ${r.toFixed(2)}:1, needs ${minimum}:1`)
       failures++
     }
   }
@@ -91,4 +94,4 @@ if (failures) {
   console.error(`\n${failures} contrast failure(s). Adjust the tokens in src/index.css.`)
   process.exit(1)
 }
-console.log(`Contrast OK: ${PAIRS.length} pairs × ${Object.keys(modes).length} appearances at ≥ ${MIN}:1`)
+console.log(`Contrast OK: ${PAIRS.length} text pairs at ≥ ${MIN}:1 + ${CONTROL_PAIRS.length} control pairs at ≥ 3:1 × ${Object.keys(modes).length} appearances`)

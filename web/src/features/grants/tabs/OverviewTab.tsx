@@ -16,7 +16,7 @@ export function OverviewTab({ grant }: { grant: Grant }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Award" value={money(grant.amount)} />
         <Stat label="Approved budget" value={money(f.budget)} sub={f.budget !== grant.amount && f.budget ? `${money(grant.amount - f.budget)} unallocated` : undefined} />
         <Stat label="Spent in period" value={money(f.spent)} sub={pct(f.ratio)} />
