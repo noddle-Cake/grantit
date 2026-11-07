@@ -54,23 +54,33 @@ for (const m of backlog.milestones) {
 // Issues -----------------------------------------------------------------------
 const existing = new Map(
   apply
-    ? JSON.parse(gh('issue', 'list', '--repo', repo, '--state', 'all', '--limit', '1000', '--json', 'number,title')).map((i) => [i.title, i.number])
+    ? JSON.parse(gh('issue', 'list', '--repo', repo, '--state', 'all', '--limit', '1000', '--json', 'number,title,labels,state')).map((i) => [i.title, i])
     : [],
 )
 
 async function ensureIssue({ title, body, labels, milestone }, indent = '') {
-  if (existing.has(title)) {
-    console.log(`${indent}issue      #${existing.get(title)} ${title} (exists)`)
-    return { number: existing.get(title), created: false }
+  const found = existing.get(title)
+  if (found) {
+    const missing = labels.filter((l) => !found.labels.some((x) => x.name === l))
+    console.log(`${indent}issue      #${found.number} ${title} (exists${missing.length ? `, adding ${missing.join(', ')}` : ''})`)
+    if (missing.length) gh('issue', 'edit', String(found.number), '--repo', repo, ...missing.flatMap((l) => ['--add-label', l]))
+    return { number: found.number, created: false, state: found.state }
   }
   console.log(`${indent}issue      ${title}  [${labels.join(', ')}]`)
   if (!apply) return { number: null, created: true }
   const flags = labels.flatMap((l) => ['--label', l])
   const url = gh('issue', 'create', '--repo', repo, '--title', title, '--body', body, '--milestone', milestone, ...flags)
   const number = Number(url.split('/').pop())
-  existing.set(title, number)
+  existing.set(title, { number, labels: labels.map((name) => ({ name })), state: 'OPEN' })
   await sleep(1500) // stay under GitHub's secondary rate limit for content creation
-  return { number, created: true }
+  return { number, created: true, state: 'OPEN' }
+}
+
+// Built requirements are created open (so Linear's sync picks them up) and then closed as completed.
+function closeDone(issue, indent = '') {
+  if (!apply || issue.state !== 'OPEN') return
+  console.log(`${indent}           closed #${issue.number} as completed`)
+  gh('issue', 'close', String(issue.number), '--repo', repo, '--reason', 'completed')
 }
 
 function linkSubIssue(parent, child) {
@@ -96,7 +106,9 @@ for (const epic of backlog.epics) {
     const child = await ensureIssue({ ...item, milestone: epic.milestone, body: `${item.body}\n\nPart of: ${epic.title}` }, '  ')
     count++
     if (apply && (parent.created || child.created)) linkSubIssue(parent.number, child.number)
+    if (epic.done) closeDone(child, '  ')
   }
+  if (epic.done) closeDone(parent)
 }
 
 console.log(`\n${count} issues ${apply ? 'processed' : 'planned'}.${apply ? '' : ' Re-run with --apply to create them.'}`)
@@ -106,8 +118,8 @@ function roadmap() {
   const lines = [
     '# Grantit roadmap',
     '',
-    'Feature map of the work after the web UI MVP. GitHub issues are the source of truth; Linear mirrors them',
-    'through GitHub Issues Sync. Generated from `scripts/backlog/backlog.json` with',
+    'Feature map of Grantit, from the web UI MVP onward. GitHub issues are the source of truth; Linear mirrors them',
+    'through GitHub Issues Sync, in the Linear project "Grantit". Generated from `scripts/backlog/backlog.json` with',
     '`node scripts/backlog/create-issues.mjs --roadmap`. Priorities match [requirements.md](requirements.md).',
     '',
     '```mermaid',
@@ -120,11 +132,12 @@ function roadmap() {
   for (const m of backlog.milestones) {
     lines.push(`## ${m.title}`, '', m.description, '')
     for (const epic of backlog.epics.filter((e) => e.milestone === m.title)) {
-      lines.push(`### ${epic.title.replace(/^Epic: /, '')}`, '', epic.summary, '', '| Priority | Issue | Area |', '|---|---|---|')
+      lines.push(`### ${epic.done ? '✅ ' : ''}${epic.title.replace(/^Epic: /, '')}`, '', epic.summary, '', '| Priority | Issue | Requirement | Area |', '|---|---|---|---|')
       for (const i of epic.issues) {
         const prio = i.labels.find((l) => /^P\d$/.test(l)) ?? ''
+        const req = i.labels.filter((l) => l.startsWith('req: ')).map((l) => l.slice(5)).join(', ')
         const area = i.labels.filter((l) => l.startsWith('area: ')).map((l) => l.slice(6)).join(', ')
-        lines.push(`| ${prio} | ${i.title} | ${area} |`)
+        lines.push(`| ${prio} | ${epic.done ? '✅ ' : ''}${i.title} | ${req} | ${area} |`)
       }
       lines.push('')
     }
