@@ -5,37 +5,135 @@
  * Base language: HubSpot-style CRM (navy rail, orange CTA, slate text, cool grey canvas).
  * Accents borrowed from Luma: soft gradient covers, date tiles, timeline rails, pill chips.
  */
-@theme {
+@theme static {
   --font-sans: "Lexend Deca", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  /* HubSpot-like neutrals */
-  --color-obsidian: #213343;
-  --color-obsidian-2: #2e475d;
-  --color-slate: #33475b;
-  --color-slate-2: #516f90;
-  --color-slate-3: #7c98b6;
+  /* Every text/background pair below is checked by scripts/check-contrast.mjs (npm run check) for
+     at least 4.5:1 in light, dark and increased-contrast modes. See docs/design.md. */
+
+  /* Surfaces */
+  --color-surface: #ffffff; /* cards, panels, inputs */
+  --color-canvas: #f5f8fa; /* page background */
+  --color-canvas-2: #eaf0f6; /* subtle fills, hover */
   --color-line: #cbd6e2;
   --color-line-2: #dfe3eb;
-  --color-canvas: #f5f8fa;
-  --color-canvas-2: #eaf0f6;
 
-  /* Brand + semantic */
+  /* Text */
+  --color-slate: #33475b; /* primary text */
+  --color-slate-2: #516f90; /* secondary text */
+  --color-slate-3: #546b83; /* tertiary text: captions, metadata */
+
+  /* Navigation rail and toasts (dark in both appearances) */
+  --color-obsidian: #213343;
+  --color-obsidian-2: #2e475d;
+  --color-rail-text: #b6c7d6;
+  --color-rail-muted: #9fb3c6;
+
+  /* Brand: --color-brand is decorative (covers, indicators, icons beside text). Text and white-on-color
+     buttons use --color-brand-dark and --color-accent, which meet contrast. */
   --color-brand: #ff7a59;
-  --color-brand-dark: #ff5c35;
+  --color-brand-dark: #bf4219;
   --color-brand-soft: #fff1ee;
-  --color-link: #0091ae;
+  --color-accent: #bf4219;
+  --color-accent-hover: #a3360f;
+  --color-link: #00728f;
   --color-link-soft: #e5f5f8;
 
-  --color-good: #00a38d;
+  /* Status: text colors meet 4.5:1 on their soft backgrounds */
+  --color-good: #00745f;
   --color-good-soft: #e5f8f6;
-  --color-warn: #b07a00;
+  --color-warn: #8a5d00;
   --color-warn-soft: #fef8f0;
-  --color-bad: #d93f4c;
+  --color-warn-line: #f5c26b;
+  --color-bad: #bf2f3c;
   --color-bad-soft: #fde8e9;
 
-  /* Data viz (validated reference palette slot 1 + neutral track) */
+  /* Data viz and avatars */
   --color-viz-1: #2a78d6;
+  --color-viz-warn: #eda100;
   --color-viz-track: #e5ebf1;
+  --color-avatar-1: #bf4219;
+  --color-avatar-2: #00745f;
+  --color-avatar-3: #1f63b8;
+  --color-avatar-4: #5a45c9;
+  --color-avatar-5: #8a5d00;
+}
+
+/* Dark Mode follows the system appearance; there is no in-app toggle (HIG: Dark Mode). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-surface: #16232f;
+    --color-canvas: #0f1a24;
+    --color-canvas-2: #1e2f3e;
+    --color-line: #34495d;
+    --color-line-2: #263848;
+
+    --color-slate: #e6edf4;
+    --color-slate-2: #b4c5d6;
+    --color-slate-3: #93a9bf;
+
+    --color-obsidian: #0a1219;
+    --color-obsidian-2: #1f3447;
+
+    --color-brand-dark: #ff9b7f;
+    --color-brand-soft: #3a2219;
+    --color-accent: #c2471f;
+    --color-accent-hover: #a83a17;
+    --color-link: #5cc8e0;
+    --color-link-soft: #10323c;
+
+    --color-good: #4fd1b8;
+    --color-good-soft: #123a35;
+    --color-warn: #f0b84a;
+    --color-warn-soft: #3a2e12;
+    --color-warn-line: #7a5a1c;
+    --color-bad: #ff8a94;
+    --color-bad-soft: #3d1d22;
+
+    --color-viz-1: #4c95ea;
+    --color-viz-warn: #f0b84a;
+    --color-viz-track: #263848;
+  }
+}
+
+/* Increase Contrast: stronger secondary text and borders (HIG: Accessibility, Color). */
+@media (prefers-contrast: more) {
+  :root {
+    --color-slate-3: var(--color-slate-2);
+    --color-line: #8da2b8;
+    --color-line-2: #a9bbcc;
+  }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root {
+    --color-line: #5d7690;
+    --color-line-2: #4a6178;
+  }
+}
+
+/* Reduce Motion: keep feedback, drop movement (HIG: Motion, Accessibility). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+/* Every interactive element shows where keyboard focus is (HIG: Accessibility > Mobility). */
+:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+nav :focus-visible {
+  outline-color: #ffffff; /* the navigation rail is dark in both appearances */
 }
 
 html,
@@ -49,7 +147,8 @@ body {
   background: var(--color-canvas);
   color: var(--color-slate);
   font-family: var(--font-sans);
-  font-size: 14px;
+  /* rem, not px, so text follows the browser's text-size setting (HIG: Typography, larger text). */
+  font-size: 0.875rem;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -62,14 +161,14 @@ body {
 .cover-5 { background: radial-gradient(120% 120% at 0% 0%, #e3edf5 0%, #9bb3c9 50%, #516f90 100%); }
 
 .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
-.scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd6e2; border-radius: 8px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--color-line); border-radius: 8px; }
 
 @keyframes shimmer {
   0% { background-position: -400px 0; }
   100% { background-position: 400px 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #eaf0f6 0%, #f5f8fa 40%, #eaf0f6 80%);
+  background: linear-gradient(90deg, var(--color-canvas-2) 0%, var(--color-canvas) 40%, var(--color-canvas-2) 80%);
   background-size: 800px 100%;
   animation: shimmer 1.2s linear infinite;
 }

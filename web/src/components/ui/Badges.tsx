@@ -9,7 +9,7 @@ export type Tone = 'neutral' | 'good' | 'warn' | 'bad' | 'info' | 'brand'
 const TONES: Record<Tone, string> = {
   neutral: 'bg-canvas-2 text-slate-2',
   good: 'bg-good-soft text-good',
-  warn: 'bg-warn-soft text-warn ring-1 ring-inset ring-[#f5c26b]/50',
+  warn: 'bg-warn-soft text-warn ring-1 ring-inset ring-warn-line/50',
   bad: 'bg-bad-soft text-bad',
   info: 'bg-link-soft text-link',
   brand: 'bg-brand-soft text-brand-dark',
@@ -37,7 +37,8 @@ export function StatusPill({ tone, children }: { tone: 'good' | 'warn' | 'bad' |
 }
 
 export function Avatar({ initials, size = 28, className }: { initials: string; size?: number; className?: string }) {
-  const hues = ['#ff7a59', '#00a38d', '#2a78d6', '#6250d6', '#eda100']
+  // Darker hues so the white initials keep 4.5:1 contrast.
+  const hues = [1, 2, 3, 4, 5].map((i) => `var(--color-avatar-${i})`)
   const bg = hues[initials.charCodeAt(0) % hues.length]
   return (
     <span
@@ -61,10 +62,10 @@ export function DateTile({ date, tone = 'neutral' }: { date: string; tone?: 'neu
         tone === 'done' && 'opacity-55',
       )}
     >
-      <div className={clsx('py-px text-[9px] font-semibold uppercase tracking-wider', tone === 'urgent' ? 'bg-brand text-white' : 'bg-canvas-2 text-slate-2')}>
+      <div className={clsx('py-px text-[0.6875rem] font-semibold uppercase tracking-wider', tone === 'urgent' ? 'bg-accent text-white' : 'bg-canvas-2 text-slate-2')}>
         {d.toLocaleDateString('en-US', { month: 'short' })}
       </div>
-      <div className="flex flex-1 items-center justify-center bg-white text-lg font-semibold leading-none text-slate">{d.getDate()}</div>
+      <div className="flex flex-1 items-center justify-center bg-surface text-lg font-semibold leading-none text-slate">{d.getDate()}</div>
     </div>
   )
 }
@@ -73,7 +74,7 @@ export function DateTile({ date, tone = 'neutral' }: { date: string; tone?: 'neu
 
 export function Meter({ value, max, className, height = 8 }: { value: number; max: number; className?: string; height?: number }) {
   const ratio = max > 0 ? value / max : 0
-  const color = ratio > 1 ? 'var(--color-bad)' : ratio >= 0.85 ? '#eda100' : 'var(--color-viz-1)'
+  const color = ratio > 1 ? 'var(--color-bad)' : ratio >= 0.85 ? 'var(--color-viz-warn)' : 'var(--color-viz-1)'
   return (
     <div className={clsx('w-full overflow-hidden rounded-full bg-viz-track', className)} style={{ height }} role="meter" aria-valuenow={Math.round(ratio * 100)} aria-valuemin={0} aria-valuemax={100}>
       <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(ratio, 1) * 100}%`, background: color }} />

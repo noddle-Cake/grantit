@@ -65,14 +65,14 @@ export default function KnowledgeBase() {
             key={c.id}
             onClick={() => setCat(cat === c.id ? 'all' : c.id)}
             className={clsx(
-              'rounded-lg border bg-white px-3 py-2.5 text-left transition',
+              'rounded-lg border bg-surface px-3 py-2.5 text-left transition',
               cat === c.id ? 'border-link ring-2 ring-link/15' : 'border-line-2 hover:border-line',
             )}
           >
             <div className="text-xs text-slate-2">{c.label}</div>
             <div className="mt-0.5 flex items-center gap-1.5">
               <span className="text-lg font-semibold tabular-nums text-slate">{c.n}</span>
-              {c.n === 0 ? <StatusPill tone="warn">Gap</StatusPill> : <span className="text-[11px] text-slate-3">approved</span>}
+              {c.n === 0 ? <StatusPill tone="warn">Gap</StatusPill> : <span className="text-[0.6875rem] text-slate-3">approved</span>}
             </div>
           </button>
         ))}
@@ -83,7 +83,7 @@ export default function KnowledgeBase() {
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search facts" className="h-9 w-60 rounded-[3px] border border-line bg-white pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search facts" className="h-9 w-60 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
             </div>
             <Segmented<StatusFilter>
               value={status}

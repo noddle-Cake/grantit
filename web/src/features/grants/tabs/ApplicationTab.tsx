@@ -16,7 +16,7 @@ function WordMeter({ count, limit }: { count: number; limit: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-viz-track">
-        <div className={clsx('h-full rounded-full', over ? 'bg-bad' : ratio > 0.9 ? 'bg-[#eda100]' : 'bg-viz-1')} style={{ width: `${ratio * 100}%` }} />
+        <div className={clsx('h-full rounded-full', over ? 'bg-bad' : ratio > 0.9 ? 'bg-viz-warn' : 'bg-viz-1')} style={{ width: `${ratio * 100}%` }} />
       </div>
       <span className={clsx('text-xs tabular-nums', over ? 'font-semibold text-bad' : 'text-slate-2')}>
         {count} / {limit} words
@@ -49,11 +49,11 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
   const blockedFacts = blocked.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f && f.status !== 'approved')
 
   return (
-    <article className={clsx('rounded-xl border bg-white transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
+    <article className={clsx('rounded-xl border bg-surface transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
       <header className="flex flex-wrap items-start gap-3 px-5 pt-4">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-xs font-semibold text-slate-2">{index + 1}</span>
         <div className="min-w-0 flex-1">
-          <h4 className="text-[15px] font-medium leading-snug text-slate">{q.prompt}</h4>
+          <h4 className="text-[0.9375rem] font-medium leading-snug text-slate">{q.prompt}</h4>
           <div className="mt-1 text-xs text-slate-3">Limit {q.wordLimit} words</div>
         </div>
         <Pill tone={ANSWER_STATUS[q.status].tone} dot>{ANSWER_STATUS[q.status].label}</Pill>
@@ -82,7 +82,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
             onChange={(e) => updateQuestion(grant.id, q.id, { answer: e.target.value, status: 'draft' })}
             rows={Math.max(4, Math.ceil(words / 14))}
             className={clsx(
-              'w-full resize-y rounded-lg border px-4 py-3 text-[14px] leading-relaxed text-slate focus:outline-none focus:ring-2',
+              'w-full resize-y rounded-lg border px-4 py-3 text-[0.875rem] leading-relaxed text-slate focus:outline-none focus:ring-2',
               over ? 'border-bad/60 focus:ring-bad/20' : 'border-line-2 focus:border-link focus:ring-link/20',
               q.status === 'approved' && 'bg-canvas',
             )}
@@ -99,7 +99,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
         {/* Sources */}
         {!busy && citedFacts.length > 0 && (
           <div className="mt-4">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-3">Supported by</div>
+            <div className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-3">Supported by</div>
             <div className="flex flex-wrap gap-1.5">
               {citedFacts.map((f) => (
                 <Link
@@ -108,7 +108,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
                   title={f.content}
                   className={clsx(
                     'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs hover:shadow-sm',
-                    f.status === 'approved' ? 'border-good/30 bg-good-soft text-good' : 'border-[#f5c26b] bg-warn-soft text-warn',
+                    f.status === 'approved' ? 'border-good/30 bg-good-soft text-good' : 'border-warn-line bg-warn-soft text-warn',
                   )}
                 >
                   <BookOpenCheck size={12} /> {f.title}

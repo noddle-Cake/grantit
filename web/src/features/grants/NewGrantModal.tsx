@@ -12,7 +12,7 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
   return (
     <div className="flex items-center gap-3 rounded-xl bg-canvas px-3.5 py-2.5">
       <span className="text-slate-3">{icon}</span>
-      <span className="w-28 shrink-0 text-[13px] text-slate-2">{label}</span>
+      <span className="w-28 shrink-0 text-[0.8125rem] text-slate-2">{label}</span>
       <div className="flex min-w-0 flex-1 items-center gap-2">{children}</div>
     </div>
   )
@@ -59,9 +59,9 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} label="New grant">
       <div className={clsx('relative h-28', `cover-${cover}`)}>
-        <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-white/80 p-1.5 text-slate hover:bg-white">
+        <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-surface/80 p-1.5 text-slate hover:bg-surface">
           <X size={16} />
         </button>
         <div className="absolute bottom-3 right-3 flex gap-1.5">
@@ -70,10 +70,11 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
               key={i}
               aria-label={`Cover ${i + 1}`}
               onClick={() => setCover(i)}
-              className={clsx('h-6 w-6 rounded-full border-2', `cover-${i}`, cover === i ? 'border-white shadow' : 'border-white/40')}
+              aria-pressed={cover === i}
+              className={clsx('h-7 w-7 rounded-full border-2', `cover-${i}`, cover === i ? 'border-white shadow' : 'border-white/40')}
             />
           ))}
-          <button onClick={() => setCover((c) => (c + 1) % 6)} aria-label="Shuffle cover" className="flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-slate">
+          <button onClick={() => setCover((c) => (c + 1) % 6)} aria-label="Shuffle cover" className="flex h-7 w-7 items-center justify-center rounded-full bg-surface/80 text-slate">
             <Shuffle size={12} />
           </button>
         </div>

@@ -20,7 +20,7 @@ function greeting(now: Date) {
 
 function WorkspaceCard({ icon, title, to, cta, children }: { icon: ReactNode; title: string; to: string; cta: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col rounded-xl border border-line-2 bg-white">
+    <section className="flex flex-col rounded-xl border border-line-2 bg-surface">
       <div className="flex items-center gap-2 border-b border-line-2 px-5 py-3.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand-dark">{icon}</span>
         <h2 className="font-semibold text-slate">{title}</h2>
@@ -89,7 +89,7 @@ export default function Dashboard() {
       <div className="grid gap-5 lg:grid-cols-2">
         <WorkspaceCard icon={<Compass size={16} />} title="Find & apply" to="/apply" cta="Go to opportunities">
           <div className="grid grid-cols-2 gap-4">
-            <Figure label="In your pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
+            <Figure label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
             <Figure label="Recommended" value={recs.length} sub="Open opportunities that fit" />
           </div>
           <div className="mt-4 flex flex-wrap gap-2">

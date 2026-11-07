@@ -2,10 +2,16 @@ import { createContext, useContext } from 'react'
 import type { Opportunity } from '@grantit/shared/opportunities'
 import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@grantit/shared/types'
 
+export interface ToastAction {
+  label: string
+  run: () => void
+}
+
 export interface Toast {
   id: string
   message: string
   tone?: 'success' | 'info' | 'error'
+  action?: ToastAction
 }
 
 export interface Store {
@@ -13,7 +19,8 @@ export interface Store {
   me: User
   flags: Map<string, TxFlag[]>
   toasts: Toast[]
-  notify: (message: string, tone?: Toast['tone']) => void
+  dismissToast: (id: string) => void
+  notify: (message: string, tone?: Toast['tone'], action?: ToastAction) => void
   setCurrentUser: (id: string) => void
   resetDemo: () => void
   setFiscalYearStart: (month: number) => void
@@ -21,6 +28,8 @@ export interface Store {
   saveFact: (fact: Omit<Fact, 'id' | 'updatedAt' | 'updatedBy'> & { id?: string }) => void
   setFactStatus: (id: string, status: Fact['status']) => void
   deleteFact: (id: string) => void
+  /** Put back a deleted fact exactly as it was (Undo). */
+  restoreFact: (fact: Fact) => void
   // grants
   createGrant: (g: Omit<Grant, 'id'>) => string
   updateGrant: (id: string, patch: Partial<Grant>) => void

@@ -50,6 +50,7 @@ npm run dev:api        # API on http://127.0.0.1:8787/api (Vite proxies /api to 
 │   ├── requirements.md        Functional requirements + build status
 │   ├── roadmap.md             Phases and issues (generated from scripts/backlog)
 │   ├── api.md                 API conventions
+│   ├── design.md              Design guidelines (Apple HIG, applied to the web)
 │   ├── adr/                   Architecture decisions
 │   └── deploy.md              Hosting, deploys, CI
 ├── scripts/backlog/           GitHub issues / Linear project generator
@@ -90,6 +91,11 @@ npm run dev:api        # API on http://127.0.0.1:8787/api (Vite proxies /api to 
 - API endpoints follow [`docs/api.md`](docs/api.md). Stack decision: [ADR 0001](docs/adr/0001-backend.md).
 
 ## Design direction
+
+Grantit follows Apple's Human Interface Guidelines, applied to the web: contrast checked in CI, Dark Mode
+and Increase Contrast from the system setting, Reduce Motion, scalable text, keyboard-friendly modals.
+The rules are in [`docs/design.md`](docs/design.md).
+
 
 - **HubSpot-style CRM foundation:** navy side nav, orange primary actions, slate type on a cool-grey canvas,
   filterable tables with table/board/card views, three-column record pages, and slide-in side panels.
