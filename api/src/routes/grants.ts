@@ -1,4 +1,4 @@
-import { draftAnswer, type DraftResult } from '@grantit/shared/drafting'
+import { checkApplication, draftAnswer, type DraftResult } from '@grantit/shared/drafting'
 import { computeFinancials, grantPeriod } from '@grantit/shared/finance'
 import { todayISO } from '@grantit/shared/format'
 import { ANSWER_STATUSES, DEADLINE_KINDS, GRANT_STAGES, type Grant, type Question } from '@grantit/shared/types'
@@ -211,6 +211,19 @@ export const grantRoutes = new Hono<AppEnv>()
     const txs = await loadTransactions(db, organizationId)
     const period = start || end ? { start: start ?? grant.periodStart, end: end ?? grant.periodEnd } : grantPeriod(grant)
     return c.json({ data: computeFinancials(grant, txs, period) })
+  })
+  /**
+   * GET /api/grants/:grantId/check → { data: ApplicationCheck }. Validates the application the way the
+   * review UI does: unanswered questions, over-limit answers, unapproved work, unsupported claims.
+   */
+  .get('/:grantId/check', async (c) => {
+    const grantId = c.req.param('grantId')
+    const db = c.get('db')
+    const organizationId = c.get('organizationId')
+    const [grant] = await loadGrants(db, organizationId, [grantId])
+    if (!grant) throw notFound('Grant', grantId)
+    const factRows = await db.select().from(t.facts).where(eq(t.facts.organizationId, organizationId))
+    return c.json({ data: checkApplication(grant.questions, factRows.map(compact)) })
   })
   /** PATCH /api/grants/:grantId/questions/:questionId → { data: Question }; stamps updatedAt. */
   .patch('/:grantId/questions/:questionId', validate('json', questionPatch), async (c) => {

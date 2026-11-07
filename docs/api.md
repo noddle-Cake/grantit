@@ -105,13 +105,16 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 - Filters are query parameters named after the field: `/grants?stage=awarded`,
   `/transactions?grantId=g-anchor&reviewed=false`.
 
-## Organizations and (later) auth
+## Organizations and auth
 
 - Every request acts for one organization, and handlers read it from `c.get('organizationId')`. Every query
   is filtered by it. The organization ID is never taken from a request body.
-- Until sign-in exists (#9), the organization comes from the `X-Organization-Id` header, falling back to
-  `DEFAULT_ORGANIZATION_ID` (the demo organization in local development). Sign-in will replace the
-  `organizationScope` middleware and take the organization from the session, with no route changes.
+- **Sessions:** `POST /auth/sign-in { userId }` returns a 30-day bearer token. `Authorization: Bearer
+  <token>` scopes the request to that user's organization and user (`/auth/me`, `/auth/sign-out`). This is
+  the credential-less MVP of #9: the demo's simulated roles mean anyone can sign in as anyone.
+- Without a session, the organization comes from the `X-Organization-Id` header, falling back to
+  `DEFAULT_ORGANIZATION_ID` (the demo organization in local development), and attribution falls back to
+  `X-User-Id` or the org's first user. Real credentials will tighten `/auth/sign-in` only; routes don't change.
 - Another organization's record returns `404`, not `403`, so the API never confirms it exists.
 
 ## Tests
@@ -137,6 +140,8 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 | `GET/PATCH /organization` | done | #80 |
 | `GET /users`, `GET /documents` | done | #80 |
 | `GET /opportunities`, `POST /opportunities/:opportunityId/grants` | done | #8 |
+| `GET /grants/:grantId/check` | done | #14 |
+| `POST /auth/sign-in`, `GET /auth/me`, `POST /auth/sign-out` | done (no credentials yet) | #9 |
 
 Notes on the built endpoints:
 

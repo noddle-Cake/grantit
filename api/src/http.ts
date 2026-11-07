@@ -1,11 +1,11 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, gt } from 'drizzle-orm'
 import type { Context, MiddlewareHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { ContentfulStatusCode } from 'hono/utils/http-status'
 import { validator } from 'hono/validator'
 import { z } from 'zod'
 import type { Db } from './db/client.ts'
-import { users } from './db/schema.ts'
+import { sessions, users } from './db/schema.ts'
 
 // Shared HTTP plumbing for every route, implementing docs/api.md.
 
@@ -101,16 +101,42 @@ export function toPage<T>(rows: T[], limit: number, key: (row: T) => string): Pa
 // ─── Organization scoping ───────────────────────────────────────────────────
 
 export interface AppEnv {
-  Variables: { db: Db; organizationId: string }
+  Variables: { db: Db; organizationId: string; userId?: string }
 }
+
+/** The user behind a bearer token, if it names a live session. */
+export async function sessionUser(db: Db, token: string): Promise<typeof users.$inferSelect | undefined> {
+  const [row] = await db
+    .select({ user: users })
+    .from(sessions)
+    .innerJoin(users, eq(sessions.userId, users.id))
+    .where(and(eq(sessions.id, token), gt(sessions.expiresAt, new Date())))
+    .limit(1)
+  return row?.user
+}
+
+const bearerToken = (c: Context<AppEnv>) => c.req.header('authorization')?.match(/^Bearer (\S+)$/)?.[1]
 
 /**
  * Resolves the organization every request acts for. Until sign-in exists (#9) it comes from the
  * X-Organization-Id header, falling back to DEFAULT_ORGANIZATION_ID. Sign-in will replace this middleware
  * and take the organization from the session; routes don't change.
  */
-export function organizationScope(opts: { defaultOrganizationId?: string; exists: (id: string) => Promise<boolean> }): MiddlewareHandler<AppEnv> {
+export function organizationScope(opts: {
+  defaultOrganizationId?: string
+  exists: (id: string) => Promise<boolean>
+  session: (token: string) => Promise<typeof users.$inferSelect | undefined>
+}): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
+    const token = bearerToken(c)
+    if (token) {
+      const user = await opts.session(token)
+      if (!user) throw new ApiError('unauthenticated', 'Session expired or unknown: sign in again')
+      c.set('organizationId', user.organizationId)
+      c.set('userId', user.id)
+      await next()
+      return
+    }
     const id = c.req.header('x-organization-id') ?? opts.defaultOrganizationId
     if (!id) throw new ApiError('unauthenticated', 'No organization: send X-Organization-Id')
     if (!(await opts.exists(id))) throw notFound('Organization', id)
@@ -125,6 +151,8 @@ export function organizationScope(opts: { defaultOrganizationId?: string; exists
  * will take it from the session instead.
  */
 export async function actorId(c: Context<AppEnv>): Promise<string> {
+  const sessionUserId = c.get('userId')
+  if (sessionUserId) return sessionUserId
   const db = c.get('db')
   const organizationId = c.get('organizationId')
   const header = c.req.header('x-user-id')
