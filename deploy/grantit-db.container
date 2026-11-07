@@ -1,0 +1,23 @@
+# Grantit's Postgres on 5820. Reached as grantit-db:5432 on the grantit network; no published port —
+# only the API talks to it. Credentials and DATABASE_URL live in /srv/websvc/sites/grantit/api.env
+# (created on first deploy). Dumps land in /srv/websvc/sites/grantit/db-backups via grantit-db-backup.timer.
+[Unit]
+Description=Grantit Postgres
+Requires=grantit-network.service
+After=grantit-network.service
+
+[Container]
+ContainerName=grantit-db
+Image=docker.io/library/postgres:18-alpine
+Network=grantit.network
+Volume=grantit-pg:/var/lib/postgresql/data:Z
+EnvironmentFile=/srv/websvc/sites/grantit/api.env
+HealthCmd=pg_isready -U grantit -d grantit
+HealthInterval=5s
+HealthRetries=12
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=default.target

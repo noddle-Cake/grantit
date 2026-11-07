@@ -1,0 +1,2 @@
+# Internal network for the Grantit API and its Postgres. Only the API publishes a port (127.0.0.1:8787).
+[Network]

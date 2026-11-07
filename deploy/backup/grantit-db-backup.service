@@ -1,0 +1,9 @@
+# Runs deploy/backup/grantit-db-backup.sh daily via grantit-db-backup.timer (websvc's user units).
+[Unit]
+Description=Dump the Grantit database to /srv/websvc/sites/grantit/db-backups
+Requires=grantit-db.service
+After=grantit-db.service
+
+[Service]
+Type=oneshot
+ExecStart=/srv/websvc/sites/grantit/bin/grantit-db-backup.sh
