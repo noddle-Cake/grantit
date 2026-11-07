@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Puts the GitHub-synced backlog into a Linear project:
-//   creates project "Grantit" with one project milestone per GitHub milestone (M1–M4),
+//   creates project "Grantit" with one project milestone per GitHub milestone (M0, Phases 1–4, Later),
 //   then sets each synced issue's project and milestone from its GitHub milestone.
 // Only Linear-side fields are touched; GitHub stays the source of truth for the issues.
 //

@@ -54,24 +54,50 @@ for (const m of backlog.milestones) {
 // Issues -----------------------------------------------------------------------
 const existing = new Map(
   apply
-    ? JSON.parse(gh('issue', 'list', '--repo', repo, '--state', 'all', '--limit', '1000', '--json', 'number,title,labels,state')).map((i) => [i.title, i])
+    ? JSON.parse(
+        gh('issue', 'list', '--repo', repo, '--state', 'all', '--limit', '1000', '--json', 'number,title,labels,state,milestone,assignees'),
+      ).map((i) => [i.title, i])
     : [],
 )
 
-async function ensureIssue({ title, body, labels, milestone }, indent = '') {
+// Owners are keys into backlog.people (GitHub logins); an owner without a login is left unassigned.
+function login(owner) {
+  if (!owner) return undefined
+  const l = backlog.people?.[owner]
+  if (!l) console.log(`           (no GitHub login for ${owner} in backlog.json people; left unassigned)`)
+  return l || undefined
+}
+
+async function ensureIssue({ title, body, labels, milestone, owner }, indent = '') {
+  const assignee = login(owner)
   const found = existing.get(title)
   if (found) {
+    const edits = []
     const missing = labels.filter((l) => !found.labels.some((x) => x.name === l))
-    console.log(`${indent}issue      #${found.number} ${title} (exists${missing.length ? `, adding ${missing.join(', ')}` : ''})`)
-    if (missing.length) gh('issue', 'edit', String(found.number), '--repo', repo, ...missing.flatMap((l) => ['--add-label', l]))
+    if (missing.length) edits.push(`labels +${missing.join(', +')}`)
+    const moveMilestone = found.milestone?.title !== milestone
+    if (moveMilestone) edits.push(`milestone → ${milestone}`)
+    const assign = assignee && !found.assignees.some((a) => a.login === assignee)
+    if (assign) edits.push(`assign ${assignee}`)
+    console.log(`${indent}issue      #${found.number} ${title} (exists${edits.length ? `; ${edits.join('; ')}` : ''})`)
+    if (apply && edits.length)
+      gh(
+        'issue', 'edit', String(found.number), '--repo', repo,
+        ...missing.flatMap((l) => ['--add-label', l]),
+        ...(moveMilestone ? ['--milestone', milestone] : []),
+        ...(assign ? ['--add-assignee', assignee] : []),
+      )
     return { number: found.number, created: false, state: found.state }
   }
-  console.log(`${indent}issue      ${title}  [${labels.join(', ')}]`)
+  console.log(`${indent}issue      ${title}  [${labels.join(', ')}] → ${milestone}${assignee ? ` @${assignee}` : ''}`)
   if (!apply) return { number: null, created: true }
   const flags = labels.flatMap((l) => ['--label', l])
-  const url = gh('issue', 'create', '--repo', repo, '--title', title, '--body', body, '--milestone', milestone, ...flags)
+  const url = gh(
+    'issue', 'create', '--repo', repo, '--title', title, '--body', body, '--milestone', milestone, ...flags,
+    ...(assignee ? ['--assignee', assignee] : []),
+  )
   const number = Number(url.split('/').pop())
-  existing.set(title, { number, labels: labels.map((name) => ({ name })), state: 'OPEN' })
+  existing.set(title, { number, labels: labels.map((name) => ({ name })), state: 'OPEN', milestone: { title: milestone }, assignees: [] })
   await sleep(1500) // stay under GitHub's secondary rate limit for content creation
   return { number, created: true, state: 'OPEN' }
 }
@@ -103,7 +129,7 @@ for (const epic of backlog.epics) {
   })
   count++
   for (const item of epic.issues) {
-    const child = await ensureIssue({ ...item, milestone: epic.milestone, body: `${item.body}\n\nPart of: ${epic.title}` }, '  ')
+    const child = await ensureIssue({ ...item, milestone: item.milestone ?? epic.milestone, body: `${item.body}\n\nPart of: ${epic.title}` }, '  ')
     count++
     if (apply && (parent.created || child.created)) linkSubIssue(parent.number, child.number)
     if (epic.done) closeDone(child, '  ')
@@ -129,15 +155,24 @@ function roadmap() {
     '```',
     '',
   ]
+  const name = (owner) => (owner ? owner[0].toUpperCase() + owner.slice(1) : '')
   for (const m of backlog.milestones) {
     lines.push(`## ${m.title}`, '', m.description, '')
-    for (const epic of backlog.epics.filter((e) => e.milestone === m.title)) {
-      lines.push(`### ${epic.done ? '✅ ' : ''}${epic.title.replace(/^Epic: /, '')}`, '', epic.summary, '', '| Priority | Issue | Requirement | Area |', '|---|---|---|---|')
-      for (const i of epic.issues) {
+    for (const epic of backlog.epics) {
+      const items = epic.issues.filter((i) => (i.milestone ?? epic.milestone) === m.title)
+      if (!items.length) continue
+      const showOwner = items.some((i) => i.owner)
+      lines.push(
+        `### ${epic.done ? '✅ ' : ''}${epic.title.replace(/^Epic: /, '')}`,
+        '',
+        `| Priority | Issue |${showOwner ? ' Owner |' : ''} Requirement | Area |`,
+        `|---|---|${showOwner ? '---|' : ''}---|---|`,
+      )
+      for (const i of items) {
         const prio = i.labels.find((l) => /^P\d$/.test(l)) ?? ''
         const req = i.labels.filter((l) => l.startsWith('req: ')).map((l) => l.slice(5)).join(', ')
         const area = i.labels.filter((l) => l.startsWith('area: ')).map((l) => l.slice(6)).join(', ')
-        lines.push(`| ${prio} | ${epic.done ? '✅ ' : ''}${i.title} | ${req} | ${area} |`)
+        lines.push(`| ${prio} | ${epic.done ? '✅ ' : ''}${i.title} |${showOwner ? ` ${name(i.owner)} |` : ''} ${req} | ${area} |`)
       }
       lines.push('')
     }

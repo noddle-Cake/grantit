@@ -7,14 +7,16 @@ through GitHub Issues Sync, in the Linear project "Grantit". Generated from `scr
 ```mermaid
 flowchart LR
   M1["M0 · Web UI MVP"]
-  M2["M1 · Backend & accounts"]
-  M3["M2 · Real AI drafting"]
-  M4["M3 · Documents & QuickBooks"]
-  M5["M4 · Reports & automation"]
+  M2["Phase 1 · Foundations"]
+  M3["Phase 2 · Parallel build"]
+  M4["Phase 3 · Integration"]
+  M5["Phase 4 · Testing & demo"]
+  M6["Later"]
   M1 --> M2
   M2 --> M3
   M3 --> M4
   M4 --> M5
+  M5 --> M6
 ```
 
 ## M0 · Web UI MVP
@@ -22,8 +24,6 @@ flowchart LR
 Clickable web UI on demo data: every requirement marked built in docs/requirements.md.
 
 ### ✅ Web UI MVP
-
-Requirements already built in the clickable web UI (demo data in the browser, no backend). Each sub-issue is one requirement from `docs/requirements.md`, closed as done. Real persistence and the live AI service are tracked in the M1–M4 epics.
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
@@ -63,26 +63,84 @@ Requirements already built in the clickable web UI (demo data in the browser, no
 | P1 | ✅ Allow program staff to contribute and approve program information | roles & workflow |  |
 | P1 | ✅ Track the status of applications, narrative drafts, financial checks, and reports | roles & workflow |  |
 
-## M1 · Backend & accounts
+## Phase 1 · Foundations
 
-Real persistence, sign-in, organizations and server-enforced roles. Replaces browser demo storage.
+Together: define the database schema, sample data, API conventions, and project structure.
 
 ### Backend & persistence
-
-The web app runs entirely on demo data in the browser (`web/src/store`, `web/src/data/seed.ts`). Add an API and database so organizations keep real data, without changing the UI.
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
 | P0 | Decide backend stack and hosting (ADR) |  | backend |
+| P0 | Set up project structure for the API and shared code |  | backend |
 | P0 | Database schema and migrations for the domain model |  | backend |
-| P0 | REST API for grants, facts, questions and transactions |  | backend |
+| P0 | Define API conventions |  | backend |
+
+## Phase 2 · Parallel build
+
+In parallel: Chris builds the AI application workflow; Sam builds financial tracking and validation.
+
+### Backend & persistence
+
+| Priority | Issue | Owner | Requirement | Area |
+|---|---|---|---|---|
+| P0 | REST API for grants, facts and questions | Chris |  | backend |
+| P0 | Finance API: transactions, allocations, spending and compliance flags | Sam | accounting | backend, finance |
+| P0 | Server-side CSV transaction import | Sam | accounting | backend, finance |
+
+### Grounded AI drafting
+
+| Priority | Issue | Owner | Requirement | Area |
+|---|---|---|---|---|
+| P0 | Drafting service behind the DraftResult contract | Chris | AI drafting | ai |
+| P0 | Validate citations and reject unsupported claims | Chris | AI drafting | ai |
+| P0 | Enforce word limits on generated answers | Chris | AI drafting | ai |
+| P1 | Report missing information instead of inventing it | Chris | knowledge base | ai |
+| P0 | Grounding evaluation suite | Chris | AI drafting | ai, ops |
+
+## Phase 3 · Integration
+
+Connect both workflows through a shared grant detail page.
+
+### Backend & persistence
+
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
 | P0 | Move the web store from browser storage to the API |  | backend |
-| P0 | Server-side CSV transaction import | accounting | backend, finance |
+
+### Integration & demo
+
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
+| P0 | Shared grant detail page on the live API | grant setup | backend |
+
+## Phase 4 · Testing & demo
+
+Demonstrate a fact-grounded application and a correctly identified spending violation.
+
+### Backend & persistence
+
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
 | P0 | Deploy the API on 5820 with database backups |  | backend, ops |
 
-### Accounts, organizations & roles
+### Quality & operations
 
-Roles (director, finance, program staff) are simulated in the UI with no sign-in. Add real accounts, organizations and server-enforced permissions.
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
+| P1 | End-to-end tests for core flows |  | ops |
+
+### Integration & demo
+
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
+| P0 | Demo: fact-grounded application and a flagged spending violation |  | ops |
+
+## Later
+
+After the demo: accounts and roles, documents, QuickBooks, exports, alerts, and operations.
+
+### Accounts, organizations & roles
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
@@ -91,42 +149,15 @@ Roles (director, finance, program staff) are simulated in the UI with no sign-in
 | P2 | Enforce role permissions on the server | roles & workflow | auth |
 | P2 | Multi-user approval workflow for facts and answers | roles & workflow | auth, knowledge |
 
-### Quality & operations
-
-CI runs type-check, lint, unit tests and build. Add end-to-end coverage, monitoring and an accessibility pass.
-
-| Priority | Issue | Requirement | Area |
-|---|---|---|---|
-| P1 | End-to-end tests for core flows |  | ops |
-| P1 | Error monitoring for web and API |  | ops |
-| P1 | Accessibility audit and fixes |  | ops |
-
-## M2 · Real AI drafting
-
-Swap the mock drafting engine for a grounded LLM service behind the DraftResult contract.
-
 ### Grounded AI drafting
 
-`web/src/lib/drafting.ts` is a keyword-matching mock. Replace it with an LLM service that answers only from approved facts and returns the same `DraftResult` (text, citations, missing, blockedBy), so the UI doesn't change.
-
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
-| P0 | Drafting service behind the DraftResult contract | AI drafting | ai |
-| P0 | Validate citations and reject unsupported claims | AI drafting | ai |
-| P0 | Enforce word limits on generated answers | AI drafting | ai |
-| P1 | Report missing information instead of inventing it | knowledge base | ai |
-| P0 | Grounding evaluation suite | AI drafting | ai, ops |
 | P1 | Match the organization's tone and writing style | AI drafting | ai |
 | P1 | Reuse relevant answers from past applications | AI drafting | ai |
 | P1 | Usage limits and cost logging for drafting | AI drafting | ai, ops |
 
-## M3 · Documents & QuickBooks
-
-Upload past applications/reports, extract facts, and connect QuickBooks for transactions.
-
 ### Knowledge base documents
-
-Past applications and reports are a list with no files, and the style profile is static. Store real documents and turn them into reviewable facts and a style profile.
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
@@ -136,21 +167,13 @@ Past applications and reports are a list with no files, and the style profile is
 
 ### QuickBooks & expenditure audit
 
-Transactions come from CSV only. Connect QuickBooks Online and keep a full history of expenditure changes.
-
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
 | P1 | Connect QuickBooks Online | accounting | finance |
 | P1 | Sync QuickBooks transactions and map accounts to categories | accounting | finance |
 | P2 | Audit trail for expenditure changes and approvals | accounting | finance |
 
-## M4 · Reports & automation
-
-Funder exports, auto-drafted reports, email alerts and an audit trail.
-
 ### Reports, exports & alerts
-
-Reports export as CSV and alerts are in-app only. Add funder-ready exports, auto-drafted reports and email alerts.
 
 | Priority | Issue | Requirement | Area |
 |---|---|---|---|
@@ -158,3 +181,10 @@ Reports export as CSV and alerts are in-app only. Add funder-ready exports, auto
 | P1 | PDF expenditure report per grant | dashboards & reports | reports |
 | P2 | Auto-draft narrative and financial reports before deadlines | dashboards & reports | reports, ai |
 | P2 | Email alerts for deadlines and projected overruns | dashboards & reports | reports |
+
+### Quality & operations
+
+| Priority | Issue | Requirement | Area |
+|---|---|---|---|
+| P1 | Error monitoring for web and API |  | ops |
+| P1 | Accessibility audit and fixes |  | ops |
