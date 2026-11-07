@@ -1,0 +1,11 @@
+[Unit]
+Description=Deploy the newest green commit of Grantit to grantit.joseyandco.com
+Documentation=https://github.com/noddle-Cake/grantit/blob/main/docs/deploy.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/grantit-autodeploy
+# A full deploy (npm ci, checks, build, restart) takes a few minutes.
+TimeoutStartSec=20min

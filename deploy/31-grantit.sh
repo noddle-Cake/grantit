@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # 31 - Publish Grantit: grantit.joseyandco.com on 127.0.0.1:8307. Safe to re-run to deploy the latest main.
-#   sudo bash ~/srv-setup/31-grantit.sh
+#   sudo bash ~/srv-setup/31-grantit.sh            # latest main
+#   sudo bash ~/srv-setup/31-grantit.sh <commit>   # one exact commit on main (what grantit-autodeploy uses)
 #
 # Source of truth: deploy/31-grantit.sh in github.com/noddle-Cake/grantit (copied to ~/srv-setup on 5820).
 # Pulls main into ~/Projects/grantit, builds web/ (npm workspace) as chris, copies web/dist into the site, and restarts
@@ -10,6 +11,9 @@ say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die() { printf '\n\033[1;31mABORT: %s\033[0m\n' "$*" >&2; exit 1; }
 [[ $EUID -eq 0 ]] || die "run with sudo"
 cd /   # sudo -u websvc inherits the cwd, and websvc cannot enter /home/chris
+
+TARGET=${1:-}
+[[ -z $TARGET || $TARGET =~ ^[0-9a-f]{7,40}$ ]] || die "commit must be a hex SHA, got: $TARGET"
 
 NAME=grantit PORT=8307 HOST=grantit.joseyandco.com
 REPO_URL=https://github.com/noddle-Cake/grantit.git
@@ -24,7 +28,14 @@ say "Fetching main into $SRC"
 if [[ ! -d $SRC/.git ]]; then
   $AS_CHRIS "git clone --branch main $REPO_URL '$SRC'"
 else
-  $AS_CHRIS "git -C '$SRC' fetch --quiet origin main && git -C '$SRC' checkout --quiet main && git -C '$SRC' merge --ff-only --quiet origin/main"
+  $AS_CHRIS "git -C '$SRC' fetch --quiet origin main"
+fi
+if [[ -n $TARGET ]]; then
+  # Deploy exactly the commit CI passed, even if main has moved on since.
+  $AS_CHRIS "git -C '$SRC' merge-base --is-ancestor '$TARGET' origin/main" || die "$TARGET is not on main"
+  $AS_CHRIS "git -C '$SRC' checkout --quiet --detach '$TARGET'"
+else
+  $AS_CHRIS "git -C '$SRC' checkout --quiet main && git -C '$SRC' merge --ff-only --quiet origin/main"
 fi
 REV=$($AS_CHRIS "git -C '$SRC' rev-parse --short HEAD")
 echo "    at $REV"

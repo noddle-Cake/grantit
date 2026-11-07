@@ -1,0 +1,10 @@
+[Unit]
+Description=Check for a new green Grantit commit every 2 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=2min
+RandomizedDelaySec=15s
+
+[Install]
+WantedBy=timers.target

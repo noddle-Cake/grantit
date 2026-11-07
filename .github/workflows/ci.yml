@@ -1,7 +1,7 @@
 name: CI
 
-# Runs on GitHub-hosted runners. CI verifies and builds; deploys are
-# `sudo bash ~/srv-setup/31-grantit.sh` on 5820 (see docs/deploy.md).
+# Runs on GitHub-hosted runners. CI verifies and builds. When it passes on main, 5820 deploys that commit
+# automatically (grantit-autodeploy) and the Deploy workflow confirms it went live (see docs/deploy.md).
 on:
   pull_request:
   push:
