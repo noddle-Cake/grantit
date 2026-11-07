@@ -11,14 +11,14 @@ import type { Transaction } from '@grantit/shared/types'
 type Row = Omit<Transaction, 'id'>
 
 const TEMPLATE = `date,vendor,description,account,amount,grant,category
-2026-10-30,Scholastic Supply Co.,Winter readers,6400 Program Supplies,1250.00,Community Literacy Fund 2026,Program Supplies
-2026-10-31,Payroll,Reading coordinator salary – 10/2026 bonus,6000 Salaries,800,Community Literacy Fund 2026,Personnel
-2026-11-01,Riverbend Transit,Robotics field trip,6600 Transportation,640,,
+2026-10-30,Brightpath Curriculum Co.,Coping-skills cards for workshops,6400 Program Supplies,1250.00,Safe & Strong School Workshops,Curriculum & Materials
+2026-10-31,Payroll,Mentor coordinator – 10/2026 overtime,6000 Salaries,800,Anchor Mentors 2026,Mentor Coordinator
+2026-11-01,Sunline Charter Bus,Mentoring outing transportation,6600 Activities,640,,
 `
 
 const QB_SAMPLE: Row[] = [
-  { date: '2026-11-03', vendor: 'Scholastic Supply Co.', description: 'Holiday book drive titles', account: '6400 Program Supplies', amount: 980, allocations: [], reviewed: false, source: 'quickbooks-sample' },
-  { date: '2026-11-04', vendor: 'Brightline Evaluation LLC', description: 'Fall baseline assessments', account: '6700 Contract Services', amount: 2500, allocations: [], reviewed: false, source: 'quickbooks-sample' },
+  { date: '2026-11-03', vendor: 'Lingua Bridge Interpreters', description: 'Spanish interpretation – family sessions', account: '6700 Contract Services', amount: 980, allocations: [], reviewed: false, source: 'quickbooks-sample' },
+  { date: '2026-11-04', vendor: 'Keystone Evaluation Group', description: 'Fall workshop pre-surveys', account: '6700 Contract Services', amount: 2500, allocations: [], reviewed: false, source: 'quickbooks-sample' },
   { date: '2026-11-05', vendor: 'Zoom', description: 'Video conferencing – annual', account: '7200 Software', amount: 180, allocations: [], reviewed: false, source: 'quickbooks-sample' },
 ]
 

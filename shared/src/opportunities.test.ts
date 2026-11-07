@@ -88,22 +88,26 @@ describe('recommendOpportunities', () => {
   it('recommends demo opportunities that fit the demo organization, best first', () => {
     const recs = recommendOpportunities(demoOpportunities, seedState.facts, seedState.grants, { today: TODAY })
     const ids = recs.map((r) => r.opportunity.id)
-    expect(ids[0]).toBe('op-early-readers') // literacy, tutoring, youth, volunteers are all backed by facts
+    // Full fit on all three of Tidepath's programs; the soonest deadline comes first.
+    expect(ids.slice(0, 3)).toEqual(['op-family-therapy', 'op-mentor-futures', 'op-safer-schools'])
     expect(ids).not.toContain('op-watershed') // nothing in common
-    expect(ids).not.toContain('op-fall-literacy') // deadline passed
+    expect(ids).not.toContain('op-back-to-school') // deadline passed
     for (const r of recs) expect(r.supportingFacts.length).toBeGreaterThan(0)
+    // The parent support circles pilot is still pending, so approving it would strengthen this match.
+    const caregivers = recs.find((r) => r.opportunity.id === 'op-caregiver-circles')!
+    expect(caregivers.wouldStrengthen.map((f) => f.id)).toEqual(['f-parents'])
   })
 })
 
 describe('grantFromOpportunity', () => {
   it('creates a prospect with the deadline, eligibility rules and a 12-month period after the deadline', () => {
-    const g = grantFromOpportunity(opp({ id: 'o', focusAreas: [], deadline: '2027-01-15', eligibility: ['Must be a 501(c)(3)'] }), 'u-maya', 2)
+    const g = grantFromOpportunity(opp({ id: 'o', focusAreas: [], deadline: '2027-01-15', eligibility: ['Must be a 501(c)(3)'] }), 'u-claudette', 2)
     expect(g).toMatchObject({
       name: 'Program o',
       funder: 'Funder o',
       amount: 5000,
       stage: 'prospect',
-      ownerId: 'u-maya',
+      ownerId: 'u-claudette',
       cover: 2,
       periodStart: '2027-02-01',
       periodEnd: '2028-01-31',

@@ -639,7 +639,8 @@
             "req: AI drafting"
           ],
           "body": "Use the organization's style profile (see the documents epic) when drafting.\n\nAcceptance criteria:\n- [ ] Style examples passed as guidance, never as a source of facts\n- [ ] Eval shows no drop in grounding with style on",
-          "milestone": "Later"
+          "milestone": "Phase 2 · Parallel build",
+          "owner": "chris"
         },
         {
           "title": "Reuse relevant answers from past applications",

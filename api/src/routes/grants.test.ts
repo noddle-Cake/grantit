@@ -36,8 +36,8 @@ describe.skipIf(!hasTestDb)('grants API', () => {
       const body = (await res.json()) as Page<Grant>
       expect(body.data.map((g) => g.id)).toEqual(sortedIds)
       expect(body.nextCursor).toBeNull()
-      const stem = seedState.grants.find((g) => g.id === 'g-stem')!
-      expect(body.data.find((g) => g.id === 'g-stem')).toEqual(stem)
+      const counseling = seedState.grants.find((g) => g.id === 'g-counseling')!
+      expect(body.data.find((g) => g.id === 'g-counseling')).toEqual(counseling)
     })
 
     it('pages with limit and an opaque cursor', async () => {
@@ -83,9 +83,9 @@ describe.skipIf(!hasTestDb)('grants API', () => {
 
   describe('GET /grants/:grantId', () => {
     it('returns one grant', async () => {
-      const res = await get('/grants/g-stem')
+      const res = await get('/grants/g-wellness')
       expect(res.status).toBe(200)
-      expect(await res.json()).toEqual({ data: seedState.grants.find((g) => g.id === 'g-stem') })
+      expect(await res.json()).toEqual({ data: seedState.grants.find((g) => g.id === 'g-wellness') })
     })
 
     it('returns 404 for a missing grant', async () => {
