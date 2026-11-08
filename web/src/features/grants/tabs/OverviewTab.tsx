@@ -1,44 +1,39 @@
 import { AlertOctagon, CheckCircle2, FileText } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
-import { Meter, Pill, Stat, StatusPill } from '@/components/ui'
+import { Pill, StatusPill } from '@/components/ui'
 import { checkApplication } from '@grantit/shared/drafting'
-import { computeFinancials } from '@grantit/shared/finance'
-import { money, pct, wordCount } from '@grantit/shared/format'
+import { money, todayISO, wordCount } from '@grantit/shared/format'
+import { grantIssues, PACE_LABEL, pacing } from '@grantit/shared/funds'
+import { grantLine } from '@/features/funds/grantLine'
+import { PacingBar } from '@/features/funds/PacingBar'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
 
 export function OverviewTab({ grant }: { grant: Grant }) {
   const { state } = useStore()
-  const f = computeFinancials(grant, state.transactions)
+  const today = todayISO()
+  const pace = pacing(grant, state.transactions, today)
+  const issues = grantIssues(grant, state.transactions, today).count
   const check = checkApplication(grant.questions, state.facts)
-  const issues = f.categories.filter((c) => c.status === 'over').length + f.unauthorized.length
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Award" value={money(grant.amount)} />
-        <Stat label="Approved budget" value={money(f.budget)} sub={f.budget !== grant.amount && f.budget ? `${money(grant.amount - f.budget)} unallocated` : undefined} />
-        <Stat label="Spent in period" value={money(f.spent)} sub={pct(f.ratio)} />
-        <Stat label="Remaining" value={money(f.remaining)} />
-      </div>
-
-      {f.budget > 0 && (
+      {/* Spending detail lives on Budget & spending; here, only how this grant is pacing. */}
+      {pace.state !== 'needs-setup' && (
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-slate">Spending by category</h4>
-            {issues > 0 ? <StatusPill tone="bad">{issues} compliance issue{issues > 1 ? 's' : ''}</StatusPill> : <StatusPill tone="good">Within budget</StatusPill>}
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h4 className="text-sm font-semibold text-slate">Pacing</h4>
+            <div className="flex gap-1.5">
+              {pace.state === 'closing-out' ? <StatusPill tone={pace.unspent > 0 ? 'warn' : 'good'}>{pace.unspent > 0 ? `${money(pace.unspent)} unspent` : 'Fully spent'}</StatusPill>
+                : pace.state === 'active' ? <StatusPill tone={pace.status === 'on' ? 'good' : 'warn'}>{PACE_LABEL[pace.status!]}</StatusPill>
+                : <Pill dot>Closed</Pill>}
+              {issues > 0 && <Pill tone="bad">{issues} issue{issues === 1 ? '' : 's'}</Pill>}
+            </div>
           </div>
-          <div className="space-y-3">
-            {f.categories.map((c) => (
-              <div key={c.id} className="grid grid-cols-[140px_1fr_150px] items-center gap-3 text-sm">
-                <span className="truncate text-slate-2">{c.name}</span>
-                <Meter value={c.spent} max={c.budget} />
-                <span className="text-right tabular-nums text-slate">{money(c.spent)} <span className="text-slate-3">/ {money(c.budget)}</span></span>
-              </div>
-            ))}
-          </div>
-          <Link to="?tab=budget" className="mt-3 inline-block text-sm text-link hover:underline">Open budget detail →</Link>
+          <p className="mb-2 text-xs text-slate-2">{grantLine(grant, pace)}</p>
+          <PacingBar pace={pace} />
+          <Link to="?tab=budget" className="mt-3 inline-block text-sm text-link hover:underline">Open budget & spending →</Link>
         </div>
       )}
 

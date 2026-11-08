@@ -62,6 +62,23 @@ export default function GrantRecord() {
   const check = checkApplication(grant.questions, state.facts)
   const cited = [...new Set(grant.questions.flatMap((q) => q.citations))].map((fid) => state.facts.find((f) => f.id === fid)).filter(Boolean)
   const canConfigure = can(me.role, 'grant:configure')
+  const stageControl = canConfigure ? (
+    <select
+      aria-label="Grant stage"
+      value={grant.stage}
+      onChange={(e) => {
+        updateGrant(grant.id, { stage: e.target.value as GrantStage })
+        notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
+      }}
+      className="h-8 rounded-full border border-control-line bg-surface px-3 text-[0.8125rem] font-medium text-slate"
+    >
+      {STAGES.map((s) => (
+        <option key={s.id} value={s.id}>{s.label}</option>
+      ))}
+    </select>
+  ) : (
+    <Pill tone={stageMeta(grant.stage).tone} dot>{stageMeta(grant.stage).label}</Pill>
+  )
 
   return (
     <>
@@ -69,59 +86,46 @@ export default function GrantRecord() {
         <ArrowLeft size={14} /> {workspace.label} · {funded ? workspace.listLabel : 'Applications'}
       </Link>
 
-      <div className={clsx('grid gap-5', funded ? 'xl:grid-cols-[300px_minmax(0,1fr)_300px]' : 'lg:grid-cols-[260px_minmax(0,1fr)]')}>
-        {/* ── Left: record summary (HubSpot "about" column) ── */}
-        <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
-          <div className={clsx(funded ? 'h-20' : 'h-2', `cover-${grant.cover}`)} />
+      {funded && (
+        <header className="mb-5 rounded-lg border border-line-2 bg-surface">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
+              <p className="text-sm text-slate-2">{grant.funder}</p>
+            </div>
+            {stageControl}
+          </div>
+          <Section title={`${money(grant.amount)} · ${fmtDate(grant.periodStart)} – ${fmtDate(grant.periodEnd)} · ${owner?.name ?? 'No owner'}`} defaultOpen={false}>
+            <div className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
+              <Prop icon={<CircleDollarSign size={12} />} label="Award amount">{money(grant.amount)}</Prop>
+              <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">{fmtDate(grant.periodStart)} – {fmtDate(grant.periodEnd)}</Prop>
+              <Prop icon={<User size={12} />} label="Grant owner">{owner?.name ?? '—'}</Prop>
+              <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>
+            </div>
+          </Section>
+        </header>
+      )}
+
+      <div className={clsx('grid gap-5', funded ? 'xl:grid-cols-[minmax(0,1fr)_300px]' : 'lg:grid-cols-[260px_minmax(0,1fr)]')}>
+        {/* ── Left: application summary (HubSpot "about" column); funded grants use the header above ── */}
+        {!funded && <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
+          <div className={clsx('h-2', `cover-${grant.cover}`)} />
           <div className="px-5 pb-4 pt-4">
             <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
             <p className="mt-0.5 text-sm text-slate-2">{grant.funder}</p>
-            <div className="mt-3 flex items-center gap-2">
-              {canConfigure ? (
-                <select
-                  aria-label="Grant stage"
-                  value={grant.stage}
-                  onChange={(e) => {
-                    updateGrant(grant.id, { stage: e.target.value as GrantStage })
-                    notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
-                  }}
-                  className="h-8 rounded-full border border-control-line bg-surface px-3 text-[0.8125rem] font-medium text-slate"
-                >
-                  {STAGES.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-              ) : (
-                <Pill tone={stageMeta(grant.stage).tone} dot>{stageMeta(grant.stage).label}</Pill>
-              )}
-            </div>
+            <div className="mt-3 flex items-center gap-2">{stageControl}</div>
           </div>
-          <Section title={funded ? "About this grant" : "Application details"}>
-            <Prop icon={<CircleDollarSign size={12} />} label={funded ? "Award amount" : "Requested amount"}>{money(grant.amount)}</Prop>
-            {funded && <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">
-              {fmtDate(grant.periodStart)} – {fmtDate(grant.periodEnd)}
-            </Prop>}
+          <Section title="Application details">
+            <Prop icon={<CircleDollarSign size={12} />} label="Requested amount">{money(grant.amount)}</Prop>
             <Prop icon={<User size={12} />} label="Grant owner">{owner?.name ?? '—'}</Prop>
-            {funded && <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>}
           </Section>
-          {funded && <Section title="Budget categories" count={grant.categories.length} defaultOpen={false}>
-            <ul className="space-y-1.5 text-sm">
-              {grant.categories.map((c) => (
-                <li key={c.id} className="flex justify-between"><span className="text-slate-2">{c.name}</span><span className="tabular-nums">{money(c.budget)}</span></li>
-              ))}
-            </ul>
+          <Section title="Application deadlines">
+            <DeadlineTimeline items={grant.deadlines.filter((d) => d.kind === 'application').map((d) => ({ deadline: d, grant }))} showGrant={false} empty="No application deadlines set" />
+          </Section>
+          {grant.rules.length > 0 && <Section title="Funder rules" defaultOpen={false} count={grant.rules.length}>
+            <ul className="space-y-2 text-sm text-slate-2">{grant.rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
           </Section>}
-          {!funded && (
-            <>
-              <Section title="Application deadlines">
-                <DeadlineTimeline items={grant.deadlines.filter((d) => d.kind === 'application').map((d) => ({ deadline: d, grant }))} showGrant={false} empty="No application deadlines set" />
-              </Section>
-              {grant.rules.length > 0 && <Section title="Funder rules" defaultOpen={false} count={grant.rules.length}>
-                <ul className="space-y-2 text-sm text-slate-2">{grant.rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
-              </Section>}
-            </>
-          )}
-        </aside>
+        </aside>}
 
         {/* ── Middle: tabs ── */}
         <div className="min-w-0">

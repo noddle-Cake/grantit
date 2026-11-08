@@ -7,7 +7,7 @@ export const STAGES: { id: GrantStage; label: string; tone: Tone }[] = [
   { id: 'drafting', label: 'Drafting', tone: 'brand' },
   { id: 'submitted', label: 'Submitted', tone: 'info' },
   { id: 'awarded', label: 'Active', tone: 'good' },
-  { id: 'reporting', label: 'Reporting', tone: 'warn' },
+  { id: 'reporting', label: 'Closing out', tone: 'warn' },
   { id: 'closed', label: 'Closed', tone: 'neutral' },
   { id: 'declined', label: 'Declined', tone: 'bad' },
 ]

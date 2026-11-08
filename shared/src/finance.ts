@@ -139,6 +139,9 @@ export function funderQuarters(grant: Grant): Period[] {
 
 export const inPeriod = (iso: string, p: { start: string; end: string }) => iso >= p.start && iso <= p.end
 
+/** The date period checks use: when the service happens, defaulting to the transaction date. */
+export const effectiveDate = (t: Pick<Transaction, 'date' | 'serviceDate'>) => t.serviceDate || t.date
+
 // ─── Spending ───────────────────────────────────────────────────────────────
 
 export interface CategorySpend {
@@ -185,8 +188,13 @@ function grantLines(grant: Grant, txs: Transaction[]): Line[] {
   )
 }
 
+/**
+ * Budget, reportable spend and remaining for one grant in one period. Reportable spend excludes disallowed costs:
+ * charges to categories the funder didn't approve (listed in `unauthorized`) and charges whose service date falls
+ * outside the period. Every screen and report uses these figures.
+ */
 export function computeFinancials(grant: Grant, txs: Transaction[], period: { start: string; end: string } = grantPeriod(grant)): GrantFinancials {
-  const lines = grantLines(grant, txs).filter((l) => inPeriod(l.tx.date, period))
+  const lines = grantLines(grant, txs).filter((l) => inPeriod(effectiveDate(l.tx), period))
 
   const categories: CategorySpend[] = grant.categories.map((c) => {
     const spent = lines.filter((l) => l.category?.id === c.id).reduce((s, l) => s + l.cents, 0)
@@ -219,12 +227,13 @@ export function computeFinancials(grant: Grant, txs: Transaction[], period: { st
     cursor.setMonth(cursor.getMonth() + 1)
   }
   for (const l of lines) {
-    const k = l.tx.date.slice(0, 7)
+    if (!l.category) continue
+    const k = effectiveDate(l.tx).slice(0, 7)
     if (monthMap.has(k)) monthMap.set(k, (monthMap.get(k) ?? 0) + l.cents)
   }
 
   const budget = grant.categories.reduce((s, c) => s + toCents(c.budget), 0)
-  const spent = lines.reduce((s, l) => s + l.cents, 0)
+  const spent = lines.reduce((s, l) => s + (l.category ? l.cents : 0), 0)
   return {
     budget: fromCents(budget),
     spent: fromCents(spent),
@@ -238,7 +247,7 @@ export function computeFinancials(grant: Grant, txs: Transaction[], period: { st
 
 export interface QuarterlySpend {
   quarters: Period[]
-  /** One row per approved category, then one per unapproved category name. `spent[i]` is for `quarters[i]`. */
+  /** One row per approved category. `spent[i]` is for `quarters[i]`. */
   rows: { name: string; approved: boolean; spent: number[]; total: number }[]
   totals: number[]
 }
@@ -246,21 +255,18 @@ export interface QuarterlySpend {
 /** Spending per category per funder fiscal quarter, within the grant period. */
 export function quarterlySpend(grant: Grant, txs: Transaction[]): QuarterlySpend {
   const quarters = funderQuarters(grant)
-  const lines = grantLines(grant, txs).filter((l) => inPeriod(l.tx.date, grantPeriod(grant)))
+  const lines = grantLines(grant, txs).filter((l) => inPeriod(effectiveDate(l.tx), grantPeriod(grant)))
   const qIndex = (iso: string) => quarters.findIndex((q) => inPeriod(iso, q))
   const row = (name: string, approved: boolean, ls: Line[]) => {
     const cents = quarters.map(() => 0)
     for (const l of ls) {
-      const i = qIndex(l.tx.date)
+      const i = qIndex(effectiveDate(l.tx))
       if (i >= 0) cents[i] += l.cents
     }
     return { name, approved, spent: cents.map(fromCents), total: fromCents(cents.reduce((s, c) => s + c, 0)) }
   }
-  const unapproved = [...new Set(lines.filter((l) => !l.category).map((l) => allocationCategoryName(grant, l.alloc)))]
-  const rows = [
-    ...grant.categories.map((c) => row(c.name, true, lines.filter((l) => l.category?.id === c.id))),
-    ...unapproved.map((name) => row(name, false, lines.filter((l) => !l.category && allocationCategoryName(grant, l.alloc) === name))),
-  ]
+  // Disallowed costs (unapproved categories) are left out, as in every report figure.
+  const rows = grant.categories.map((c) => row(c.name, true, lines.filter((l) => l.category?.id === c.id)))
   const totals = quarters.map((_, i) => sumDollars(rows.map((r) => r.spent[i])))
   return { quarters, rows, totals }
 }
@@ -287,8 +293,8 @@ export function computeFlags(grants: Grant[], txs: Transaction[]): Map<string, T
       if (!g) continue
       if (!categoryOf(g, a))
         add(t.id, { kind: 'unauthorized-category', grantId: g.id, message: `“${allocationCategoryName(g, a)}” is not an approved category for ${g.name}` })
-      if (!inPeriod(t.date, grantPeriod(g)))
-        add(t.id, { kind: 'outside-period', grantId: g.id, message: `Dated outside ${g.name}'s funding period` })
+      if (!inPeriod(effectiveDate(t), grantPeriod(g)))
+        add(t.id, { kind: 'outside-period', grantId: g.id, message: t.serviceDate && t.serviceDate !== t.date ? `Service date ${t.serviceDate} is outside ${g.name}'s funding period` : `Dated outside ${g.name}'s funding period` })
     }
     const grantIds = new Set(t.allocations.map((a) => a.grantId))
     if (t.allocations.length > 1 && [...grantIds].some((id) => byId.get(id) && !byId.get(id)!.allowSplit))
@@ -297,8 +303,8 @@ export function computeFlags(grants: Grant[], txs: Transaction[]): Map<string, T
 
   for (const g of grants) {
     const lines = grantLines(g, txs)
-      .filter((l) => l.category && inPeriod(l.tx.date, grantPeriod(g)))
-      .sort((a, b) => a.tx.date.localeCompare(b.tx.date))
+      .filter((l) => l.category && inPeriod(effectiveDate(l.tx), grantPeriod(g)))
+      .sort((a, b) => effectiveDate(a.tx).localeCompare(effectiveDate(b.tx)))
     for (const cat of g.categories) {
       const budget = toCents(cat.budget)
       let running = 0

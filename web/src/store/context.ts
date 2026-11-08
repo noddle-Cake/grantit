@@ -42,6 +42,8 @@ export interface Store {
   setAllocations: (txId: string, allocations: Allocation[]) => void
   /** Mark unassigned transactions as paid from unrestricted funds (or undo). Assigned ones are left alone. */
   setNotGrantFunded: (txIds: string[], value: boolean) => void
+  /** When the paid-for service happens (blank: the transaction date). A change resets `reviewed`. */
+  setServiceDate: (txId: string, serviceDate: string | undefined) => void
   markReviewed: (txIds: string[], reviewed?: boolean) => void
   // funding opportunities (demo listings until a real search exists)
   opportunities: Opportunity[]

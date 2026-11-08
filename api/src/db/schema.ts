@@ -8,9 +8,10 @@ import {
   GRANT_STAGES,
   ROLES,
   TRANSACTION_SOURCES,
+  type BudgetReallocation,
 } from '@grantit/shared/types'
 import { sql } from 'drizzle-orm'
-import { boolean, check, date, index, integer, numeric, pgEnum, pgTable, primaryKey, text, timestamp, unique } from 'drizzle-orm/pg-core'
+import { boolean, check, date, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, text, timestamp, unique } from 'drizzle-orm/pg-core'
 
 // Database schema for the domain model in shared/src/types.ts.
 //
@@ -144,12 +145,17 @@ export const grants = pgTable(
     setupConfirmedAt: isoDate(),
     // Null means the funder's year starts in the month the grant period starts.
     funderFiscalYearStartMonth: integer(),
+    // Percent of a category's budget that may move to another category without funder approval; null: any move needs it.
+    rebudgetThresholdPct: integer(),
+    // Budget moves between categories (category budgets already include them).
+    reallocations: jsonb().$type<BudgetReallocation[]>(),
     createdAt: createdAt(),
   },
   (t) => [
     index().on(t.organizationId),
     check('period_order', sql`${t.periodEnd} >= ${t.periodStart}`),
     check('funder_fiscal_year_start_month_range', sql`${t.funderFiscalYearStartMonth} between 1 and 12`),
+    check('rebudget_threshold_pct_range', sql`${t.rebudgetThresholdPct} between 0 and 100`),
   ],
 )
 
@@ -216,6 +222,8 @@ export const transactions = pgTable(
     source: transactionSourceEnum().notNull(),
     // True when deliberately paid from unrestricted funds; null otherwise (matches the optional shared field).
     notGrantFunded: boolean(),
+    // When the paid-for service happens, if not the transaction date; period checks use it.
+    serviceDate: isoDate(),
     createdAt: createdAt(),
   },
   (t) => [index().on(t.organizationId, t.date)],

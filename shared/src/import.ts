@@ -1,5 +1,5 @@
 import { allocationFor, toCents } from './finance.ts'
-import { canReceiveTransactions } from './setup.ts'
+import { canReceiveTransactions, isOpenAward } from './setup.ts'
 import type { Grant, Transaction } from './types.ts'
 
 // ─── Header mapping ─────────────────────────────────────────────────────────
@@ -168,6 +168,7 @@ export function prepareImport(table: string[][], grants: Grant[], existing: Tran
     let warning: string | undefined
     let allocations: Transaction['allocations'] = []
     if (grantName && !grant) warning = `No grant named “${grantName}”; imported as unassigned`
+    else if (grant && !isOpenAward(grant)) warning = `${grant.name} isn't an open award; imported as unassigned`
     else if (grant && !canReceiveTransactions(grant)) warning = `${grant.name} needs setup before it can receive transactions; imported as unassigned`
     else if (grant && !category) warning = `No category given for ${grant.name}; imported as unassigned`
     else if (grant) allocations = [allocationFor(grant, category, amount)]

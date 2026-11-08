@@ -20,9 +20,9 @@ describe('needsSetup / canReceiveTransactions', () => {
     expect(seedState.grants.filter(needsSetup).map((g) => g.id)).toEqual(['g-family-wellness'])
   })
 
-  it('lets confirmed funded grants with a budget receive transactions', () => {
+  it('lets confirmed open awards with a budget receive transactions', () => {
     expect(canReceiveTransactions(byId('g-anchor'))).toBe(true)
-    expect(canReceiveTransactions(byId('g-camp'))).toBe(true) // closed but confirmed
+    expect(canReceiveTransactions(byId('g-camp'))).toBe(false) // closed
     expect(canReceiveTransactions(byId('g-family-wellness'))).toBe(false)
     expect(canReceiveTransactions(byId('g-wellness'))).toBe(false) // still drafting
   })
