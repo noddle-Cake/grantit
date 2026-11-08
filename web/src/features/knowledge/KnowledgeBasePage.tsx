@@ -2,7 +2,7 @@ import { BookOpenText, Check, FileText, PenLine, Plus, Search } from 'lucide-rea
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FACT_CATEGORIES, FACT_STATUS, factCategoryLabel } from '@/lib/labels'
-import { Avatar, Button, Card, EmptyState, PageHeader, Pill, Segmented } from '@/components/ui'
+import { Avatar, Button, Card, EmptyState, Pill, Segmented } from '@/components/ui'
 import { byImpact, factImpact, impactOf, isStale, type FactImpact } from '@grantit/shared/fact-impact'
 import { relativeDay, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
@@ -101,12 +101,11 @@ export default function KnowledgeBase() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Find & apply"
-        title="Knowledge base"
-        subtitle="The single source of truth for applications. Only approved facts are used in drafts."
-        actions={can(me.role, 'fact:edit') && <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>}
-      />
+      {can(me.role, 'fact:edit') && (
+        <div className="mb-4 flex justify-end">
+          <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>
+        </div>
+      )}
 
       <NeededNow onAdd={(h) => { setHint(h); setOpen('new') }} onOpen={setOpen} />
 

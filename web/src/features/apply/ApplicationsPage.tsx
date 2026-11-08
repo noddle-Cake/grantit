@@ -3,7 +3,7 @@ import { ArrowRight, CalendarClock, FileText, Plus, Search, Sparkles } from 'luc
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { stageMeta } from '@/lib/labels'
-import { Avatar, Button, Card, EmptyState, Meter, PageHeader, Pill, Segmented } from '@/components/ui'
+import { Avatar, Button, Card, EmptyState, Meter, Pill, Segmented } from '@/components/ui'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
 import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline, pipelineSummary, regenerable } from '@grantit/shared/applications'
 import { dateWithRelative, daysUntil, fmtDate, money, todayISO } from '@grantit/shared/format'
@@ -51,12 +51,11 @@ export default function Applications() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Find & apply"
-        title="Applications"
-        subtitle="Track your applications and pick up the next step."
-        actions={can(me.role, 'grant:configure') && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
-      />
+      {can(me.role, 'grant:configure') && (
+        <div className="mb-4 flex justify-end">
+          <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>
+        </div>
+      )}
       {pipeline.length === 0 && !mine ? (
         <EmptyState icon={<FileText />} title="No applications yet">
           Find funding in <Link to="/apply" className="text-link hover:underline">Opportunities</Link> or add a prospect to get started.
