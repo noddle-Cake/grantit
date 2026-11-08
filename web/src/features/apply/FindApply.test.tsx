@@ -202,9 +202,12 @@ describe('Find & apply workflow', () => {
     expect(document.activeElement?.id).toBe(`q-${target.id}`)
   })
 
-  it('puts what applications and matches are waiting on at the top of the knowledge base', async () => {
+  it('expands the secondary knowledge queue and keeps its approval action working', async () => {
     const user = userEvent.setup()
     renderPage('/apply/knowledge')
+    expect(screen.getByText(/^Needed now ·/).closest('details')!.open).toBe(false)
+    await user.click(screen.getByText(/^Needed now ·/))
+    expect(screen.getByText(/^Needed now ·/).closest('details')!.open).toBe(true)
     const panel = screen.getByRole('list', { name: 'Needed now' })
     const pending = seedState.facts.find((f) => f.id === 'f-parents')!
     const item = within(panel).getByRole('button', { name: pending.title }).closest('li')!
@@ -248,13 +251,16 @@ describe('Find & apply workflow', () => {
     const facts = seedState.facts.filter((f) => !f.tags.includes('sustainability'))
     saveState({ facts })
     renderPage('/apply/knowledge')
+    expect(screen.getByText(/^Needed now ·/).closest('details')!.open).toBe(false)
+    await user.click(screen.getByText(/^Needed now ·/))
+    expect(screen.getByText(/^Needed now ·/).closest('details')!.open).toBe(true)
     const item = within(screen.getByRole('list', { name: 'Needed now' })).getByText('sustainability / funding plan').closest('li')!
     expect(item.textContent).toContain(`Blocks ${drafting.name}`)
     await user.click(within(item).getByRole('button', { name: 'Add fact' }))
     expect(screen.getByRole('dialog')).toBeTruthy()
   })
 
-  it('summarizes the pipeline in tiles that filter the list', async () => {
+  it('keeps attention filters compact and leaves stage counts to the status control', async () => {
     const user = userEvent.setup()
     // The draft is due in five days and has one written answer awaiting approval.
     saveState({
@@ -265,13 +271,11 @@ describe('Find & apply workflow', () => {
       ),
     })
     renderPage('/apply/applications')
-    const tiles = screen.getByRole('group', { name: 'Summary' })
+    expect(screen.queryByRole('group', { name: 'Summary' })).toBeNull()
+    const tiles = screen.getByRole('group', { name: 'Needs attention' })
     const tile = (label: string) => within(tiles).getByRole('button', { name: new RegExp(`^${label}`) })
-    const inProgress = seedState.grants.filter((g) => g.stage === 'drafting' || g.stage === 'prospect')
-    expect(tile('In progress').textContent).toContain(String(inProgress.length))
-    expect(tile('In progress').getAttribute('aria-pressed')).toBe('true')
-    expect(tile('At risk').textContent).toMatch(/^At risk1/)
-    expect(tile('Answers to approve').textContent).toMatch(/^Answers to approve1In 1 application$/)
+    expect(tile('At risk').textContent).toMatch(/At risk 1/)
+    expect(tile('Answers to approve').textContent).toMatch(/Answers to approve 1/)
 
     await user.click(tile('At risk'))
     expect(screen.getByRole('link', { name: drafting.name })).toBeTruthy()
@@ -281,7 +285,7 @@ describe('Find & apply workflow', () => {
 
     await user.click(tile('Answers to approve'))
     expect(screen.queryByRole('link', { name: prospect.name })).toBeNull()
-    await user.click(tile('Submitted'))
+    await user.click(within(screen.getByRole('group', { name: 'Application status' })).getByRole('button', { name: /^Submitted/ }))
     expect(screen.getByRole('link', { name: submitted.name })).toBeTruthy()
     expect(within(screen.getByRole('group', { name: 'Application status' })).getByRole('button', { name: /^Submitted/ }).getAttribute('aria-pressed')).toBe('true')
   })
@@ -312,11 +316,16 @@ describe('Find & apply workflow', () => {
     expect(within(question).queryByText(/New approved facts/)).toBeNull()
   })
 
-  it('gives each recommendation a go / no-go panel: requirements, clashing deadlines, size and period', () => {
+  it('keeps deadline warnings visible and discloses the detailed opportunity evidence', async () => {
+    const user = userEvent.setup()
     // Put the draft's deadline on the soonest open recommendation's, so the clash holds whatever today's date is.
     const open = demoOpportunities.filter((o) => o.deadline >= toISO(new Date())).sort((a, b) => a.deadline.localeCompare(b.deadline))
     saveState({ grants: seedState.grants.map((g) => (g.id === drafting.id ? { ...g, deadlines: [{ id: 'd', label: 'Application due', date: open[0].deadline, kind: 'application' as const }] } : g)) })
     renderPage('/apply')
+    const card = screen.getByRole('heading', { name: open[0].program }).closest('li')!
+    expect(within(card).getByText(/application deadlines? within 7 days/)).toBeTruthy()
+    expect(within(card).getByText('Why this matches').closest('details')!.open).toBe(false)
+    await user.click(within(card).getByText('Why this matches'))
     const panel = screen.getByRole('region', { name: `Go / no-go: ${open[0].program}` })
     expect(within(panel).getByText('Requirements')).toBeTruthy()
     expect(panel.textContent).toMatch(/\d of \d with a related fact/)
@@ -347,10 +356,19 @@ describe('Find & apply workflow', () => {
     expect(screen.queryByRole('list', { name: 'Money rules' })).toBeNull()
   })
 
-  it('keeps the progress view as the default for everyone else', () => {
+  it('keeps progress as the default and makes the alternative view optional for writers', async () => {
+    const user = userEvent.setup()
     renderPage('/apply/applications')
+    expect(screen.queryByRole('group', { name: 'Needs attention' })).toBeNull()
+    expect(screen.getByText('View options').closest('details')!.open).toBe(false)
+    await user.click(screen.getByText('View options'))
+    expect(screen.getByText('View options').closest('details')!.open).toBe(true)
     expect(within(screen.getByRole('group', { name: 'Row details' })).getByRole('button', { name: 'Progress' }).getAttribute('aria-pressed')).toBe('true')
     expect(screen.queryByText('Finance facts')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Budget' }))
+    await user.click(screen.getByRole('button', { name: 'Progress' }))
+    expect(screen.getByText('View options').closest('details')!.open).toBe(true)
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Progress' }))
   })
 
   it('lets finance approve finance facts, filtered by a category link', () => {
