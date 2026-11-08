@@ -14,24 +14,15 @@ import { useStore } from '@/store'
 import { nextStepHref, whoActs } from './nextStep'
 import { BudgetCell, FinanceFactsBar } from './BudgetView'
 
-type Filter = 'active' | 'submitted' | 'declined'
 /** What each card details: writing progress, or the money side (Finance's default). */
 type View = 'progress' | 'budget'
 /** Focus on applications that need attention. */
 type Focus = 'at-risk' | 'to-approve' | null
 
-/** Which board columns each status filter shows. */
-const FILTER_COLUMNS: Record<Filter, GrantStage[]> = {
-  active: ['prospect', 'drafting'],
-  submitted: ['submitted'],
-  declined: ['declined'],
-}
-
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
 
 export default function Applications() {
   const { state, me, updateGrant } = useStore()
-  const [filter, setFilter] = useState<Filter>('active')
   const [focus, setFocus] = useState<Focus>(null)
   const [query, setQuery] = useState('')
   const [mine, setMine] = useState(false)
@@ -44,19 +35,16 @@ export default function Applications() {
     .filter((g) => (APPLY_STAGES as readonly string[]).includes(g.stage))
     .filter((g) => !mine || g.ownerId === me.id)
   const summary = pipelineSummary(pipeline, state.facts, today)
-  const matchesFilter = (g: Grant, f: Filter) => f === 'active' ? g.stage === 'drafting' || g.stage === 'prospect' : g.stage === f
   const matchesFocus = (g: Grant) =>
     focus === 'at-risk' ? isAtRisk(g, state.facts, today) : focus === 'to-approve' ? applicationNextStep(g, state.facts).check.unapproved > 0 : true
-  const show = (f: Filter, fo: Focus = null) => { setFilter(f); setFocus(fo) }
-  const toggleFocus = (fo: Exclude<Focus, null>) => show('active', focus === fo ? null : fo)
+  const toggleFocus = (fo: Exclude<Focus, null>) => setFocus((f) => (f === fo ? null : fo))
   const grants = pipeline
-    .filter((g) => matchesFilter(g, filter))
-    .filter((g) => filter !== 'active' || matchesFocus(g))
+    .filter(matchesFocus)
     .filter((g) => `${g.name} ${g.funder}`.toLowerCase().includes(query.trim().toLowerCase()))
     .sort(byApplicationDeadline)
 
   const canMove = can(me.role, 'application:draft') || can(me.role, 'grant:configure')
-  const columns = FILTER_COLUMNS[filter]
+  const columns = APPLY_STAGES
   const moveTo = (e: DragEvent, stage: GrantStage) => {
     e.preventDefault()
     setDropTarget(null)
@@ -95,15 +83,6 @@ export default function Applications() {
             </div>
           )}
           <div className="mb-4 flex flex-wrap items-center gap-3">
-            <Segmented<Filter>
-              label="Application status"
-              value={filter}
-              onChange={(f) => show(f)}
-              options={(['active', 'submitted', 'declined'] as const).map((id) => ({
-                id,
-                label: `${id === 'active' ? 'In progress' : stageMeta(id).label} ${pipeline.filter((g) => matchesFilter(g, id)).length}`,
-              }))}
-            />
             <button
               type="button"
               aria-pressed={mine}
@@ -130,36 +109,44 @@ export default function Applications() {
           </div>
           {view === 'budget' && <FinanceFactsBar />}
           {grants.length ? (
-            <div className={clsx('grid items-start gap-4', columns.length > 1 ? 'md:grid-cols-2' : 'grid-cols-1 max-w-2xl')}>
-              {columns.map((stage) => {
-                const column = grants.filter((g) => g.stage === stage)
-                return (
-                  <section
-                    key={stage}
-                    aria-label={stageMeta(stage).label}
-                    onDragOver={canMove ? (e) => { e.preventDefault(); setDropTarget(stage) } : undefined}
-                    onDragLeave={canMove ? () => setDropTarget((t) => (t === stage ? null : t)) : undefined}
-                    onDrop={canMove ? (e) => moveTo(e, stage) : undefined}
-                    className={clsx('rounded-xl border bg-canvas p-3 transition-colors', dropTarget === stage ? 'border-link ring-2 ring-link/30' : 'border-line-2')}
-                  >
-                    <header className="mb-3 flex items-center gap-2 px-1">
-                      <Pill tone={stageMeta(stage).tone} dot>{stageMeta(stage).label}</Pill>
-                      <span className="text-xs tabular-nums text-slate-3">{column.length}</span>
-                    </header>
-                    {column.length ? (
-                      <ul className="space-y-3">
-                        {column.map((g) => (
-                          <ApplicationCard key={g.id} grant={g} view={view} me={me} canMove={canMove} />
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="rounded-lg border border-dashed border-line-2 px-3 py-6 text-center text-xs text-slate-3">
-                        {canMove ? 'Drop applications here.' : 'Nothing here.'}
-                      </p>
-                    )}
-                  </section>
-                )
-              })}
+            /* The board scrolls horizontally; each column scrolls vertically. */
+            <div className="-mx-4 overflow-x-auto px-4 pb-2 sm:-mx-6 sm:px-6">
+              <div className="flex items-start gap-4" style={{ minWidth: 'max-content' }}>
+                {columns.map((stage) => {
+                  const column = grants.filter((g) => g.stage === stage)
+                  return (
+                    <section
+                      key={stage}
+                      aria-label={stageMeta(stage).label}
+                      onDragOver={canMove ? (e) => { e.preventDefault(); setDropTarget(stage) } : undefined}
+                      onDragLeave={canMove ? () => setDropTarget((t) => (t === stage ? null : t)) : undefined}
+                      onDrop={canMove ? (e) => moveTo(e, stage) : undefined}
+                      className={clsx(
+                        'flex max-h-[calc(100dvh-15rem)] w-72 shrink-0 flex-col rounded-xl border bg-canvas transition-colors sm:w-80',
+                        dropTarget === stage ? 'border-link ring-2 ring-link/30' : 'border-line-2',
+                      )}
+                    >
+                      <header className="flex items-center gap-2 border-b border-line-2 px-4 py-3">
+                        <Pill tone={stageMeta(stage).tone} dot>{stageMeta(stage).label}</Pill>
+                        <span className="text-xs tabular-nums text-slate-3">{column.length}</span>
+                      </header>
+                      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-3">
+                        {column.length ? (
+                          <ul className="space-y-3">
+                            {column.map((g) => (
+                              <ApplicationCard key={g.id} grant={g} view={view} me={me} canMove={canMove} />
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="rounded-lg border border-dashed border-line-2 px-3 py-6 text-center text-xs text-slate-3">
+                            {canMove ? 'Drop applications here.' : 'Nothing here.'}
+                          </p>
+                        )}
+                      </div>
+                    </section>
+                  )
+                })}
+              </div>
             </div>
           ) : (
             <Card padded={false}>
@@ -168,7 +155,7 @@ export default function Applications() {
                   : focus === 'at-risk' ? 'Nothing at risk: every application due in the next 14 days is ready.'
                   : focus === 'to-approve' ? 'No answers are waiting for approval.'
                   : mine ? 'None of your applications are in this view. Turn off Mine to see everyone’s.'
-                  : `No ${filter === 'active' ? 'applications in progress' : `${filter} applications`}.`}
+                  : 'No applications on the board.'}
               </EmptyState>
             </Card>
           )}
