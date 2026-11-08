@@ -23,9 +23,9 @@ function block(marker) {
 }
 
 const light = block('@theme static {')
-const dark = { ...light, ...block('@media (prefers-color-scheme: dark)') }
+const dark = { ...light, ...block(":root[data-theme='dark'] {") }
 const more = block('@media (prefers-contrast: more) {')
-const moreDark = block('@media (prefers-contrast: more) and (prefers-color-scheme: dark)')
+const moreDark = block('/* Increase Contrast in the dark appearance */')
 const modes = {
   light,
   dark,

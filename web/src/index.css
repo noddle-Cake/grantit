@@ -60,55 +60,57 @@
   --color-avatar-5: #8a5d00;
 }
 
-/* Dark Mode follows the system appearance; there is no in-app toggle (HIG: Dark Mode). */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-surface: #16232f;
-    --color-canvas: #0f1a24;
-    --color-canvas-2: #1e2f3e;
-    --color-line: #34495d;
-    --color-line-2: #263848;
-    --color-control-line: #637d96;
+/* Dark appearance. <html data-theme> is set before first paint from Settings > Appearance: System follows
+   prefers-color-scheme, Light and Dark override it (src/lib/appearance.ts, HIG: Dark Mode). */
+:root[data-theme='dark'] {
+  --color-surface: #16232f;
+  --color-canvas: #0f1a24;
+  --color-canvas-2: #1e2f3e;
+  --color-line: #34495d;
+  --color-line-2: #263848;
+  --color-control-line: #637d96;
 
-    --color-slate: #e6edf4;
-    --color-slate-2: #b4c5d6;
-    --color-slate-3: #93a9bf;
+  --color-slate: #e6edf4;
+  --color-slate-2: #b4c5d6;
+  --color-slate-3: #93a9bf;
 
-    --color-obsidian: #0a1219;
-    --color-obsidian-2: #1f3447;
+  --color-obsidian: #0a1219;
+  --color-obsidian-2: #1f3447;
 
-    --color-brand-dark: #ff9b7f;
-    --color-brand-soft: #3a2219;
-    --color-accent: #c2471f;
-    --color-accent-hover: #a83a17;
-    --color-link: #5cc8e0;
-    --color-link-soft: #10323c;
+  --color-brand-dark: #ff9b7f;
+  --color-brand-soft: #3a2219;
+  --color-accent: #c2471f;
+  --color-accent-hover: #a83a17;
+  --color-link: #5cc8e0;
+  --color-link-soft: #10323c;
 
-    --color-good: #4fd1b8;
-    --color-good-soft: #123a35;
-    --color-warn: #f0b84a;
-    --color-warn-soft: #3a2e12;
-    --color-warn-line: #7a5a1c;
-    --color-bad: #ff8a94;
-    --color-bad-soft: #3d1d22;
+  --color-good: #4fd1b8;
+  --color-good-soft: #123a35;
+  --color-warn: #f0b84a;
+  --color-warn-soft: #3a2e12;
+  --color-warn-line: #7a5a1c;
+  --color-bad: #ff8a94;
+  --color-bad-soft: #3d1d22;
 
-    --color-viz-1: #4c95ea;
-    --color-viz-warn: #f0b84a;
-    --color-viz-track: #263848;
-  }
+  --color-viz-1: #4c95ea;
+  --color-viz-warn: #f0b84a;
+  --color-viz-track: #263848;
 }
 
 /* Increase Contrast: stronger secondary text and borders (HIG: Accessibility, Color). */
 @media (prefers-contrast: more) {
-  :root {
+  /* :root[data-theme] outranks the dark block above, so the promotion also applies in the dark appearance. */
+  :root,
+  :root[data-theme] {
     --color-slate-3: var(--color-slate-2);
     --color-line: #8da2b8;
     --color-line-2: #a9bbcc;
     --color-control-line: #516f90;
   }
 }
-@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
-  :root {
+/* Increase Contrast in the dark appearance */
+@media (prefers-contrast: more) {
+  :root[data-theme='dark'] {
     --color-line: #5d7690;
     --color-line-2: #4a6178;
     --color-control-line: #9fb3c6;
@@ -128,7 +130,10 @@
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 .dialog-shell::backdrop {
