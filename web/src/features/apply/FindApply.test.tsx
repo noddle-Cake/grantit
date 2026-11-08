@@ -69,19 +69,16 @@ describe('Find & apply workflow', () => {
     expect(screen.queryByText('Approved budget')).toBeNull()
   })
 
-  it('tracks active applications separately from submitted and declined applications', async () => {
+  it('shows every application stage as a board column and narrows cards by search', async () => {
     const user = userEvent.setup()
     renderPage('/apply/applications')
-    expect(screen.getByRole('link', { name: drafting.name })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: submitted.name })).toBeNull()
+    const column = (name: string) => screen.getByRole('region', { name })
+    expect(within(column('Drafting')).getByRole('link', { name: drafting.name })).toBeTruthy()
+    expect(within(column('Submitted')).getByRole('link', { name: submitted.name })).toBeTruthy()
+    expect(within(column('Declined')).getByRole('link', { name: declined.name })).toBeTruthy()
     expect(screen.queryByRole('link', { name: awarded.name })).toBeNull()
-    const status = screen.getByRole('group', { name: 'Application status' })
-    await user.click(within(status).getByRole('button', { name: /^Submitted/ }))
-    expect(screen.getByRole('link', { name: submitted.name })).toBeTruthy()
     expect(screen.getByText('Awaiting a decision')).toBeTruthy()
     expect(screen.queryByText(/answers approved/)).toBeNull()
-    await user.click(within(status).getByRole('button', { name: /^Declined/ }))
-    expect(screen.getByRole('link', { name: declined.name })).toBeTruthy()
     await user.type(screen.getByRole('textbox', { name: 'Search applications' }), 'no-such-application')
     expect(screen.getByText('No applications match')).toBeTruthy()
   })
@@ -285,9 +282,8 @@ describe('Find & apply workflow', () => {
 
     await user.click(tile('Answers to approve'))
     expect(screen.queryByRole('link', { name: prospect.name })).toBeNull()
-    await user.click(within(screen.getByRole('group', { name: 'Application status' })).getByRole('button', { name: /^Submitted/ }))
-    expect(screen.getByRole('link', { name: submitted.name })).toBeTruthy()
-    expect(within(screen.getByRole('group', { name: 'Application status' })).getByRole('button', { name: /^Submitted/ }).getAttribute('aria-pressed')).toBe('true')
+    await user.click(tile('Answers to approve'))
+    expect(screen.getByRole('link', { name: prospect.name })).toBeTruthy()
   })
 
   it('tells the writer when facts a draft was missing get approved, on the question, the list, and Home', async () => {
