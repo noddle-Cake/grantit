@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { loadTransactions } from '../db/organization-data.ts'
 import type { Db } from '../db/client.ts'
 import { allocations, grants, transactions } from '../db/schema.ts'
-import { ApiError, decodeCursor, notFound, pageQuery, toPage, validate, type AppEnv, type ErrorDetail, type Page } from '../http.ts'
+import { ApiError, decodeCursor, notFound, pageQuery, requireAction, toPage, validate, type AppEnv, type ErrorDetail, type Page } from '../http.ts'
 
 // Transactions and their grant allocations (docs/api.md). Compliance violations (unauthorized category,
 // over budget, outside period, split) are computed by shared computeFlags, not blocked at write time —
@@ -87,6 +87,7 @@ export const transactionRoutes = new Hono<AppEnv>()
   })
   /** POST /api/transactions → 201 { data: Transaction }. */
   .post('/', validate('json', createBody), async (c) => {
+    await requireAction(c, 'finance:import')
     const { allocations: allocs, ...fields } = c.req.valid('json')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
@@ -102,6 +103,7 @@ export const transactionRoutes = new Hono<AppEnv>()
   })
   /** PATCH /api/transactions/:transactionId → { data: Transaction }; omitted fields are unchanged. */
   .patch('/:transactionId', validate('json', patchBody), async (c) => {
+    await requireAction(c, 'finance:review')
     const transactionId = c.req.param('transactionId')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
@@ -116,6 +118,7 @@ export const transactionRoutes = new Hono<AppEnv>()
   })
   /** PUT /api/transactions/:transactionId/allocations → { data: Transaction }; replaces all allocations. */
   .put('/:transactionId/allocations', validate('json', z.array(allocationIn)), async (c) => {
+    await requireAction(c, 'finance:review')
     const transactionId = c.req.param('transactionId')
     const allocs = c.req.valid('json')
     const db = c.get('db')

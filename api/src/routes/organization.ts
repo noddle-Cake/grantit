@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { organizations } from '../db/schema.ts'
-import { validate, type AppEnv } from '../http.ts'
+import { requireRole, validate, type AppEnv } from '../http.ts'
 
 // The organization the request is scoped to (docs/api.md). Created by the seed until sign-in/invites (#9, #10).
 
@@ -26,6 +26,7 @@ export const organizationRoutes = new Hono<AppEnv>()
   })
   /** PATCH /api/organization → { data: Organization }; omitted fields are unchanged. */
   .patch('/', validate('json', patchBody), async (c) => {
+    await requireRole(c, 'director')
     const [row] = await c.get('db').update(organizations).set(c.req.valid('json')).where(eq(organizations.id, c.get('organizationId'))).returning()
     return c.json({ data: toOrganization(row) })
   })

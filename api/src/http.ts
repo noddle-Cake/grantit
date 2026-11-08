@@ -1,3 +1,5 @@
+import { can, canApproveFact, type Action } from '@grantit/shared/permissions'
+import type { FactCategory, Role } from '@grantit/shared/types'
 import { and, asc, eq, gt } from 'drizzle-orm'
 import type { Context, MiddlewareHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
@@ -146,9 +148,37 @@ export function organizationScope(opts: {
 }
 
 /**
- * The user a write is attributed to (facts' updatedBy/approvedBy, a new grant's ownerId). Until sign-in
- * exists (#9) it comes from the X-User-Id header, falling back to the organization's first user. Sign-in
- * will take it from the session instead.
+ * Enforce the shared role×action matrix when the request has a session (c.get('userId')). Header-mode
+ * requests (the demo, local dev) stay permissive until the UI signs in everywhere — enforcement can't be
+ * faked once real credentials exist, but the shape is already correct.
+ */
+export async function requireAction(c: Context<AppEnv>, action: Action) {
+  const userId = c.get('userId')
+  if (!userId) return
+  const user = await c.get('db').query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, role: true } })
+  if (!user || !can(user.role, action)) throw new ApiError('forbidden', `Your role cannot ${action.replace(':', ' ')}`)
+}
+
+/** Role check for actions outside the matrix (org settings, invites): session user must hold `role`. */
+export async function requireRole(c: Context<AppEnv>, role: Role) {
+  const userId = c.get('userId')
+  if (!userId) return
+  const user = await c.get('db').query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, role: true } })
+  if (!user || user.role !== role) throw new ApiError('forbidden', `Only a ${role} can do that`)
+}
+
+/** Program staff approve only program-side facts (shared canApproveFact). */
+export async function requireApproveFact(c: Context<AppEnv>, category: FactCategory) {
+  const userId = c.get('userId')
+  if (!userId) return
+  const user = await c.get('db').query.users.findFirst({ where: eq(users.id, userId), columns: { id: true, role: true } })
+  if (!user || !canApproveFact(user.role, category)) throw new ApiError('forbidden', `Your role cannot approve ${category} facts`)
+}
+
+/**
+ * The user a write is attributed to (facts' updatedBy/approvedBy, a new grant's ownerId). The session
+ * user wins; otherwise X-User-Id, else the organization's first user. Sign-in will take it from the
+ * session instead.
  */
 export async function actorId(c: Context<AppEnv>): Promise<string> {
   const sessionUserId = c.get('userId')

@@ -8,7 +8,7 @@ import { z } from 'zod'
 import { compact, loadGrants, loadTransactions } from '../db/organization-data.ts'
 import type { Db } from '../db/client.ts'
 import * as t from '../db/schema.ts'
-import { actorId, ApiError, decodeCursor, notFound, pageQuery, toPage, validate, type AppEnv, type Page } from '../http.ts'
+import { actorId, ApiError, decodeCursor, notFound, pageQuery, requireAction, toPage, validate, type AppEnv, type Page } from '../http.ts'
 
 // Grants (docs/api.md). The list/get pair is the reference implementation; writes nest child records
 // (categories, questions, deadlines) inside the grant, matching the shared Grant type.
@@ -130,6 +130,7 @@ export const grantRoutes = new Hono<AppEnv>()
   })
   /** POST /api/grants → 201 { data: Grant } with any categories, questions and deadlines created. */
   .post('/', validate('json', createBody), async (c) => {
+    await requireAction(c, 'grant:configure')
     const input = c.req.valid('json')
     const { categories: _c, questions: _q, deadlines: _d, ownerId: _o, ...fields } = input
     const db = c.get('db')
@@ -155,6 +156,7 @@ export const grantRoutes = new Hono<AppEnv>()
    * categories/questions/deadlines array replaces that whole sub-collection.
    */
   .patch('/:grantId', validate('json', patchBody), async (c) => {
+    await requireAction(c, 'grant:configure')
     const grantId = c.req.param('grantId')
     const { categories, questions, deadlines, ...fields } = c.req.valid('json')
     const db = c.get('db')
@@ -227,6 +229,8 @@ export const grantRoutes = new Hono<AppEnv>()
   })
   /** PATCH /api/grants/:grantId/questions/:questionId → { data: Question }; stamps updatedAt. */
   .patch('/:grantId/questions/:questionId', validate('json', questionPatch), async (c) => {
+    const input = c.req.valid('json')
+    await requireAction(c, input.status === 'approved' ? 'application:approve' : 'application:draft')
     const { grantId, questionId } = c.req.param()
     const db = c.get('db')
     const [grant] = await db
@@ -237,7 +241,7 @@ export const grantRoutes = new Hono<AppEnv>()
 
     const [row] = await db
       .update(t.questions)
-      .set({ ...c.req.valid('json'), updatedAt: todayISO() })
+      .set({ ...input, updatedAt: todayISO() })
       .where(and(eq(t.questions.grantId, grantId), eq(t.questions.id, questionId)))
       .returning()
     if (!row) throw notFound('Question', questionId)
@@ -249,6 +253,7 @@ export const grantRoutes = new Hono<AppEnv>()
    * contract) and saves it on the question.
    */
   .post('/:grantId/questions/:questionId/drafts', async (c) => {
+    await requireAction(c, 'application:draft')
     const { grantId, questionId } = c.req.param()
     const db = c.get('db')
     const organizationId = c.get('organizationId')
