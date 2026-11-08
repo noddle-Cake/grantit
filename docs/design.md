@@ -176,8 +176,12 @@ This workspace focuses on discovering funding and preparing applications:
   unapproved question's prompt, so they clear as soon as a covering fact is approved. Each item offers the
   action that clears it: Approve, Submit for approval, Add fact (topic filled in), or who it's waiting on.
   Below it are fact search, category and approval filters, editing and approval. The list opens on Needs
-  approval when the viewer can approve a waiting fact, listing what they can approve first. Placeholder
-  writing-style and document-upload panels are omitted until functional.
+  approval when the viewer can approve a waiting fact, listing what they can approve first, then by impact.
+  Each fact shows its impact (`shared/src/fact-impact.ts`): "Unblocks 1 application · Strengthens 2 matches
+  · Used in 3 answers". When two or more listed facts can be approved, checkboxes and "Approve N facts"
+  approve them together, with Undo restoring each fact's previous status. Finance and organization facts not
+  updated in 12 months show "Over a year old". Placeholder writing-style and document-upload panels are
+  omitted until functional.
 - **Badges and to-dos point at action.** The Applications nav badge counts in-progress applications due
   within 14 days that aren't ready (`shared/src/applications.ts`); Opportunities has no badge. Home's
   to-dos use the same next step as the Applications list.

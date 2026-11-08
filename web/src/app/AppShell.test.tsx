@@ -134,6 +134,18 @@ describe('app keyboard access', () => {
     expect(screen.getByRole('button', { name: /^Mission statement/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
   })
+
+  it('undoes a bulk approval, restoring each fact’s previous status', async () => {
+    const user = userEvent.setup()
+    renderApp('/apply/knowledge?status=all')
+    const unapproved = seedState.facts.filter((f) => f.status !== 'approved')
+    await user.click(screen.getByRole('checkbox', { name: 'Select all you can approve' }))
+    await user.click(screen.getByRole('button', { name: `Approve ${unapproved.length} facts` }))
+    expect(screen.getByText(`Approved ${unapproved.length} facts`)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    for (const s of ['pending', 'draft'] as const)
+      expect(screen.getByRole('button', { name: new RegExp(`^${s === 'pending' ? 'Needs approval' : 'Draft'} ${unapproved.filter((f) => f.status === s).length}`) })).toBeTruthy()
+  })
 })
 
 describe('navigation badges', () => {
