@@ -17,29 +17,11 @@ import { BudgetCell, FinanceFactsBar } from './BudgetView'
 type Filter = 'active' | 'submitted' | 'declined'
 /** What each row details: writing progress, or the money side (Finance's default). */
 type View = 'progress' | 'budget'
-/** A narrower view of in-progress applications, chosen from the summary tiles. */
+/** Focus on applications that need attention. */
 type Focus = 'at-risk' | 'to-approve' | null
 const ORDER = { drafting: 0, prospect: 1, submitted: 2, declined: 3 } as Record<string, number>
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
-
-function Tile({ label, value, sub, pressed, tone, onClick }: { label: string; value: number; sub: string; pressed: boolean; tone?: 'warn'; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={pressed}
-      onClick={onClick}
-      className={clsx(
-        'rounded-lg border p-3.5 text-left transition-colors sm:p-4',
-        pressed ? 'border-link bg-link-soft' : 'border-line-2 bg-surface hover:border-control-line',
-      )}
-    >
-      <span className="block text-[0.8125rem] text-slate-2">{label}</span>
-      <span className={clsx('mt-1 block text-2xl font-semibold tabular-nums', tone === 'warn' && value > 0 ? 'text-brand-dark' : 'text-slate')}>{value}</span>
-      <span className="mt-0.5 block text-xs text-slate-2">{sub}</span>
-    </button>
-  )
-}
 
 export default function Applications() {
   const { state, me } = useStore()
@@ -48,6 +30,7 @@ export default function Applications() {
   const [query, setQuery] = useState('')
   const [mine, setMine] = useState(false)
   const [view, setView] = useState<View>(() => (me.role === 'finance' ? 'budget' : 'progress'))
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(me.role === 'finance')
   const [newOpen, setNewOpen] = useState(false)
   const today = todayISO()
   const pipeline = state.grants
@@ -80,18 +63,22 @@ export default function Applications() {
         </EmptyState>
       ) : (
         <>
-          <div role="group" aria-label="Summary" className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Tile label="In progress" value={summary.inProgress.count} sub={`${money(summary.inProgress.amount)} requested`} pressed={filter === 'active' && !focus} onClick={() => show('active')} />
-            <Tile label="At risk" value={summary.atRisk} sub="Due within 14 days, not ready" tone="warn" pressed={focus === 'at-risk'} onClick={() => toggleFocus('at-risk')} />
-            <Tile
-              label="Answers to approve"
-              value={summary.toApprove.answers}
-              sub={summary.toApprove.applications ? `In ${count(summary.toApprove.applications, 'application')}` : 'None waiting'}
-              pressed={focus === 'to-approve'}
-              onClick={() => toggleFocus('to-approve')}
-            />
-            <Tile label="Submitted" value={summary.submitted.count} sub={`${money(summary.submitted.amount)} awaiting decisions`} pressed={filter === 'submitted'} onClick={() => show('submitted')} />
-          </div>
+          {(summary.atRisk > 0 || summary.toApprove.answers > 0 || focus) && (
+            <div role="group" aria-label="Needs attention" className="mb-4 flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-xs font-medium text-slate-2">Needs attention</span>
+              {([
+                { id: 'at-risk', label: 'At risk', count: summary.atRisk },
+                { id: 'to-approve', label: 'Answers to approve', count: summary.toApprove.answers },
+              ] as const).filter((item) => item.count > 0 || focus === item.id).map((item) => (
+                <button key={item.id} type="button" aria-pressed={focus === item.id} onClick={() => toggleFocus(item.id)} className={clsx(
+                  'min-h-8 rounded-full border px-3 py-1 text-xs font-medium tabular-nums',
+                  focus === item.id ? 'border-link bg-link-soft text-link' : 'border-line-2 bg-surface text-slate-2 hover:border-control-line',
+                )}>
+                  {item.label} {item.count}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="mb-4 flex flex-wrap items-center gap-3">
             <Segmented<Filter>
               label="Application status"
@@ -110,12 +97,17 @@ export default function Applications() {
             >
               Mine
             </button>
-            <Segmented<View>
-              label="Row details"
-              value={view}
-              onChange={setView}
-              options={[{ id: 'progress', label: 'Progress' }, { id: 'budget', label: 'Budget' }]}
-            />
+            <details open={viewOptionsOpen} onToggle={(e) => setViewOptionsOpen(e.currentTarget.open)} className="rounded-lg border border-line-2 bg-surface px-3 py-1.5">
+              <summary className="cursor-pointer text-xs font-medium text-slate-2">View options</summary>
+              <div className="mt-2">
+                <Segmented<View>
+                  label="Row details"
+                  value={view}
+                  onChange={setView}
+                  options={[{ id: 'progress', label: 'Progress' }, { id: 'budget', label: 'Budget' }]}
+                />
+              </div>
+            </details>
             <div className="relative w-full sm:ml-auto sm:w-64">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
               <input aria-label="Search applications" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search applications" className="h-9 w-full rounded-lg border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3" />

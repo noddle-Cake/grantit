@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpenText, CalendarDays, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
+import { BookOpenText, CalendarDays, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, PieChart, Plug, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { todayISO } from '@grantit/shared/format'
@@ -32,11 +32,17 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
     heading: WORKSPACES.funds.label,
     items: [
       { to: '/funds', label: 'Funded grants', icon: HandCoins, end: true },
+      { to: '/funds/financials', label: 'Financials', icon: PieChart },
       { to: '/funds/spending', label: 'Spending', icon: Receipt },
       { to: '/funds/reports', label: 'Reports', icon: FileBarChart2 },
     ],
   },
-  { items: [{ to: '/team', label: 'Team & roles', icon: Users }] },
+  {
+    items: [
+      { to: '/team', label: 'Team & roles', icon: Users },
+      { to: '/connectors', label: 'Connectors', icon: Plug },
+    ],
+  },
 ]
 
 function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { collapsed: boolean; onToggle: () => void; onCloseMobile: () => void; mobile?: boolean }) {

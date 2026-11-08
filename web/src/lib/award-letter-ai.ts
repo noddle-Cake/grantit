@@ -16,13 +16,13 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 /**
- * Send an award letter PDF to the provider chosen in Settings (OpenAI, Claude or Gemini, each with structured output)
+ * Send an award letter PDF to the provider chosen in Connectors (OpenAI, Claude or Gemini, each with structured output)
  * and validate what comes back. SDKs load on demand so none of them is in the main bundle.
  */
 export async function extractAwardLetter(file: File): Promise<ParsedAwardLetter> {
   const { provider, apiKey, model } = activeProvider()
   const { keyLabel } = providerInfo(provider)
-  if (!apiKey) throw new AwardLetterError(`Add your ${keyLabel} in Settings to read award letters with AI. You can still fill in the form by hand.`)
+  if (!apiKey) throw new AwardLetterError(`Add your ${keyLabel} in Connectors to read award letters with AI. You can still fill in the form by hand.`)
   if (file.type && file.type !== 'application/pdf') throw new AwardLetterError('Choose a PDF file.')
   if (file.size > MAX_BYTES) throw new AwardLetterError('That PDF is over 10 MB. Try a smaller file or enter the terms by hand.')
 

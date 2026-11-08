@@ -1,4 +1,4 @@
-// Draft an answer from approved facts and approved PDFs. With an API key in Settings the chosen provider writes it,
+// Draft an answer from approved facts and approved PDFs. With an API key in Connectors the chosen provider writes it,
 // quoting a source for every sentence, and each PDF quote is checked against the PDF's text. Without a key the
 // built-in drafter copies matching sentences instead, so the demo works offline.
 import { assembleDraft, buildDraftRequest, DRAFT_SCHEMA, parseAiDraft } from '@grantit/shared/draft-prompt'

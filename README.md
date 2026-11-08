@@ -96,7 +96,7 @@ In **Knowledge base**, upload PDFs with selectable text (up to 25 MB each). Appr
 approved facts and are the primary document sources for drafting. Scans need OCR before uploading.
 Two sample PDFs are included; regenerate them with `npm run samples:knowledge -w web`.
 
-**Generate draft** uses the provider and key selected in Settings. Without a key, the built-in drafter
+**Generate draft** uses the provider and key selected in Connectors. Without a key, the built-in drafter
 copies relevant source sentences. PDF citations open a popup on the cited page with the quote highlighted
 beside the answer sentence. Writers and approvers can mark whether the quote supports that sentence.
 Unmatched quotes and citations marked wrong block answer approval until reviewed or corrected.

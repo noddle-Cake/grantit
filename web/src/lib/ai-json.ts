@@ -1,4 +1,4 @@
-// One structured-output request to the provider chosen in Settings (Claude, OpenAI or Gemini), optionally with a
+// One structured-output request to the provider chosen in Connectors (Claude, OpenAI or Gemini), optionally with a
 // PDF attached. Requests go straight from the browser with the key saved in this browser. SDKs load on demand so
 // none of them is in the main bundle.
 import { activeProvider, type AiProvider } from './ai-settings'
@@ -23,8 +23,8 @@ export interface AiJsonRequest {
 
 /** Shared wording for HTTP failures, so every provider reads the same. */
 function httpError(name: string, model: string, status: number | undefined, message: string, fallback: string): AiError {
-  if (status === 401 || status === 403) return new AiError(`${name} rejected the API key. Check it in Settings.`)
-  if (status === 404) return new AiError(`${name} doesn't recognize the model “${model}”. Change it in Settings.`)
+  if (status === 401 || status === 403) return new AiError(`${name} rejected the API key. Check it in Connectors.`)
+  if (status === 404) return new AiError(`${name} doesn't recognize the model “${model}”. Change it in Connectors.`)
   if (status === 429) return new AiError(`${name} rate limit or quota reached. Try again shortly, or ${fallback}.`)
   if (status === 400) return new AiError(`${name} couldn't process this request: ${message}`)
   if (status) return new AiError(`${name} error ${status}. Try again, or ${fallback}.`)

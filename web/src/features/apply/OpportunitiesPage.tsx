@@ -74,14 +74,15 @@ function GoNoGo({ rec, median }: { rec: Recommendation; median?: number }) {
 }
 
 function RecommendationCard({ rec, canAdd, median }: { rec: Recommendation; canAdd: boolean; median?: number }) {
-  const { addOpportunity, dismissOpportunity, notify } = useStore()
+  const { state, addOpportunity, dismissOpportunity, notify } = useStore()
   const nav = useNavigate()
   const o = rec.opportunity
   const soon = daysUntil(o.deadline) <= 30
+  const clashes = deadlineClashes(o, state.grants)
 
   return (
-    <li className="flex flex-col rounded-xl border border-line-2 bg-surface p-4">
-      <div className="flex items-start justify-between gap-3">
+    <li className="flex min-w-0 flex-col rounded-xl border border-line-2 bg-surface p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs text-slate-3">{o.funder}</div>
           <h2 className="font-semibold text-slate">{o.program}</h2>
@@ -95,19 +96,22 @@ function RecommendationCard({ rec, canAdd, median }: { rec: Recommendation; canA
         <span className={clsx('flex items-center gap-1', soon && 'font-medium text-brand-dark')}>
           <CalendarClock size={12} /> Due {dateWithRelative(o.deadline)}
         </span>
-        <span className="text-slate-3">Source: {o.source}</span>
       </div>
 
-      <GoNoGo rec={rec} median={median} />
-
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        {o.focusAreas.map((a) => (
-          <Pill key={a} tone={rec.matchedAreas.includes(a.toLowerCase()) ? 'good' : 'neutral'}>{a}</Pill>
-        ))}
-      </div>
+      {clashes.length > 0 && <p className="mt-3 flex items-center gap-1.5 text-xs font-medium text-brand-dark">
+        <AlertTriangle size={13} aria-hidden className="shrink-0" />
+        {clashes.length} application deadline{clashes.length === 1 ? '' : 's'} within {CLASH_DAYS} days
+      </p>}
 
       <details className="mt-3 text-xs text-slate-2">
         <summary className="cursor-pointer font-medium text-link">Why this matches</summary>
+        <GoNoGo rec={rec} median={median} />
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {o.focusAreas.map((a) => (
+            <Pill key={a} tone={rec.matchedAreas.includes(a.toLowerCase()) ? 'good' : 'neutral'}>{a}</Pill>
+          ))}
+        </div>
+        <p className="mt-2 text-slate-3">Source: {o.source}</p>
         <div className="mt-2 space-y-1">
           <div>
             <span className="font-medium text-slate">Backed by </span>
@@ -132,7 +136,7 @@ function RecommendationCard({ rec, canAdd, median }: { rec: Recommendation; canA
         </div>
       </details>
 
-      <div className="mt-auto flex items-center gap-2 pt-4">
+      <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
         {canAdd && (
           <Button
             size="sm"
