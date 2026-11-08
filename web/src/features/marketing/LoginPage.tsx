@@ -58,7 +58,6 @@ export default function LoginPage() {
                 onChange={(e) => { setPassword(e.target.value); setError('') }}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? errorId : undefined}
-                placeholder="password"
               />
             </Field>
 
@@ -72,10 +71,6 @@ export default function LoginPage() {
             <Button type="submit" className="w-full" icon={<ArrowRight size={18} />}>Sign in</Button>
           </form>
 
-          <p className="mt-5 rounded-[3px] bg-canvas-2 px-3 py-2 text-xs text-slate-2">
-            Demo credentials — username <span className="font-semibold text-slate">username</span>, password{' '}
-            <span className="font-semibold text-slate">password</span>.
-          </p>
         </div>
       </div>
     </div>

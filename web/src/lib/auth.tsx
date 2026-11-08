@@ -1,10 +1,11 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 
-// Demo authentication. Not a security boundary: the app runs entirely in the browser on demo data,
-// so this is a product gate (a sign-in screen in front of the workspace), not real auth. The one
-// accepted credential is username "username" / password "password".
-const DEMO_USERNAME = 'username'
-const DEMO_PASSWORD = 'password'
+// Shared-credential sign-in screen. Not a security boundary on its own: the check runs in the browser, so the
+// credential is in the JS bundle. The real gate is nginx basic auth in front of the whole site (deploy/nginx.conf),
+// which uses the same credential. The repo is public, so the credential is never committed: the deploy script
+// passes it at build time from access.env on the server. Local dev and tests fall back to username/password.
+const DEMO_USERNAME = (import.meta.env.VITE_APP_USERNAME as string | undefined)?.trim().toLowerCase() || 'username'
+const DEMO_PASSWORD = (import.meta.env.VITE_APP_PASSWORD as string | undefined) || 'password'
 const STORAGE_KEY = 'grantit:auth:v1'
 
 interface Auth {

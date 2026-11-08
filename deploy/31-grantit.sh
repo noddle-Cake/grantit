@@ -2,6 +2,10 @@
 # 31 - Publish Grantit: grantit.joseyandco.com on 127.0.0.1:8307. Safe to re-run to deploy the latest main.
 #   sudo bash ~/srv-setup/31-grantit.sh            # latest main
 #   sudo bash ~/srv-setup/31-grantit.sh <commit>   # one exact commit on main (what grantit-autodeploy uses)
+#   sudo GRANTIT_PASSWORD=… bash ~/srv-setup/31-grantit.sh   # set or change the site password, then deploy
+#
+# The site password (nginx basic auth + the in-app sign-in) lives only in $SITE/access.env on 5820. The repo is
+# public, so it is never committed: it is passed to the web build and hashed into $SITE/htpasswd here.
 #
 # Source of truth: deploy/31-grantit.sh in github.com/noddle-Cake/grantit (copied to ~/srv-setup on 5820).
 # Pulls main into ~/Projects/grantit, builds web/ (npm workspace) as chris, copies web/dist into the site, and restarts
@@ -14,6 +18,8 @@ cd /   # sudo -u websvc inherits the cwd, and websvc cannot enter /home/chris
 
 TARGET=${1:-}
 [[ -z $TARGET || $TARGET =~ ^[0-9a-f]{7,40}$ ]] || die "commit must be a hex SHA, got: $TARGET"
+NEW_PASSWORD=${GRANTIT_PASSWORD:-}
+NEW_USERNAME=${GRANTIT_USERNAME:-}
 
 NAME=grantit PORT=8307 HOST=grantit.joseyandco.com
 REPO_URL=https://github.com/noddle-Cake/grantit.git
@@ -40,9 +46,24 @@ fi
 REV=$($AS_CHRIS "git -C '$SRC' rev-parse --short HEAD")
 echo "    at $REV"
 
+# ─── Site password (basic auth + in-app sign-in), kept out of git ──────────────
+ACCESS_ENV=$SITE/access.env
+if [[ -n $NEW_PASSWORD ]]; then
+  say "Saving the site password in $ACCESS_ENV"
+  [[ $NEW_PASSWORD =~ ^[A-Za-z0-9._@%+=,-]+$ ]] || die "password may use letters, digits and . _ @ % + = , - only"
+  [[ -z $NEW_USERNAME || $NEW_USERNAME =~ ^[A-Za-z0-9._@-]+$ ]] || die "username may use letters, digits and . _ @ - only"
+  install -o websvc -g websvc -m 700 -d "$SITE"
+  printf "GRANTIT_USERNAME='%s'\nGRANTIT_PASSWORD='%s'\n" "${NEW_USERNAME:-username}" "$NEW_PASSWORD" |
+    install -o root -g root -m 600 /dev/stdin "$ACCESS_ENV"
+fi
+[[ -f $ACCESS_ENV ]] || die "no site password yet. Run once: sudo GRANTIT_PASSWORD='…' bash $0"
+# shellcheck source=/dev/null
+source "$ACCESS_ENV"
+[[ -n ${GRANTIT_PASSWORD:-} && -n ${GRANTIT_USERNAME:-} ]] || die "$ACCESS_ENV must set GRANTIT_USERNAME and GRANTIT_PASSWORD"
+
 say "Building web/ (npm ci at the workspace root, checks for shared/ and web/, vite build)"
 # web/node_modules is left over from before the npm workspace; the root install replaces it.
-$AS_CHRIS "rm -rf '$SRC/web/node_modules' && cd '$SRC' && npm ci --no-audit --no-fund && npm run check -w shared -w web && npm run build -w web"
+$AS_CHRIS "rm -rf '$SRC/web/node_modules' && cd '$SRC' && npm ci --no-audit --no-fund && npm run check -w shared -w web && VITE_APP_USERNAME='$GRANTIT_USERNAME' VITE_APP_PASSWORD='$GRANTIT_PASSWORD' npm run build -w web"
 [[ -f $SRC/web/dist/index.html ]] || die "build produced no dist/index.html"
 
 if [[ ! -e $QUADLET ]]; then
@@ -106,11 +127,19 @@ $R systemctl --user enable --now grantit-db-backup.timer
 $R systemctl --user enable grantit-api.service
 $R systemctl --user restart grantit-api.service # restarts on the new image (starts it on first run)
 
-say "Installing nginx config (SPA fallback, /api proxy, asset caching)"
+say "Installing nginx config (basic auth, rate limits, SPA fallback, /api proxy, asset caching)"
 install -o websvc -g websvc -m 644 "$SRC/deploy/nginx.conf" "$SITE/nginx.conf"
+# apr1 hash of the site password; only the container (websvc) reads it.
+printf '%s:%s\n' "$GRANTIT_USERNAME" "$(printf '%s' "$GRANTIT_PASSWORD" | openssl passwd -apr1 -stdin)" |
+  install -o websvc -g websvc -m 600 /dev/stdin "$SITE/htpasswd"
 if ! grep -q "conf.d/default.conf" "$QUADLET"; then
   sed -i "s|^Volume=$SITE/html:/usr/share/nginx/html:ro,Z|&\nVolume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|" "$QUADLET"
   grep -q "conf.d/default.conf" "$QUADLET" || die "could not add the nginx.conf volume to $QUADLET"
+  $R systemctl --user daemon-reload
+fi
+if ! grep -q "/etc/nginx/htpasswd" "$QUADLET"; then
+  sed -i "s|^Volume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|&\nVolume=$SITE/htpasswd:/etc/nginx/htpasswd:ro,Z|" "$QUADLET"
+  grep -q "/etc/nginx/htpasswd" "$QUADLET" || die "could not add the htpasswd volume to $QUADLET"
   $R systemctl --user daemon-reload
 fi
 
@@ -124,8 +153,11 @@ find "$SITE/html" -type d -exec chmod 755 {} + ; find "$SITE/html" -type f -exec
 say "Restarting (the :Z volumes relabel the new files)"
 $R systemctl --user restart "$NAME.service"
 sleep 2
-curl -fsS -o /dev/null "http://127.0.0.1:$PORT/" && echo "    origin OK on :$PORT"
-curl -fsS -o /dev/null "http://127.0.0.1:$PORT/knowledge" && echo "    SPA fallback OK (/knowledge)"
+# Credentials go to curl on stdin (-K -), not on the command line where any user could see them.
+creds() { printf 'user = "%s:%s"\n' "$GRANTIT_USERNAME" "$GRANTIT_PASSWORD"; }
+[[ $(curl -sS -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/") == 401 ]] && echo "    basic auth OK (401 without credentials)" || die "site answered without credentials"
+creds | curl -fsS -K - -o /dev/null "http://127.0.0.1:$PORT/" && echo "    origin OK on :$PORT"
+creds | curl -fsS -K - -o /dev/null "http://127.0.0.1:$PORT/knowledge" && echo "    SPA fallback OK (/knowledge)"
 curl -fsS "http://127.0.0.1:$PORT/api/health" | grep -q '"status":"ok"' && echo "    API OK on :$PORT/api" || die "API health check failed"
-curl -fsS -o /dev/null "https://$HOST/" && echo "    public OK: https://$HOST" || echo "    public check failed; DNS can take a minute"
+curl -fsS -o /dev/null "https://$HOST/version.txt" && echo "    public OK: https://$HOST" || echo "    public check failed; DNS can take a minute"
 say "Deployed $REV"
