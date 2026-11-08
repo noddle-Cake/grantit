@@ -86,9 +86,9 @@ export default function Settings() {
             />
           </div>
         </Card>
-        <Card title="AI award-letter reading">
+        <Card title="AI drafting and award letters">
           <p className="text-sm text-slate-2">
-            Grant Setup can read an award letter PDF with Claude, OpenAI or Gemini and fill in the amount, period and budget for you to review.
+            Draft application answers from approved PDFs and facts, or read an award letter PDF to fill in the amount, period and budget for review, with Claude, OpenAI or Gemini.
             Keys are stored only in this browser and sent directly to the provider; they aren't part of the demo data and Reset doesn't clear them.
           </p>
           <form

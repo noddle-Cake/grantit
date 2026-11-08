@@ -47,6 +47,32 @@ export interface PastDocument {
   outcome?: (typeof DOCUMENT_OUTCOMES)[number]
 }
 
+/** Kinds of PDF the knowledge base holds. Drafts quote approved PDFs directly. */
+export const SOURCE_DOC_KINDS = ['evaluation', 'report', 'application', 'plan', 'financials', 'other'] as const
+export type SourceDocKind = (typeof SOURCE_DOC_KINDS)[number]
+
+/**
+ * A PDF in the knowledge base. Once approved, drafts may quote it, and each quote opens the PDF with the passage
+ * highlighted. The file and its extracted page text live in this browser (IndexedDB) for now; demo PDFs are
+ * served from `sampleUrl`.
+ */
+export interface SourceDoc {
+  id: string
+  name: string
+  fileName: string
+  kind: SourceDocKind
+  pages: number
+  /** File size in bytes. */
+  size: number
+  status: FactStatus
+  uploadedAt: string // ISO date
+  uploadedBy: string
+  approvedBy?: string
+  approvedAt?: string
+  /** Bundled demo PDF, relative to the app's base URL (e.g. "samples/x.pdf"). Absent for uploaded files. */
+  sampleUrl?: string
+}
+
 // 2. Grant configuration --------------------------------------------------------
 
 export const GRANT_STAGES = ['prospect', 'drafting', 'submitted', 'awarded', 'reporting', 'closed', 'declined'] as const
@@ -63,12 +89,36 @@ export interface BudgetCategory {
 export const ANSWER_STATUSES = ['empty', 'draft', 'approved'] as const
 export type AnswerStatus = (typeof ANSWER_STATUSES)[number]
 
+/** A reviewer's verdict on one PDF citation. */
+export interface CitationCheck {
+  ok: boolean
+  by: string // user id
+  at: string // ISO date
+}
+
+/** One quote from an approved PDF that supports a sentence of an answer. */
+export interface DocCitation {
+  id: string
+  docId: string
+  /** 1-based page the quote is on. */
+  page: number
+  /** Copied word for word from the PDF. */
+  quote: string
+  /** The answer sentence the quote supports. */
+  claim: string
+  /** The quote was found word for word on that page when the draft was made. */
+  verified: boolean
+  check?: CitationCheck
+}
+
 export interface Question {
   id: string
   prompt: string
   wordLimit: number
   answer: string
   citations: string[] // fact ids
+  /** Quotes from approved PDFs, in answer order. */
+  docCitations?: DocCitation[]
   status: AnswerStatus
   missing: string[] // information gaps flagged by the drafter
   updatedAt?: string
@@ -200,6 +250,8 @@ export interface AppState {
   documents: PastDocument[]
   orgCategories: OrgCategory[]
   programs: Program[]
+  /** Knowledge-base PDFs. Browser-only until document storage moves to the API. */
+  sourceDocs: SourceDoc[]
   grants: Grant[]
   transactions: Transaction[]
 }

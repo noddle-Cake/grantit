@@ -10,7 +10,8 @@ const RETIRED_DEMO_ORGANIZATIONS = ['org-riverbend']
 
 /** The demo organization from shared/src/seed.ts: the same sample data the web app runs on. */
 export function demoOrganization(): OrganizationData {
-  const { currentUserId: _, ...data } = structuredClone(seedState)
+  // Knowledge-base PDFs live in the browser until document storage moves to the API.
+  const { currentUserId: _, sourceDocs: _docs, ...data } = structuredClone(seedState)
   return data
 }
 

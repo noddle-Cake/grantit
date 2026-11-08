@@ -1,7 +1,7 @@
 import { isInProgress, nextApplicationDeadline } from './applications.ts'
-import { gapsForPrompt } from './drafting.ts'
+import { gapsForPrompt, isTopicLabel, type PromptGap } from './drafting.ts'
 import type { Recommendation } from './opportunities.ts'
-import { FACT_CATEGORIES, type Fact, type FactCategory, type Grant } from './types.ts'
+import { FACT_CATEGORIES, type Fact, type FactCategory, type Grant, type Question } from './types.ts'
 
 /** Something a need holds up: an application in progress, or a recommended opportunity. */
 export interface NeedRef {
@@ -21,6 +21,20 @@ export type Need =
   | { kind: 'category'; category: FactCategory; blocks: []; due?: undefined }
 
 type NeedGrant = Pick<Grant, 'id' | 'name' | 'stage' | 'questions' | 'deadlines'>
+
+/**
+ * What a question still lacks. Facts alone decide until the answer is drafted from PDFs; after that, the
+ * draft's own gaps do, since the PDFs may cover topics no fact does (and the AI names gaps in its own words).
+ */
+function openGaps(q: Question, facts: Fact[]): PromptGap[] {
+  const gaps = gapsForPrompt(q.prompt, facts)
+  if (!q.docCitations?.length) return gaps
+  return q.missing.flatMap((label) => {
+    const gap = gaps.find((g) => g.label === label)
+    if (gap) return [gap]
+    return isTopicLabel(label) ? [] : [{ label, covering: [] }] // a topic label not in `gaps` is covered by now
+  })
+}
 
 /**
  * Everything the knowledge base is missing for work in progress, most urgent first:
@@ -50,7 +64,7 @@ export function neededNow(grants: NeedGrant[], facts: Fact[], recommendations: P
         const f = factsById.get(id)
         if (f && f.status !== 'approved') approve(f, ref)
       }
-      for (const gap of gapsForPrompt(q.prompt, facts)) {
+      for (const gap of openGaps(q, facts)) {
         if (gap.covering.length) gap.covering.forEach((f) => approve(f, ref))
         else add(`topic:${gap.label}`, () => ({ kind: 'add', topic: gap.label, blocks: [] }), ref)
       }

@@ -1,4 +1,4 @@
-import { checkApplication, findUnsupportedClaims, newlyCovered, type ApplicationCheck } from './drafting.ts'
+import { checkApplication, citationProblems, newlyCovered, unsupportedClaims, type ApplicationCheck } from './drafting.ts'
 import { parseDate, wordCount } from './format.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
@@ -36,14 +36,14 @@ export interface NextStep {
 const overLimit = (q: Question) => wordCount(q.answer) > q.wordLimit
 const unanswered = (q: Question) => !q.answer.trim()
 
-/** An answer is ready when it's written, within its limit, free of unsupported claims, and approved. */
+/** An answer is ready when it's written, within its limit, free of unsupported claims and doubtful PDF citations, and approved. */
 export const answerReady = (q: Question, facts: Fact[]) =>
-  !unanswered(q) && !overLimit(q) && q.status === 'approved' && findUnsupportedClaims(q.answer, facts).length === 0
+  !unanswered(q) && !overLimit(q) && q.status === 'approved' && unsupportedClaims(q, facts).length === 0 && citationProblems(q).length === 0
 
 /**
  * The single most important next step for an application, who takes it, and where. Blockers come in the
- * order they must be fixed: questions first, then word limits and unsupported claims (which make an answer
- * unusable), then unanswered questions, then approvals.
+ * order they must be fixed: questions first, then word limits, unsupported claims and doubtful PDF citations
+ * (which make an answer unusable), then unanswered questions, then approvals.
  */
 export function applicationNextStep(g: AppGrant, facts: Fact[]): NextStep {
   const check = checkApplication(g.questions, facts)
@@ -55,7 +55,8 @@ export function applicationNextStep(g: AppGrant, facts: Fact[]): NextStep {
   if (g.stage === 'declined') return step('Application declined')
   if (!g.questions.length) return step("Add the funder's questions", 'configurer')
   if (check.overLimit) return step(`${check.overLimit} over word limit`, 'owner', first(overLimit))
-  if (check.unsupported) return step(plural(check.unsupported, 'unsupported claim'), 'owner', first((q) => findUnsupportedClaims(q.answer, facts).length > 0))
+  if (check.unsupported) return step(plural(check.unsupported, 'unsupported claim'), 'owner', first((q) => unsupportedClaims(q, facts).length > 0))
+  if (check.citations) return step(`${plural(check.citations, 'PDF citation')} to check`, 'owner', first((q) => !unanswered(q) && citationProblems(q).length > 0))
   if (check.unanswered) return step(`${check.unanswered} unanswered`, 'owner', first(unanswered))
   if (check.unapproved) return step(`${plural(check.unapproved, 'answer')} to approve`, 'approver', first((q) => !unanswered(q) && q.status !== 'approved'))
   return step('Ready to submit')

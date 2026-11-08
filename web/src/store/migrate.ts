@@ -165,6 +165,10 @@ function overBudgetTransactions(grants: Grant[], txs: LegacyTransaction[]): Set<
   return over
 }
 
+/** Add demo PDFs only when saved data predates PDF knowledge sources. */
+const withSourceDocs = (state: AppState, seed: AppState): AppState =>
+  Array.isArray(state.sourceDocs) ? state : { ...state, sourceDocs: structuredClone(seed.sourceDocs) }
+
 export type LoadSource = 'v4' | 'v3-migrated' | 'v2-migrated' | 'seed'
 
 /**
@@ -177,12 +181,12 @@ export function loadState(read: (key: string) => string | null, seed: AppState, 
     if (v4) {
       const parsed: unknown = JSON.parse(v4)
       assertState<AppState>(parsed)
-      return { state: parsed, source: 'v4' }
+      return { state: withSourceDocs(parsed, seed), source: 'v4' }
     }
     const v3 = read(V3_STORAGE_KEY)
-    if (v3) return { state: migrateV3(JSON.parse(v3), seed), source: 'v3-migrated' }
+    if (v3) return { state: withSourceDocs(migrateV3(JSON.parse(v3), seed), seed), source: 'v3-migrated' }
     const v2 = read(V2_STORAGE_KEY)
-    if (v2) return { state: migrateV3(migrateV2(JSON.parse(v2), today), seed), source: 'v2-migrated' }
+    if (v2) return { state: withSourceDocs(migrateV3(migrateV2(JSON.parse(v2), today), seed), seed), source: 'v2-migrated' }
   } catch {
     /* fall through to the seed */
   }

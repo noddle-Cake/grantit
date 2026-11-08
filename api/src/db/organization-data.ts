@@ -4,7 +4,7 @@ import type { Db } from './client.ts'
 import * as t from './schema.ts'
 
 /** Everything one organization owns, in the shape of the shared domain types. */
-export type OrganizationData = Omit<AppState, 'currentUserId'>
+export type OrganizationData = Omit<AppState, 'currentUserId' | 'sourceDocs'>
 
 /** Drop null columns so optional fields come back as absent, the way the shared types and seed write them. */
 export function compact<T extends Record<string, unknown>>(row: T): { [K in keyof T]: Exclude<T[K], null> } {

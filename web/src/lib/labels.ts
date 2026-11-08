@@ -1,4 +1,4 @@
-import type { AnswerStatus, FactCategory, FactStatus, GrantStage, Transaction, TransactionStatus } from '@grantit/shared/types'
+import type { AnswerStatus, FactCategory, FactStatus, GrantStage, SourceDocKind, Transaction, TransactionStatus } from '@grantit/shared/types'
 import { workspaceOf, type Workspace } from '@grantit/shared/workspaces'
 import type { Tone } from '@/components/ui'
 
@@ -28,6 +28,15 @@ export const FACT_STATUS: Record<FactStatus, { label: string; tone: Tone }> = {
   draft: { label: 'Draft', tone: 'neutral' },
   pending: { label: 'Needs approval', tone: 'warn' },
   approved: { label: 'Approved', tone: 'good' },
+}
+
+export const DOC_KIND_LABEL: Record<SourceDocKind, string> = {
+  evaluation: 'Evaluation',
+  report: 'Funder report',
+  application: 'Past application',
+  plan: 'Plan or policy',
+  financials: 'Financials',
+  other: 'Other',
 }
 
 export const ANSWER_STATUS: Record<AnswerStatus, { label: string; tone: Tone }> = {

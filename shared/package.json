@@ -23,7 +23,9 @@
     "./applications": "./src/applications.ts",
     "./needs": "./src/needs.ts",
     "./fact-impact": "./src/fact-impact.ts",
-    "./opportunities-demo": "./src/opportunities-demo.ts"
+    "./opportunities-demo": "./src/opportunities-demo.ts",
+    "./pdf-text": "./src/pdf-text.ts",
+    "./draft-prompt": "./src/draft-prompt.ts"
   },
   "scripts": {
     "typecheck": "tsc -p .",

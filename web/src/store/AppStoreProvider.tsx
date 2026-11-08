@@ -6,6 +6,7 @@ import { seedState } from '@grantit/shared/seed'
 import { computeFlags } from '@grantit/shared/finance'
 import { todayISO, uid } from '@grantit/shared/format'
 import type { AppState, Fact, Grant } from '@grantit/shared/types'
+import { pruneDocs } from '@/lib/doc-store'
 import { StoreContext, type Store, type Toast } from './context'
 import { loadState, STORAGE_KEY } from './migrate'
 
@@ -41,6 +42,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       /* per-browser convenience only */
     }
   }, [dismissedOpportunities])
+
+  // Stored PDFs of documents deleted in an earlier visit (Undo toasts don't outlive a reload) or dropped by a reset.
+  useEffect(() => {
+    void pruneDocs(state.sourceDocs.map((d) => d.id))
+    // once per page load, with the state as loaded
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     try {
@@ -103,6 +111,45 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       })),
     deleteFact: (id) => setState((s) => ({ ...s, facts: s.facts.filter((f) => f.id !== id) })),
     restoreFact: (fact) => setState((s) => (s.facts.some((f) => f.id === fact.id) ? s : { ...s, facts: [fact, ...s.facts] })),
+
+    addSourceDoc: (doc) =>
+      setState((s) => ({
+        ...s,
+        sourceDocs: [
+          { ...doc, uploadedAt: todayISO(), uploadedBy: s.currentUserId, ...(doc.status === 'approved' ? { approvedBy: s.currentUserId, approvedAt: todayISO() } : {}) },
+          ...s.sourceDocs,
+        ],
+      })),
+    setSourceDocStatus: (id, status) =>
+      setState((s) => ({
+        ...s,
+        sourceDocs: s.sourceDocs.map((d) => {
+          if (d.id !== id) return d
+          const { approvedBy: _b, approvedAt: _a, ...rest } = d
+          return status === 'approved' ? { ...rest, status, approvedBy: s.currentUserId, approvedAt: todayISO() } : { ...rest, status }
+        }),
+      })),
+    deleteSourceDoc: (id) => setState((s) => ({ ...s, sourceDocs: s.sourceDocs.filter((d) => d.id !== id) })),
+    restoreSourceDoc: (doc) => setState((s) => (s.sourceDocs.some((d) => d.id === doc.id) ? s : { ...s, sourceDocs: [doc, ...s.sourceDocs] })),
+    checkCitation: (grantId, qid, citationId, ok) =>
+      updateGrants(
+        (g) => ({
+          ...g,
+          questions: g.questions.map((q) =>
+            q.id !== qid
+              ? q
+              : {
+                  ...q,
+                  docCitations: q.docCitations?.map((c) => {
+                    if (c.id !== citationId) return c
+                    const { check: _c, ...rest } = c
+                    return ok === null ? rest : { ...rest, check: { ok, by: state.currentUserId, at: todayISO() } }
+                  }),
+                },
+          ),
+        }),
+        grantId,
+      ),
 
     createGrant: (g) => {
       const id = uid('g')
