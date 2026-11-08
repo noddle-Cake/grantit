@@ -5,7 +5,7 @@
 #   sudo GRANTIT_PASSWORD=… bash ~/srv-setup/31-grantit.sh   # set or change the site password, then deploy
 #
 # The site password (nginx basic auth, the only sign-in) lives only in $SITE/access.env on 5820. The repo is
-# public, so it is never committed: it is hashed into $SITE/htpasswd here.
+# public, so it is never committed: it is hashed into $SITE/auth/htpasswd here.
 #
 # Source of truth: deploy/31-grantit.sh in github.com/noddle-Cake/grantit (copied to ~/srv-setup on 5820).
 # Pulls main into ~/Projects/grantit, builds web/ (npm workspace) as chris, copies web/dist into the site, and restarts
@@ -129,17 +129,21 @@ $R systemctl --user restart grantit-api.service # restarts on the new image (sta
 
 say "Installing nginx config (basic auth, rate limits, SPA fallback, /api proxy, asset caching)"
 install -o websvc -g websvc -m 644 "$SRC/deploy/nginx.conf" "$SITE/nginx.conf"
-# apr1 hash of the site password; only the container (websvc) reads it.
+# nginx.conf includes /etc/nginx/grantit-auth/*.conf; this folder is mounted there. apr1 hash of the site
+# password; only the container (websvc) reads it.
+install -o websvc -g websvc -m 700 -d "$SITE/auth"
+printf 'auth_basic "Grantit";\nauth_basic_user_file /etc/nginx/grantit-auth/htpasswd;\n' |
+  install -o websvc -g websvc -m 644 /dev/stdin "$SITE/auth/auth.conf"
 printf '%s:%s\n' "$GRANTIT_USERNAME" "$(printf '%s' "$GRANTIT_PASSWORD" | openssl passwd -apr1 -stdin)" |
-  install -o websvc -g websvc -m 600 /dev/stdin "$SITE/htpasswd"
+  install -o websvc -g websvc -m 600 /dev/stdin "$SITE/auth/htpasswd"
 if ! grep -q "conf.d/default.conf" "$QUADLET"; then
   sed -i "s|^Volume=$SITE/html:/usr/share/nginx/html:ro,Z|&\nVolume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|" "$QUADLET"
   grep -q "conf.d/default.conf" "$QUADLET" || die "could not add the nginx.conf volume to $QUADLET"
   $R systemctl --user daemon-reload
 fi
-if ! grep -q "/etc/nginx/htpasswd" "$QUADLET"; then
-  sed -i "s|^Volume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|&\nVolume=$SITE/htpasswd:/etc/nginx/htpasswd:ro,Z|" "$QUADLET"
-  grep -q "/etc/nginx/htpasswd" "$QUADLET" || die "could not add the htpasswd volume to $QUADLET"
+if ! grep -q "/etc/nginx/grantit-auth" "$QUADLET"; then
+  sed -i "s|^Volume=$SITE/nginx.conf:/etc/nginx/conf.d/default.conf:ro,Z|&\nVolume=$SITE/auth:/etc/nginx/grantit-auth:ro,Z|" "$QUADLET"
+  grep -q "/etc/nginx/grantit-auth" "$QUADLET" || die "could not add the auth volume to $QUADLET"
   $R systemctl --user daemon-reload
 fi
 
