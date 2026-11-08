@@ -61,8 +61,8 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
 
 *HIG: [Layout](https://developer.apple.com/design/human-interface-guidelines/layout)*
 
-- **The most important content goes first.** Page header with the main action, then summary stats, then
-  detail.
+- **The most important content goes first.** Page header with the main action, then the task content.
+  Summary stats belong only where they help someone decide what to do next.
 - **Group related things** in cards and sections, and use progressive disclosure (collapsible record
   sections, "See all" links) instead of showing everything at once.
 - **Layouts adapt to width, not device.** Grids collapse to one column, the rail becomes a drawer below
@@ -158,6 +158,72 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
   sparingly ("Pipeline", not "My pipeline").
 - **Empty states say what to do next,** for example "Add a prospect from Opportunities to start one."
 - **Error and blocked states say why and what fixes it.**
+
+## Find & apply scope
+
+This workspace focuses on discovering funding and preparing applications:
+
+- **Opportunities** shows recommendations, funding ranges, deadlines, the listing's source and focus areas.
+  Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage. Each card has a
+  **go / no-go** panel (`shared/src/opportunities.ts`): every funder requirement with the approved fact
+  that relates to it, or "no related fact found, check before applying" (`checkRequirements` matches key
+  words and suggests; it never rules a requirement met); applications in progress due within 7 days of the
+  deadline; the top amount against the median award won; and the assumed funding period. Supporting facts
+  sit behind “Why this matches.” Only people who add prospects can dismiss a match, since dismissals apply
+  to the whole browser rather than one person. The application pipeline lives on Applications.
+- **Finance view.** Applications has a Progress / Budget switch for row details; Finance opens on Budget.
+  Budget rows show the funding period ("to confirm" for prospects), the drafted budget against the request,
+  and the funder's money rules (`moneyRules`: indirect costs, match, fiscal year, limits). A Finance facts
+  line shows how many finance facts are approved, waiting, or over a year old, linking to Knowledge base
+  filtered to finance (`?category=finance`). Finance staff approve finance-category facts; program staff
+  approve program-side facts; the director approves everything.
+- **Applications** opens with four summary tiles (`pipelineSummary`): In progress (count and amount
+  requested), At risk, Answers to approve, and Submitted (amount awaiting decisions). Each tile is a toggle
+  that filters the list; Mine applies to the tiles too. Rows show the next step, who takes it ("Your turn" or "Waiting on <name>"), the owner, and
+  how many answers are ready (written, within limit, supported and approved), with separate views for work
+  in progress, submitted applications and declined applications, and a Mine filter. Rows sort by the
+  soonest application deadline regardless of stage. Continue opens the first question with the problem
+  (`#q-<id>`, which the application tab scrolls to and focuses). Rows wrap on narrow screens.
+- **Writers hear when missing facts are approved.** An answer's last draft records the topics it lacked
+  (`missing`). Once an approved fact covers one (`newlyCovered`), the question shows "New approved facts
+  cover …" with **Regenerate with new facts**, its row on Applications links "New facts for N answers",
+  and the application owner gets a Home to-do. The missing-information notice lists only topics still
+  uncovered.
+- **Knowledge base** opens with **Needed now** (`shared/src/needs.ts`): what applications in progress and
+  recommended opportunities are waiting on, soonest deadline first. Gaps are computed live from each
+  unapproved question's prompt, so they clear as soon as a covering fact is approved. Each item offers the
+  action that clears it: Approve, Submit for approval, Add fact (topic filled in), or who it's waiting on.
+  Below it are fact search, category and approval filters, editing and approval. The list opens on Needs
+  approval when the viewer can approve a waiting fact, listing what they can approve first, then by impact.
+  Each fact shows its impact (`shared/src/fact-impact.ts`): "Unblocks 1 application · Strengthens 2 matches
+  · Used in 3 answers". When two or more listed facts can be approved, checkboxes and "Approve N facts"
+  approve them together, with Undo restoring each fact's previous status. Finance and organization facts not
+  updated in 12 months show "Over a year old". Placeholder writing-style and document-upload panels are
+  omitted until functional.
+- **Badges and to-dos point at action.** The Applications nav badge counts in-progress applications due
+  within 14 days that aren't ready (`shared/src/applications.ts`); Opportunities has no badge. Home's
+  to-dos use the same next step as the Applications list.
+- **Application records** show requested funding, owner, application deadlines, questions and application
+  setup. Award dates, fiscal years, shared-cost allocation, approved budgets and spending appear for funded
+  stages. Changing a record to Awarded reveals that workspace's controls; saved award data is retained.
+- **New prospects** need a name, funder and requested amount, with an optional application deadline.
+  Award setup is confirmed after funding is awarded.
+
+Refinement uses the existing tokens and controls, informed by
+[Better UI](https://www.ui-skills.com/skills/jakubkrehel/better-ui). Workflow tests cover discovery,
+status filtering, prospect creation, saving application details without changing award data, and revealing
+finance controls after award.
+
+**Browser check, November 8, 2026** (Chrome, after PRs #103–#108). Applications (progress and budget views),
+Knowledge base and Opportunities were checked in a same-origin iframe at 320 CSS pixels and at 683 (a
+1366-pixel window at 200% zoom), in light and dark appearance, with a script confirming no horizontal
+overflow on any of them. The keyboard alone reached and toggled the summary tiles, the bulk-approve checkboxes
+and "Approve N facts" with a visible focus ring, and a `#q-<id>` link focused its question; no console
+errors. Fixes from the pass: separators no longer start a wrapped line (owner on Applications, requirement
+count on Opportunities); Needed now wraps its action below the text and left-aligns fact titles; bulk-approve
+checkboxes align with the fact title; dates 45+ days out no longer repeat ("Due Jan 29, 2027", via
+`dateWithRelative`); "Due in 37 days" reads in sentence case (`relativePhrase`). Not covered: VoiceOver, touch
+emulation, and browsers other than Chrome.
 
 ## Audit record: November 7, 2026
 

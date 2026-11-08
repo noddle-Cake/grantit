@@ -53,64 +53,79 @@ export default function GrantRecord() {
   // Before award the application comes first; after award, the money does.
   const workspace = workspaceFor(grant.stage)
   const funded = workspace.home === '/funds'
-  const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : grant.questions.length ? 'application' : 'overview'
+  const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : 'application'
+  const availableTabs: Tab[] = funded ? ['overview', 'budget', 'application', 'setup'] : ['application', 'setup']
   const requestedTab = params.get('tab')
-  const tab: Tab = ['overview', 'application', 'budget', 'setup'].includes(requestedTab ?? '') ? requestedTab as Tab : defaultTab
+  const tab: Tab = availableTabs.includes(requestedTab as Tab) ? requestedTab as Tab : defaultTab
 
   const owner = state.users.find((u) => u.id === grant.ownerId)
   const check = checkApplication(grant.questions, state.facts)
   const cited = [...new Set(grant.questions.flatMap((q) => q.citations))].map((fid) => state.facts.find((f) => f.id === fid)).filter(Boolean)
   const canConfigure = can(me.role, 'grant:configure')
+  const stageControl = canConfigure ? (
+    <select
+      aria-label="Grant stage"
+      value={grant.stage}
+      onChange={(e) => {
+        updateGrant(grant.id, { stage: e.target.value as GrantStage })
+        notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
+      }}
+      className="h-8 rounded-full border border-control-line bg-surface px-3 text-[0.8125rem] font-medium text-slate"
+    >
+      {STAGES.map((s) => (
+        <option key={s.id} value={s.id}>{s.label}</option>
+      ))}
+    </select>
+  ) : (
+    <Pill tone={stageMeta(grant.stage).tone} dot>{stageMeta(grant.stage).label}</Pill>
+  )
 
   return (
     <>
-      <Link to={workspace.home} className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
-        <ArrowLeft size={14} /> {workspace.label} · {workspace.listLabel}
+      <Link to={funded ? workspace.home : "/apply/applications"} className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
+        <ArrowLeft size={14} /> {workspace.label} · {funded ? workspace.listLabel : 'Applications'}
       </Link>
 
-      <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
-        {/* ── Left: record summary (HubSpot "about" column) ── */}
-        <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
-          <div className={clsx('h-20', `cover-${grant.cover}`)} />
+      {funded && (
+        <header className="mb-5 rounded-lg border border-line-2 bg-surface">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
+              <p className="text-sm text-slate-2">{grant.funder}</p>
+            </div>
+            {stageControl}
+          </div>
+          <Section title={`${money(grant.amount)} · ${fmtDate(grant.periodStart)} – ${fmtDate(grant.periodEnd)} · ${owner?.name ?? 'No owner'}`} defaultOpen={false}>
+            <div className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">
+              <Prop icon={<CircleDollarSign size={12} />} label="Award amount">{money(grant.amount)}</Prop>
+              <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">{fmtDate(grant.periodStart)} – {fmtDate(grant.periodEnd)}</Prop>
+              <Prop icon={<User size={12} />} label="Grant owner">{owner?.name ?? '—'}</Prop>
+              <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>
+            </div>
+          </Section>
+        </header>
+      )}
+
+      <div className={clsx('grid gap-5', funded ? 'xl:grid-cols-[minmax(0,1fr)_300px]' : 'lg:grid-cols-[260px_minmax(0,1fr)]')}>
+        {/* ── Left: application summary (HubSpot "about" column); funded grants use the header above ── */}
+        {!funded && <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
+          <div className={clsx('h-2', `cover-${grant.cover}`)} />
           <div className="px-5 pb-4 pt-4">
             <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
             <p className="mt-0.5 text-sm text-slate-2">{grant.funder}</p>
-            <div className="mt-3 flex items-center gap-2">
-              {canConfigure ? (
-                <select
-                  aria-label="Grant stage"
-                  value={grant.stage}
-                  onChange={(e) => {
-                    updateGrant(grant.id, { stage: e.target.value as GrantStage })
-                    notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
-                  }}
-                  className="h-8 rounded-full border border-control-line bg-surface px-3 text-[0.8125rem] font-medium text-slate"
-                >
-                  {STAGES.map((s) => (
-                    <option key={s.id} value={s.id}>{s.label}</option>
-                  ))}
-                </select>
-              ) : (
-                <Pill tone={stageMeta(grant.stage).tone} dot>{stageMeta(grant.stage).label}</Pill>
-              )}
-            </div>
+            <div className="mt-3 flex items-center gap-2">{stageControl}</div>
           </div>
-          <Section title="About this grant">
-            <Prop icon={<CircleDollarSign size={12} />} label="Award amount">{money(grant.amount)}</Prop>
-            <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">
-              {fmtDate(grant.periodStart)} – {fmtDate(grant.periodEnd)}
-            </Prop>
+          <Section title="Application details">
+            <Prop icon={<CircleDollarSign size={12} />} label="Requested amount">{money(grant.amount)}</Prop>
             <Prop icon={<User size={12} />} label="Grant owner">{owner?.name ?? '—'}</Prop>
-            <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>
           </Section>
-          <Section title="Budget categories" count={grant.categories.length} defaultOpen={false}>
-            <ul className="space-y-1.5 text-sm">
-              {grant.categories.map((c) => (
-                <li key={c.id} className="flex justify-between"><span className="text-slate-2">{c.name}</span><span className="tabular-nums">{money(c.budget)}</span></li>
-              ))}
-            </ul>
+          <Section title="Application deadlines">
+            <DeadlineTimeline items={grant.deadlines.filter((d) => d.kind === 'application').map((d) => ({ deadline: d, grant }))} showGrant={false} empty="No application deadlines set" />
           </Section>
-        </aside>
+          {grant.rules.length > 0 && <Section title="Funder rules" defaultOpen={false} count={grant.rules.length}>
+            <ul className="space-y-2 text-sm text-slate-2">{grant.rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
+          </Section>}
+        </aside>}
 
         {/* ── Middle: tabs ── */}
         <div className="min-w-0">
@@ -129,15 +144,16 @@ export default function GrantRecord() {
                   ) : undefined,
                 }
                 const budget = { id: 'budget' as const, label: 'Budget & spending' }
+                if (!funded) return [application, { id: 'setup' as const, label: 'Application setup' }]
                 return [
                   { id: 'overview' as const, label: 'Overview' },
-                  ...(funded ? [budget, application] : [application, budget]),
+                  budget, application,
                   { id: 'setup' as const, label: 'Configuration' },
                 ]
               })()}
             />
           </div>
-          {(['overview', 'application', 'budget', 'setup'] as const).map((panel) => (
+          {availableTabs.map((panel) => (
             <div key={panel} id={`grant-record-${panel}-panel`} role="tabpanel" aria-labelledby={`grant-record-${panel}-tab`} hidden={tab !== panel} tabIndex={0} className="rounded-b-lg border border-line-2 bg-surface p-5">
               {tab === panel && panel === 'overview' && <OverviewTab grant={grant} />}
               {tab === panel && panel === 'application' && <ApplicationTab grant={grant} />}
@@ -148,7 +164,7 @@ export default function GrantRecord() {
         </div>
 
         {/* ── Right: associations ── */}
-        <aside className="space-y-4 self-start">
+        {funded && <aside className="space-y-4 self-start">
           <div className="rounded-lg border border-line-2 bg-surface">
             <div className="px-5 py-3 text-sm font-semibold text-slate">Upcoming deadlines</div>
             <div className="border-t border-line-2 p-5">
@@ -178,7 +194,7 @@ export default function GrantRecord() {
               )}
             </ul>
           </div>
-        </aside>
+        </aside>}
       </div>
     </>
   )

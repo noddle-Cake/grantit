@@ -14,8 +14,8 @@ The platform needs a reliable source of information from which to generate grant
 | P0 | Allow staff to add, edit, and approve organizational facts. | ✅ |
 | P0 | Generate application responses using only approved organizational facts. | ✅ |
 | P0 | Show which stored facts support each generated response. | ✅ |
-| P1 | Store previous grant applications and reports for reuse. | 🟡 list only, no upload |
-| P1 | Learn the organization's writing style from approved examples. | 🟡 static profile |
+| P1 | Store previous grant applications and reports for reuse. | ⬜ sample documents retained in data; upload and reuse UI not implemented |
+| P1 | Learn the organization's writing style from approved examples. | ⬜ |
 | P1 | Identify missing information rather than inventing it. | ✅ |
 
 ## 2. Grant-specific configuration
@@ -80,7 +80,7 @@ Every funder can impose different requirements, and the application must support
 | Priority | Requirement | Status |
 |---|---|---|
 | P0 | Allow the director to configure grants, draft applications, and approve information. | ✅ |
-| P0 | Allow financial staff to review transactions, categories, and spending compliance. | ✅ |
+| P0 | Allow financial staff to review transactions, categories, and spending compliance. | ✅ also approve finance facts and see a budget view of applications |
 | P1 | Allow program staff to contribute and approve program information. | ✅ |
 | P1 | Track the status of applications, narrative drafts, financial checks, and reports. | ✅ |
 | P2 | Support role-based permissions and multi-user approval workflows. | 🟡 roles simulated, no auth |

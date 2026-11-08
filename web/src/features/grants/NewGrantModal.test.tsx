@@ -5,7 +5,7 @@ import { AppStoreProvider } from '@/store'
 import { NewGrantModal } from './NewGrantModal'
 
 it('names the fields and explains why creation is disabled, including cleared dates', () => {
-  render(<AppStoreProvider><MemoryRouter><NewGrantModal open onClose={() => {}} /></MemoryRouter></AppStoreProvider>)
+  render(<AppStoreProvider><MemoryRouter><NewGrantModal open onClose={() => {}} defaultStage="awarded" /></MemoryRouter></AppStoreProvider>)
   const create = screen.getByRole('button', { name: 'Create grant' }) as HTMLButtonElement
   const reason = () => document.getElementById(create.getAttribute('aria-describedby')!)?.textContent
   expect(create.disabled).toBe(true)

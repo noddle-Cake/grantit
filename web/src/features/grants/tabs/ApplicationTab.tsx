@@ -1,10 +1,10 @@
 import clsx from 'clsx'
 import { AlertOctagon, AlertTriangle, BookOpenCheck, Check, CheckCircle2, ClipboardCheck, Copy, Hourglass, Lock, Plus, RefreshCw, Sparkles, Undo2 } from 'lucide-react'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Button, EmptyState, Pill, StatusPill } from '@/components/ui'
-import { checkApplication, draftAnswerAsync, findUnsupportedClaims } from '@grantit/shared/drafting'
+import { checkApplication, draftAnswerAsync, findUnsupportedClaims, newlyCovered } from '@grantit/shared/drafting'
 import { wordCount } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
@@ -35,6 +35,9 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
   const unsupported = findUnsupportedClaims(q.answer, state.facts)
   const citedFacts = q.citations.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f !== undefined)
   const unapprovedCited = citedFacts.filter((f) => f.status !== 'approved')
+  // Gaps the last draft reported that approved facts now cover: the writer's cue to regenerate.
+  const covered = q.status === 'approved' ? [] : newlyCovered(q, state.facts)
+  const stillMissing = q.missing.filter((label) => !covered.includes(label))
   const [blocked, setBlocked] = useState<string[]>([])
 
   async function generate() {
@@ -49,7 +52,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
   const blockedFacts = blocked.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f && f.status !== 'approved')
 
   return (
-    <article className={clsx('rounded-xl border bg-surface transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
+    <article id={`q-${q.id}`} tabIndex={-1} aria-label={`Question ${index + 1}`} className={clsx('scroll-mt-24 rounded-xl border bg-surface transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
       <header className="flex flex-wrap items-start gap-3 px-5 pt-4">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-xs font-semibold text-slate-2">{index + 1}</span>
         <div className="min-w-0 flex-1">
@@ -120,15 +123,25 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
         )}
 
         {/* Issues */}
-        {!busy && (q.missing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0) && (
+        {!busy && (covered.length > 0 || stillMissing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0) && (
           <div className="mt-4 space-y-2">
-            {q.missing.length > 0 && (
+            {covered.length > 0 && (
+              <div role="status" className="flex flex-wrap items-center gap-2.5 rounded-lg bg-good-soft px-3.5 py-2.5 text-sm">
+                <Sparkles size={16} className="shrink-0 text-good" />
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-slate">New approved facts cover {covered.join(', ')}.</span>{' '}
+                  <span className="text-slate-2">{canDraft ? 'Regenerate to use them.' : 'A writer can regenerate this answer to use them.'}</span>
+                </div>
+                {canDraft && <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={generate}>Regenerate with new facts</Button>}
+              </div>
+            )}
+            {stillMissing.length > 0 && (
               <div className="flex gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-sm">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
                 <div className="flex-1">
                   <span className="font-medium text-slate">Missing information — not invented.</span>{' '}
-                  <span className="text-slate-2">No approved facts cover: {q.missing.join(', ')}.</span>{' '}
-                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(q.missing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
+                  <span className="text-slate-2">No approved facts cover: {stillMissing.join(', ')}.</span>{' '}
+                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(stillMissing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
                 </div>
               </div>
             )}
@@ -212,7 +225,15 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
 export function ApplicationTab({ grant }: { grant: Grant }) {
   const { state, me } = useStore()
   const check = checkApplication(grant.questions, state.facts)
-  const approvedFacts = state.facts.filter((f) => f.status === 'approved').length
+  const { hash } = useLocation()
+
+  // Links from Applications and Home land on the question that needs work (#q-<id>).
+  useEffect(() => {
+    if (!hash.startsWith('#q-')) return
+    const el = document.getElementById(hash.slice(1))
+    el?.scrollIntoView?.({ block: 'start' })
+    el?.focus({ preventScroll: true })
+  }, [hash])
 
   if (!grant.questions.length)
     return (
@@ -221,7 +242,7 @@ export function ApplicationTab({ grant }: { grant: Grant }) {
         title="No application questions yet"
         action={can(me.role, 'grant:configure') && <Link to="?tab=setup"><Button size="sm" icon={<Plus size={14} />}>Add questions</Button></Link>}
       >
-        Add this funder's questions and word limits in Configuration, then draft answers from your knowledge base.
+        Add this funder's questions and word limits in setup, then draft answers from your knowledge base.
       </EmptyState>
     )
 
@@ -239,16 +260,15 @@ export function ApplicationTab({ grant }: { grant: Grant }) {
           <StatusPill tone="good">Application ready — all answers approved and within limits</StatusPill>
         ) : (
           <>
-            <span className="text-sm font-semibold text-slate">Validation</span>
-            {items.map((it) => (
-              <span key={it.label} className={clsx('flex items-center gap-1.5 text-sm', it.n ? 'text-slate' : 'text-slate-3')}>
-                {it.n ? <AlertTriangle size={14} className={it.label.includes('unsupported') || it.label.includes('limit') ? 'text-bad' : 'text-warn'} /> : <CheckCircle2 size={14} className="text-good" />}
+            <span className="text-sm font-semibold text-slate">To finish</span>
+            {items.filter((it) => it.n > 0).map((it) => (
+              <span key={it.label} className="flex items-center gap-1.5 text-sm text-slate">
+                <AlertTriangle size={14} className={it.label.includes('unsupported') || it.label.includes('limit') ? 'text-bad' : 'text-warn'} />
                 <span className="tabular-nums font-medium">{it.n}</span> {it.label}
               </span>
             ))}
           </>
         )}
-        <span className="ml-auto text-xs text-slate-3">Grounded in {approvedFacts} approved facts</span>
       </div>
       {grant.questions.map((q, i) => (
         <QuestionCard key={q.id} grant={grant} q={q} index={i} />

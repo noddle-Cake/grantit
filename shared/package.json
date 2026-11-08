@@ -8,6 +8,7 @@
     "./types": "./src/types.ts",
     "./finance": "./src/finance.ts",
     "./setup": "./src/setup.ts",
+    "./funds": "./src/funds.ts",
     "./import": "./src/import.ts",
     "./award-letter": "./src/award-letter.ts",
     "./drafting": "./src/drafting.ts",
@@ -17,6 +18,9 @@
     "./seed": "./src/seed.ts",
     "./workspaces": "./src/workspaces.ts",
     "./opportunities": "./src/opportunities.ts",
+    "./applications": "./src/applications.ts",
+    "./needs": "./src/needs.ts",
+    "./fact-impact": "./src/fact-impact.ts",
     "./opportunities-demo": "./src/opportunities-demo.ts"
   },
   "scripts": {

@@ -9,6 +9,8 @@ import Settings from '@/features/settings/SettingsPage'
 import Transactions from '@/features/transactions/TransactionsPage'
 import { AppStoreProvider } from '@/store'
 import { seedState } from '@grantit/shared/seed'
+import { todayISO, toISO } from '@grantit/shared/format'
+import { STORAGE_KEY } from '@/store/migrate'
 
 function renderApp(path = '/') {
   return render(<AppStoreProvider><MemoryRouter initialEntries={[path]}><Routes>
@@ -122,7 +124,7 @@ describe('app keyboard access', () => {
 
   it('keeps Undo available beyond the old timeout and restores the deleted fact', async () => {
     const user = userEvent.setup()
-    renderApp('/apply/knowledge')
+    renderApp('/apply/knowledge?status=all')
     await user.click(screen.getByRole('button', { name: /^Mission statement/ }))
     vi.useFakeTimers()
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
@@ -131,5 +133,33 @@ describe('app keyboard access', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     expect(screen.getByRole('button', { name: /^Mission statement/ })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+
+  it('undoes a bulk approval, restoring each fact’s previous status', async () => {
+    const user = userEvent.setup()
+    renderApp('/apply/knowledge?status=all')
+    const unapproved = seedState.facts.filter((f) => f.status !== 'approved')
+    await user.click(screen.getByRole('checkbox', { name: 'Select all you can approve' }))
+    await user.click(screen.getByRole('button', { name: `Approve ${unapproved.length} facts` }))
+    expect(screen.getByText(`Approved ${unapproved.length} facts`)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Undo' }))
+    for (const s of ['pending', 'draft'] as const)
+      expect(screen.getByRole('button', { name: new RegExp(`^${s === 'pending' ? 'Needs approval' : 'Draft'} ${unapproved.filter((f) => f.status === s).length}`) })).toBeTruthy()
+  })
+})
+
+describe('navigation badges', () => {
+  it('badges Applications with applications due soon that are not ready, not Opportunities', () => {
+    const inFiveDays = new Date()
+    inFiveDays.setDate(inFiveDays.getDate() + 5)
+    const grants = seedState.grants.map((g) =>
+      g.stage === 'drafting' ? { ...g, deadlines: [{ id: 'd-soon', label: 'Application due', date: toISO(inFiveDays), kind: 'application' as const }] } : g,
+    )
+    expect(toISO(inFiveDays) > todayISO()).toBe(true)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...seedState, grants }))
+    renderApp()
+    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
+    expect(within(nav).getByRole('link', { name: /^Applications/ }).textContent).toMatch(/Applications\s*1$/)
+    expect(within(nav).getByRole('link', { name: /^Opportunities/ }).textContent).toBe('Opportunities')
   })
 })

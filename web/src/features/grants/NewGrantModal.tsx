@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { Button, Modal } from '@/components/ui'
 import { uid } from '@grantit/shared/format'
+import { workspaceOf } from '@grantit/shared/workspaces'
 import { useStore } from '@/store'
 import type { GrantStage } from '@grantit/shared/types'
 
@@ -33,9 +34,10 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
   const [end, setEnd] = useState(`${year}-12-31`)
   const [deadline, setDeadline] = useState('')
   const [stage, setStage] = useState<GrantStage>(defaultStage)
+  const funded = workspaceOf(defaultStage) === 'funds'
 
   const validationId = useId()
-  const validation = !name.trim() ? 'Enter a grant name.' : !funder.trim() ? 'Enter a funder.' : !Number.isFinite(Number(amount)) || Number(amount) <= 0 ? 'Enter an amount greater than zero.' : !start || !end || start >= end ? 'Choose a funding end date after the start date.' : ''
+  const validation = !name.trim() ? 'Enter a grant name.' : !funder.trim() ? 'Enter a funder.' : !Number.isFinite(Number(amount)) || Number(amount) <= 0 ? 'Enter an amount greater than zero.' : funded && (!start || !end || start >= end) ? 'Choose a funding end date after the start date.' : ''
   const valid = !validation
 
   function submit() {
@@ -55,14 +57,14 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
       questions: [],
       allowSplit: false,
     })
-    notify('Grant created — add questions and budget next')
+    notify(funded ? 'Grant created — confirm the award setup next' : 'Prospect added — add application questions next')
     onClose()
     nav(`/grants/${id}?tab=setup`)
   }
 
   return (
-    <Modal open={open} onClose={onClose} label="New grant">
-      <div className={clsx('relative h-28 pointer-coarse:h-44', `cover-${cover}`)}>
+    <Modal open={open} onClose={onClose} label={funded ? "New grant" : "Add a prospect"}>
+      {funded ? <div className={clsx('relative h-28 pointer-coarse:h-44', `cover-${cover}`)}>
         <button onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full bg-surface/80 p-1.5 text-slate hover:bg-surface">
           <X size={16} />
         </button>
@@ -80,7 +82,10 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
             <Shuffle size={12} />
           </button>
         </div>
-      </div>
+      </div> : <div className="flex items-center justify-between border-b border-line-2 px-6 py-4">
+        <h2 className="text-lg font-semibold text-slate">Add a prospect</h2>
+        <button onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-slate-2 hover:bg-canvas"><X size={16} /></button>
+      </div>}
       <div className="space-y-4 p-6">
         <input
           aria-label="Grant name"
@@ -94,31 +99,31 @@ export function NewGrantModal({ open, onClose, defaultStage = 'prospect' }: { op
           <Row icon={<Building2 size={16} />} label="Funder">
             <input aria-label="Funder" required className={bare} value={funder} onChange={(e) => setFunder(e.target.value)} placeholder="Foundation, agency, or donor" />
           </Row>
-          <Row icon={<CircleDollarSign size={16} />} label="Amount">
+          <Row icon={<CircleDollarSign size={16} />} label={funded ? "Award amount" : "Requested"}>
             <span className="text-sm text-slate-3">$</span>
             <input aria-label="Grant amount" required className={bare} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^\d]/g, ''))} placeholder="0" />
           </Row>
-          <Row icon={<CalendarRange size={16} />} label="Funding period">
+          {funded && <Row icon={<CalendarRange size={16} />} label="Funding period">
             <div className="grid min-w-0 w-full gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <input aria-label="Funding period start" required type="date" className={bare} value={start} onChange={(e) => setStart(e.target.value)} />
               <span aria-hidden="true" className="hidden text-slate-3 sm:inline">→</span>
               <input aria-label="Funding period end" required type="date" className={bare} value={end} onChange={(e) => setEnd(e.target.value)} />
             </div>
-          </Row>
+          </Row>}
           <Row icon={<CalendarRange size={16} />} label="Application due">
             <input aria-label="Application due date" type="date" className={bare} value={deadline} onChange={(e) => setDeadline(e.target.value)} />
           </Row>
           <Row icon={<Flag size={16} />} label="Stage">
             <select aria-label="Grant stage" className={bare} value={stage} onChange={(e) => setStage(e.target.value as GrantStage)}>
-              {STAGES.map((s) => (
+              {STAGES.filter((s) => workspaceOf(s.id) === workspaceOf(defaultStage)).map((s) => (
                 <option key={s.id} value={s.id}>{s.label}</option>
               ))}
             </select>
           </Row>
         </div>
-        <p className="text-xs text-slate-3">The funding period is tracked separately from your organization's fiscal year.</p>
+        {funded && <p className="text-xs text-slate-3">The funding period is tracked separately from your organization's fiscal year.</p>}
         {validation && <p id={validationId} className="text-xs text-slate-2">{validation}</p>}
-        <Button className="w-full" aria-describedby={validation ? validationId : undefined} onClick={submit} disabled={!valid}>Create grant</Button>
+        <Button className="w-full" aria-describedby={validation ? validationId : undefined} onClick={submit} disabled={!valid}>{funded ? 'Create grant' : 'Add prospect'}</Button>
       </div>
     </Modal>
   )

@@ -1,23 +1,79 @@
 import clsx from 'clsx'
-import { ArrowRight, CalendarClock, Compass, Plus, Sparkles, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CalendarClock, Check, CircleHelp, ListChecks, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { GrantList } from '@/features/grants/GrantList'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
-import { Button, Card, EmptyState, PageHeader, Pill, Stat } from '@/components/ui'
-import { daysUntil, fmtDate, money, moneyCompact, relativeDay, todayISO } from '@grantit/shared/format'
-import { recommendOpportunities, type Recommendation } from '@grantit/shared/opportunities'
+import { Button, Card, EmptyState, PageHeader, Pill } from '@/components/ui'
+import { dateWithRelative, daysUntil, fmtDate, money, todayISO } from '@grantit/shared/format'
+import { assumedPeriod, checkRequirements, CLASH_DAYS, deadlineClashes, medianAward, recommendOpportunities, type Recommendation } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
-import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import { useStore } from '@/store'
 
-function FitBadge({ fit }: { fit: number }) {
-  const pctFit = Math.round(fit * 100)
+/** Fit is the share of the funder's focus areas covered by approved facts, so say exactly that. */
+function FitBadge({ matched, total }: { matched: number; total: number }) {
+  const fit = total ? matched / total : 0
   const tone = fit >= 0.75 ? 'bg-good-soft text-good' : fit >= 0.4 ? 'bg-warn-soft text-warn' : 'bg-canvas-2 text-slate-2'
-  return <span className={clsx('rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', tone)}>{pctFit}% fit</span>
+  return (
+    <span title="Focus areas backed by your approved facts" className={clsx('shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', tone)}>
+      {matched} of {total} focus areas
+    </span>
+  )
 }
 
-function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: boolean }) {
+const monthYear = (iso: string) => fmtDate(iso, { month: 'short', year: 'numeric' })
+
+/** What a director needs to decide go or no-go: requirements against facts, clashing deadlines, size, and period. */
+function GoNoGo({ rec, median }: { rec: Recommendation; median?: number }) {
+  const { state } = useStore()
+  const o = rec.opportunity
+  const checks = checkRequirements(o, state.facts)
+  const clashes = deadlineClashes(o, state.grants)
+  const period = assumedPeriod(o)
+  const related = checks.filter((c) => c.evidence).length
+  return (
+    <section aria-label={`Go / no-go: ${o.program}`} className="mt-3 space-y-2 rounded-lg bg-canvas px-3 py-2.5 text-xs text-slate-2">
+      {checks.length > 0 && (
+        <div>
+          <div className="flex flex-wrap items-center gap-x-2 font-medium text-slate">
+            <span className="flex items-center gap-1.5"><ListChecks size={12} /> Requirements</span>
+            <span className="font-normal text-slate-2">{related} of {checks.length} with a related fact</span>
+          </div>
+          <ul className="mt-1 space-y-1">
+            {checks.map((c) => (
+              <li key={c.requirement} className="flex gap-1.5">
+                {c.evidence ? <Check size={13} aria-hidden className="mt-px shrink-0 text-good" /> : <CircleHelp size={13} aria-hidden className="mt-px shrink-0 text-slate-3" />}
+                <span>
+                  {c.requirement}
+                  {' — '}
+                  {c.evidence ? (
+                    <>related fact: <Link to={`/apply/knowledge?fact=${c.evidence.id}`} className="text-link hover:underline">{c.evidence.title}</Link></>
+                  ) : (
+                    <span className="text-slate-3">no related fact found, check before applying</span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {clashes.length > 0 && (
+        <p className="flex gap-1.5 font-medium text-brand-dark">
+          <AlertTriangle size={13} aria-hidden className="mt-px shrink-0" />
+          <span>Within {CLASH_DAYS} days of {clashes.map((c) => `${c.name} (due ${fmtDate(c.due, { month: 'short', day: 'numeric' })})`).join(', ')}</span>
+        </p>
+      )}
+      {median !== undefined && (
+        <p>
+          Up to {money(o.amountMax)} · your median award is {money(median)}
+          {o.amountMax > median * 2 ? ', so this would be one of your largest grants' : ''}
+        </p>
+      )}
+      <p>If awarded: {monthYear(period.start)} – {monthYear(period.end)} <span className="text-slate-3">(assumed until the funder confirms)</span></p>
+    </section>
+  )
+}
+
+function RecommendationCard({ rec, canAdd, median }: { rec: Recommendation; canAdd: boolean; median?: number }) {
   const { addOpportunity, dismissOpportunity, notify } = useStore()
   const nav = useNavigate()
   const o = rec.opportunity
@@ -28,18 +84,21 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs text-slate-3">{o.funder}</div>
-          <div className="font-semibold text-slate">{o.program}</div>
+          <h2 className="font-semibold text-slate">{o.program}</h2>
         </div>
-        <FitBadge fit={rec.fit} />
+        <FitBadge matched={rec.matchedAreas.length} total={o.focusAreas.length} />
       </div>
       <p className="mt-2 text-sm text-slate-2">{o.summary}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-2">
         <span className="tabular-nums">{money(o.amountMin)} – {money(o.amountMax)}</span>
         <span className={clsx('flex items-center gap-1', soon && 'font-medium text-brand-dark')}>
-          <CalendarClock size={12} /> Due {fmtDate(o.deadline)} · {relativeDay(o.deadline)}
+          <CalendarClock size={12} /> Due {dateWithRelative(o.deadline)}
         </span>
+        <span className="text-slate-3">Source: {o.source}</span>
       </div>
+
+      <GoNoGo rec={rec} median={median} />
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {o.focusAreas.map((a) => (
@@ -47,33 +106,37 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
         ))}
       </div>
 
-      <div className="mt-3 space-y-1 text-xs text-slate-2">
-        <div>
-          <span className="font-medium text-slate">Backed by </span>
-          {rec.supportingFacts.map((f, i) => (
-            <span key={f.id}>
-              {i > 0 && ', '}
-              <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
-            </span>
-          ))}
-        </div>
-        {rec.wouldStrengthen.length > 0 && (
+      <details className="mt-3 text-xs text-slate-2">
+        <summary className="cursor-pointer font-medium text-link">Why this matches</summary>
+        <div className="mt-2 space-y-1">
           <div>
-            <span className="font-medium text-warn">Approve to strengthen: </span>
-            {rec.wouldStrengthen.map((f, i) => (
+            <span className="font-medium text-slate">Backed by </span>
+            {rec.supportingFacts.map((f, i) => (
               <span key={f.id}>
                 {i > 0 && ', '}
                 <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
               </span>
             ))}
           </div>
-        )}
-      </div>
+          {rec.wouldStrengthen.length > 0 && (
+            <div>
+              <span className="font-medium text-warn">Approve to strengthen: </span>
+              {rec.wouldStrengthen.map((f, i) => (
+                <span key={f.id}>
+                  {i > 0 && ', '}
+                  <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
 
       <div className="mt-auto flex items-center gap-2 pt-4">
         {canAdd && (
           <Button
             size="sm"
+            variant="secondary"
             icon={<Plus size={14} />}
             onClick={() => {
               const id = addOpportunity(o)
@@ -84,9 +147,12 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
             Add to pipeline
           </Button>
         )}
-        <Button size="sm" variant="ghost" icon={<X size={14} />} onClick={() => dismissOpportunity(o.id)}>
-          Dismiss
-        </Button>
+        {/* Dismissing hides a match for the whole organization, so it's a decision for whoever adds prospects. */}
+        {canAdd && (
+          <Button size="sm" variant="ghost" icon={<X size={14} />} onClick={() => dismissOpportunity(o.id)}>
+            Dismiss
+          </Button>
+        )}
       </div>
     </li>
   )
@@ -97,12 +163,12 @@ export default function Opportunities() {
   const [newOpen, setNewOpen] = useState(false)
   const [showAll, setShowAll] = useState(false)
   const canAdd = can(me.role, 'grant:configure')
+  const median = useMemo(() => medianAward(state.grants), [state.grants])
 
   const recs = useMemo(
     () => recommendOpportunities(opportunities, state.facts, state.grants, { today: todayISO(), dismissed: dismissedOpportunities }),
     [opportunities, state.facts, state.grants, dismissedOpportunities],
   )
-  const pipeline = state.grants.filter((g) => (APPLY_STAGES as readonly string[]).includes(g.stage) && g.stage !== 'declined')
   const visible = showAll ? recs : recs.slice(0, 3)
 
   return (
@@ -110,16 +176,9 @@ export default function Opportunities() {
       <PageHeader
         eyebrow="Find & apply"
         title="Opportunities"
-        subtitle="Funding that fits your work, and the applications you're pursuing."
+        subtitle="Find funding that fits your organization."
         actions={canAdd && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
       />
-
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Sparkles size={15} />} label="Recommended" value={recs.length} sub="Open opportunities that fit" />
-        <Stat icon={<Compass size={15} />} label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
-        <Stat label="Drafting" value={state.grants.filter((g) => g.stage === 'drafting').length} sub="Applications being written" />
-        <Stat label="Submitted" value={state.grants.filter((g) => g.stage === 'submitted').length} sub="Awaiting a decision" />
-      </div>
 
       <Card
         className="mb-6"
@@ -131,7 +190,7 @@ export default function Opportunities() {
         action={
           <span className="text-xs text-slate-3">
             Matched against your approved facts · demo listings
-            {dismissedOpportunities.length > 0 && (
+            {canAdd && dismissedOpportunities.length > 0 && (
               <>
                 {' · '}
                 <button onClick={restoreOpportunities} className="text-link hover:underline">
@@ -146,11 +205,11 @@ export default function Opportunities() {
           <>
             <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {visible.map((r) => (
-                <RecommendationCard key={r.opportunity.id} rec={r} canAdd={canAdd} />
+                <RecommendationCard key={r.opportunity.id} rec={r} canAdd={canAdd} median={median} />
               ))}
             </ul>
             {recs.length > 3 && (
-              <button onClick={() => setShowAll((s) => !s)} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
+              <button aria-expanded={showAll} onClick={() => setShowAll((s) => !s)} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
                 {showAll ? 'Show fewer' : `See all ${recs.length} recommendations`} <ArrowRight size={14} />
               </button>
             )}
@@ -162,8 +221,9 @@ export default function Opportunities() {
         )}
       </Card>
 
-      <h2 className="mb-3 text-base font-semibold text-slate">Pipeline</h2>
-      <GrantList scope="apply" />
+      <Link to="/apply/applications" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
+        View applications <ArrowRight size={14} />
+      </Link>
 
       <NewGrantModal open={newOpen} onClose={() => setNewOpen(false)} defaultStage="prospect" />
     </>

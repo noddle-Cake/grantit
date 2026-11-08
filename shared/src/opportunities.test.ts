@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { grantFromOpportunity, isTracked, recommendOpportunities, type Opportunity } from './opportunities.ts'
+import { assumedPeriod, checkRequirements, deadlineClashes, grantFromOpportunity, isTracked, medianAward, recommendOpportunities, type Opportunity } from './opportunities.ts'
 import { demoOpportunities } from './opportunities-demo.ts'
 import { seedState } from './seed.ts'
 import type { Fact } from './types.ts'
@@ -124,5 +124,36 @@ describe('grantFromOpportunity', () => {
   it('is then tracked, so it drops out of recommendations', () => {
     const o = opp({ id: 'o', focusAreas: ['stem'] })
     expect(isTracked(o, [grantFromOpportunity(o, 'u', 0)])).toBe(true)
+  })
+})
+
+describe('go / no-go', () => {
+  it('assumes a 12-month period from the month after the deadline, across year ends', () => {
+    expect(assumedPeriod({ deadline: '2026-12-18' })).toEqual({ start: '2027-01-01', end: '2027-12-31' })
+    expect(assumedPeriod({ deadline: '2027-02-12' })).toEqual({ start: '2027-03-01', end: '2028-02-29' })
+  })
+
+  it('suggests an approved fact for a requirement only when most of its key words match', () => {
+    const staff = { ...fact('staff', ['capacity']), title: 'Staff and volunteers', content: 'Tidepath has 14 staff, including 6 licensed family therapists.' }
+    const draftFact = { ...fact('draft', [], 'draft'), title: 'Device tracking plan', content: 'We track every device.' }
+    const checks = checkRequirements({ eligibility: ['Licensed clinical staff', 'Device tracking plan', 'Arts-focused programming'] }, [staff, draftFact])
+    expect(checks).toEqual([
+      { requirement: 'Licensed clinical staff', evidence: { id: 'staff', title: 'Staff and volunteers' } },
+      { requirement: 'Device tracking plan', evidence: undefined },
+      { requirement: 'Arts-focused programming', evidence: undefined },
+    ])
+  })
+
+  it('finds applications in progress due within 7 days of the deadline', () => {
+    const g = (id: string, date: string, stage: 'drafting' | 'submitted' = 'drafting') => ({ id, name: id, stage, deadlines: [{ id, label: 'Due', date, kind: 'application' as const }] })
+    const clashes = deadlineClashes({ deadline: '2026-12-18' }, [g('late', '2026-12-25'), g('early', '2026-12-11'), g('far', '2026-12-26'), g('sent', '2026-12-18', 'submitted')])
+    expect(clashes.map((c) => c.id)).toEqual(['early', 'late'])
+  })
+
+  it('takes the median of grants won', () => {
+    const g = (amount: number, stage: 'awarded' | 'closed' | 'declined' | 'reporting') => ({ amount, stage })
+    expect(medianAward([g(10, 'awarded'), g(30, 'closed'), g(1000, 'declined'), g(20, 'reporting')])).toBe(20)
+    expect(medianAward([g(10, 'awarded'), g(30, 'closed')])).toBe(20)
+    expect(medianAward([g(10, 'declined')])).toBeUndefined()
   })
 })

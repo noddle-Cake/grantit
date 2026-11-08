@@ -5,15 +5,17 @@ import { Link } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
-import { Card, Meter, PageHeader, Pill } from '@/components/ui'
-import { checkApplication } from '@grantit/shared/drafting'
-import { computeFinancials, sumDollars } from '@grantit/shared/finance'
-import { needsSetup } from '@grantit/shared/setup'
+import { Card, PageHeader, Pill } from '@/components/ui'
+import { applicationNextStep, isInProgress, regenerable } from '@grantit/shared/applications'
+import { isOpenAward, needsSetup } from '@grantit/shared/setup'
+import { ActionCards } from '@/features/funds/ActionCards'
+import { useFunds } from '@/features/funds/useFunds'
 import { NeedsSetupPill } from '@/features/grants/NeedsSetupPill'
-import { money, moneyCompact, pct, todayISO } from '@grantit/shared/format'
+import { money, moneyCompact, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
-import { can } from '@grantit/shared/permissions'
+import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
+import { nextStepHref } from '@/features/apply/nextStep'
 
 function greeting(now: Date) {
   const h = now.getHours()
@@ -45,7 +47,7 @@ const Figure = ({ label, value, sub }: { label: string; value: ReactNode; sub?: 
 
 /** Home: both workspaces at a glance, plus what needs attention and what's coming up. */
 export default function Dashboard() {
-  const { state, me, flags, opportunities, dismissedOpportunities } = useStore()
+  const { state, me, opportunities, dismissedOpportunities } = useStore()
   const [now] = useState(() => new Date())
 
   // Find & apply
@@ -56,16 +58,11 @@ export default function Dashboard() {
   )
   const best = recs[0]
 
-  // Manage funds
-  const active = useMemo(() => state.grants.filter((g) => g.stage === 'awarded' || g.stage === 'reporting'), [state.grants])
-  const fin = useMemo(() => active.map((g) => computeFinancials(g, state.transactions)), [active, state.transactions])
-  const totalAwarded = active.reduce((s, g) => s + g.amount, 0)
-  const totalSpent = sumDollars(fin.map((f) => f.spent))
-  const unconfigured = active.filter(needsSetup)
-  const atRisk = fin.reduce((n, f) => n + f.categories.filter((c) => c.status !== 'ok').length, 0)
-
-  const flaggedTx = [...flags.values()].filter((f) => f.length)
-  const pendingFacts = state.facts.filter((f) => f.status === 'pending')
+  // Manage funds: the same action counts as the Funded grants page (shared/src/funds.ts).
+  const { queue } = useFunds()
+  const unconfigured = state.grants.filter((g) => isOpenAward(g) && needsSetup(g))
+  // Only the facts this person may approve (program staff and finance each approve their own categories).
+  const pendingFacts = state.facts.filter((f) => f.status === 'pending' && canApproveFact(me.role, f.category))
   const drafting = state.grants.filter((g) => g.stage === 'drafting')
 
   const todos = [
@@ -75,14 +72,24 @@ export default function Dashboard() {
       ? unconfigured.map((g) => ({ icon: Settings2, tone: 'warn' as const, text: `${g.name} needs setup: confirm its award period and budget`, to: `/grants/${g.id}?tab=setup` }))
       : []),
     can(me.role, 'finance:review') &&
-      flaggedTx.length > 0 && { icon: Receipt, tone: 'bad' as const, text: `${flaggedTx.length} transactions flagged for review`, to: '/funds/spending?view=flagged' },
+      queue.count > 0 && { icon: Receipt, tone: 'warn' as const, text: `${queue.count} expense${queue.count === 1 ? '' : 's'} to review`, to: '/funds/spending' },
     ...(can(me.role, 'application:draft')
-      ? drafting.map((g) => {
-          const c = checkApplication(g.questions, state.facts)
-          return { icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${c.unanswered} of ${g.questions.length} questions unanswered`, to: `/grants/${g.id}?tab=application` }
+      ? drafting.flatMap((g) => {
+          // The same next step the Applications list shows, so the two never disagree.
+          const next = applicationNextStep(g, state.facts)
+          return next.ready ? [] : [{ icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${next.text}`, to: nextStepHref(g, next) }]
         })
       : []),
-  ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad'; text: string; to: string }[]
+    // The writer hears when facts their drafts were missing get approved.
+    ...(can(me.role, 'application:draft')
+      ? state.grants.filter((g) => isInProgress(g) && g.ownerId === me.id).flatMap((g) => {
+          const fresh = regenerable(g, state.facts)
+          if (!fresh.length) return []
+          const answers = `${fresh.length} answer${fresh.length === 1 ? '' : 's'}`
+          return [{ icon: Sparkles, tone: 'good' as const, text: `${g.name}: new facts approved for ${answers}, regenerate to use them`, to: `/grants/${g.id}?tab=application#q-${fresh[0].id}` }]
+        })
+      : []),
+  ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad' | 'good'; text: string; to: string }[]
 
   return (
     <>
@@ -111,7 +118,7 @@ export default function Dashboard() {
               <span className="min-w-0 flex-1 text-sm">
                 <span className="block truncate font-medium text-slate">{best.opportunity.program}</span>
                 <span className="block truncate text-xs text-slate-3">
-                  {best.opportunity.funder} · up to {money(best.opportunity.amountMax)} · {Math.round(best.fit * 100)}% fit
+                  {best.opportunity.funder} · up to {money(best.opportunity.amountMax)} · {best.matchedAreas.length} of {best.opportunity.focusAreas.length} focus areas
                 </span>
               </span>
             </Link>
@@ -119,20 +126,7 @@ export default function Dashboard() {
         </WorkspaceCard>
 
         <WorkspaceCard icon={<CircleDollarSign size={16} />} title="Manage funds" to="/funds" cta="Go to funded grants">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Figure label="Active funding" value={money(totalAwarded)} sub={`${active.length} active grants`} />
-            <Figure label="Remaining" value={money(totalAwarded - totalSpent)} sub="Within each grant's own period" />
-          </div>
-          <div className="mt-4">
-            <Meter value={totalSpent} max={totalAwarded} />
-            <div className="mt-1.5 text-xs tabular-nums text-slate-2">
-              {money(totalSpent)} spent · {pct(totalAwarded ? totalSpent / totalAwarded : 0)} of active budgets
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Pill tone={flaggedTx.length ? 'bad' : 'good'} dot>{flaggedTx.length} flagged transactions</Pill>
-            <Pill tone={atRisk ? 'warn' : 'good'} dot>{atRisk} categories near or over budget</Pill>
-          </div>
+          <ActionCards className="grid grid-cols-1 gap-3 sm:grid-cols-3" />
           {unconfigured.length > 0 && (
             <div className="mt-3 space-y-1.5">
               {unconfigured.map((g) => (
@@ -154,7 +148,7 @@ export default function Dashboard() {
               {todos.map((t) => (
                 <li key={t.text}>
                   <Link to={t.to} className="flex items-center gap-3 px-5 py-3.5 hover:bg-canvas">
-                    <span className={clsx('flex h-8 w-8 items-center justify-center rounded-lg', t.tone === 'bad' ? 'bg-bad-soft text-bad' : 'bg-warn-soft text-warn')}>
+                    <span className={clsx('flex h-8 w-8 items-center justify-center rounded-lg', t.tone === 'bad' ? 'bg-bad-soft text-bad' : t.tone === 'good' ? 'bg-good-soft text-good' : 'bg-warn-soft text-warn')}>
                       <t.icon size={16} />
                     </span>
                     <span className="flex-1 text-sm text-slate">{t.text}</span>

@@ -50,13 +50,16 @@ describe.skipIf(!hasTestDb)('role enforcement', () => {
     await expectForbidden(send(app, 'POST', '/transaction-imports', { csv: 'date,vendor,amount\n2026-01-01,x,1' }, tokens.program))
   })
 
-  it('program staff approve program-side facts only; finance edits but never approves', async () => {
+  it('program staff approve program-side facts only; finance approves finance facts only', async () => {
     // f-parents is category 'program' — program staff may approve it
     expect((await send(app, 'PATCH', '/facts/f-parents', { status: 'approved' }, tokens.program)).status).toBe(200)
-    // but not a mission fact
+    // but not a mission or finance fact
     await expectForbidden(send(app, 'PATCH', '/facts/f-mission', { status: 'approved' }, tokens.program))
+    await expectForbidden(send(app, 'PATCH', '/facts/f-sustain', { status: 'approved' }, tokens.program))
+    // f-sustain is category 'finance' — finance staff may approve it, but nothing outside finance
     expect((await send(app, 'PATCH', '/facts/f-mission', { title: 'Edited by finance' }, tokens.finance)).status).toBe(200)
     await expectForbidden(send(app, 'PATCH', '/facts/f-mission', { status: 'approved' }, tokens.finance))
+    expect((await send(app, 'PATCH', '/facts/f-sustain', { status: 'approved' }, tokens.finance)).status).toBe(200)
   })
 
   it('only a director changes organization settings or invites members', async () => {

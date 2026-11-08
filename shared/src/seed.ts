@@ -236,6 +236,8 @@ const grants: Grant[] = [
     periodEnd: '2026-12-31',
     allowSplit: true,
     setupConfirmedAt: '2026-01-08',
+    // From the rule below: moving more than 10% of a category to another needs written approval.
+    rebudgetThresholdPct: 10,
     deadlines: [
       { id: 'd1', label: 'Mid-year narrative report', date: '2026-07-31', kind: 'report', done: true },
       { id: 'd2', label: 'Final narrative + financial report', date: '2027-01-31', kind: 'report' },
@@ -487,6 +489,7 @@ const A = 'g-anchor'
 const C = 'g-counseling'
 const W = 'g-safe'
 const N = 'g-familynights'
+const S = 'g-camp'
 /** Allocation by category name: the grant's category id, or an unmatched name (the planted unauthorized charges). */
 const al = (grantId: string, category: string, amount: number): Allocation => allocationFor(grants.find((g) => g.id === grantId)!, category, amount)
 const months = (from: string, count: number) => {
@@ -545,6 +548,15 @@ const transactions: Transaction[] = [
   tx('t-w2', '2026-09-18', 'Mileage reimbursement', 'Facilitator travel to partner schools – Sep', '6600 Travel', 650, [al(W, 'Travel', 650)]),
   tx('t-w3', '2026-10-16', 'Mileage reimbursement', 'Facilitator travel to partner schools – Oct', '6600 Travel', 640, [al(W, 'Travel', 640)], false),
   tx('t-w4', '2026-09-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 1500, [al(W, 'Indirect', 1500)]),
+
+  // Summer Mentoring Camp 2025 (closed, May–Sep 2025): nearly all of the $25,000 spent; final report submitted
+  ...months('2025-05', 5).map((ym) =>
+    tx(`t-s-pay-${ym}`, `${ym}-28`, 'Payroll', `Camp counselors – ${ym}`, '6000 Salaries', 3000, [al(S, 'Camp Staff', 3000)]),
+  ),
+  tx('t-s1', '2025-06-20', 'Bayside Outings', 'Camp field day – June', '6600 Activities', 2400, [al(S, 'Activities', 2400)]),
+  tx('t-s2', '2025-07-15', 'Bayside Outings', 'Beach cleanup and picnic', '6600 Activities', 3100, [al(S, 'Activities', 3100)]),
+  tx('t-s3', '2025-07-25', 'Sunline Charter Bus', 'Camp trip to the science museum', '6600 Activities', 1700, [al(S, 'Activities', 1700)]),
+  tx('t-s4', '2025-08-08', 'Bayside Outings', 'End-of-camp celebration', '6600 Activities', 2650, [al(S, 'Activities', 2650)]),
 
   // Shared or not yet assigned to a grant
   tx('t-u1', '2026-10-14', 'FPL Utilities', 'Electricity – North family center', '7100 Occupancy', 820, [], false),
