@@ -163,12 +163,18 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
 
 This workspace focuses on discovering funding and preparing applications:
 
-- **Opportunities** shows recommendations, funding ranges, deadlines and focus areas. Supporting facts
-  sit behind “Why this matches.” The application pipeline lives on Applications.
-- **Applications** shows the next step and approved-answer progress, with separate views for work in
-  progress, submitted applications and declined applications. Rows wrap on narrow screens.
-- **Knowledge base** keeps fact search, category and approval filters, editing and approval. Information
+- **Opportunities** shows recommendations, funding ranges, deadlines, funder requirements, the listing's
+  source and focus areas. Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage.
+  Supporting facts sit behind “Why this matches.” The application pipeline lives on Applications.
+- **Applications** shows the next step, owner and approved-answer progress, with separate views for work in
+  progress, submitted applications and declined applications, and a Mine filter. Rows sort by the soonest
+  application deadline regardless of stage. Rows wrap on narrow screens.
+- **Knowledge base** keeps fact search, category and approval filters, editing and approval. It opens on
+  Needs approval when the viewer can approve a waiting fact, listing what they can approve first. Information
   gaps use a disclosure. Placeholder writing-style and document-upload panels are omitted until functional.
+- **Badges and to-dos point at action.** The Applications nav badge counts in-progress applications due
+  within 14 days that aren't ready (`shared/src/applications.ts`); Opportunities has no badge. Home's
+  to-dos use the same next step as the Applications list.
 - **Application records** show requested funding, owner, application deadlines, questions and application
   setup. Award dates, fiscal years, shared-cost allocation, approved budgets and spending appear for funded
   stages. Changing a record to Awarded reveals that workspace's controls; saved award data is retained.

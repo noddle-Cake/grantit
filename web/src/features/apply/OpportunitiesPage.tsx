@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRight, CalendarClock, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, ListChecks, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
@@ -9,10 +9,15 @@ import { recommendOpportunities, type Recommendation } from '@grantit/shared/opp
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 
-function FitBadge({ fit }: { fit: number }) {
-  const pctFit = Math.round(fit * 100)
+/** Fit is the share of the funder's focus areas covered by approved facts, so say exactly that. */
+function FitBadge({ matched, total }: { matched: number; total: number }) {
+  const fit = total ? matched / total : 0
   const tone = fit >= 0.75 ? 'bg-good-soft text-good' : fit >= 0.4 ? 'bg-warn-soft text-warn' : 'bg-canvas-2 text-slate-2'
-  return <span className={clsx('rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', tone)}>{pctFit}% fit</span>
+  return (
+    <span title="Focus areas backed by your approved facts" className={clsx('shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', tone)}>
+      {matched} of {total} focus areas
+    </span>
+  )
 }
 
 function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: boolean }) {
@@ -28,7 +33,7 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
           <div className="text-xs text-slate-3">{o.funder}</div>
           <h2 className="font-semibold text-slate">{o.program}</h2>
         </div>
-        <FitBadge fit={rec.fit} />
+        <FitBadge matched={rec.matchedAreas.length} total={o.focusAreas.length} />
       </div>
       <p className="mt-2 text-sm text-slate-2">{o.summary}</p>
 
@@ -37,7 +42,17 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
         <span className={clsx('flex items-center gap-1', soon && 'font-medium text-brand-dark')}>
           <CalendarClock size={12} /> Due {fmtDate(o.deadline)} · {relativeDay(o.deadline)}
         </span>
+        <span className="text-slate-3">Source: {o.source}</span>
       </div>
+
+      {o.eligibility.length > 0 && (
+        <div className="mt-3 text-xs text-slate-2">
+          <div className="flex items-center gap-1 font-medium text-slate"><ListChecks size={12} /> Requirements</div>
+          <ul className="mt-1 list-disc space-y-0.5 pl-5">
+            {o.eligibility.map((e) => <li key={e}>{e}</li>)}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-1.5">
         {o.focusAreas.map((a) => (

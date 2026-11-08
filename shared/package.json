@@ -17,6 +17,7 @@
     "./seed": "./src/seed.ts",
     "./workspaces": "./src/workspaces.ts",
     "./opportunities": "./src/opportunities.ts",
+    "./applications": "./src/applications.ts",
     "./opportunities-demo": "./src/opportunities-demo.ts"
   },
   "scripts": {

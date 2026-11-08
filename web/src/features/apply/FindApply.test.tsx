@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { seedState } from '@grantit/shared/seed'
 import { AppStoreProvider } from '@/store'
 import { STORAGE_KEY } from '@/store/migrate'
+import type { AppState } from '@grantit/shared/types'
 import GrantRecord from '@/features/grants/GrantRecordPage'
 import KnowledgeBase from '@/features/knowledge/KnowledgeBasePage'
 import Opportunities from './OpportunitiesPage'
@@ -23,6 +24,9 @@ const drafting = seedState.grants.find((g) => g.stage === 'drafting')!
 const submitted = seedState.grants.find((g) => g.stage === 'submitted')!
 const declined = seedState.grants.find((g) => g.stage === 'declined')!
 const awarded = seedState.grants.find((g) => g.stage === 'awarded')!
+const prospect = seedState.grants.find((g) => g.stage === 'prospect')!
+const saveState = (patch: Partial<AppState>) => localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...seedState, ...patch }))
+const pressed = (name: RegExp) => screen.getByRole('button', { name }).getAttribute('aria-pressed')
 
 describe('Find & apply workflow', () => {
   it('keeps discovery focused and preserves match evidence, dismissal, and adding a match', async () => {
@@ -102,7 +106,7 @@ describe('Find & apply workflow', () => {
 
   it('keeps fact search and category filtering without placeholder panels', async () => {
     const user = userEvent.setup()
-    renderPage('/apply/knowledge')
+    renderPage('/apply/knowledge?status=all')
     expect(screen.queryByText('Writing style')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Upload' })).toBeNull()
     await user.selectOptions(screen.getByRole('combobox', { name: 'Fact category' }), 'mission')
@@ -112,5 +116,48 @@ describe('Find & apply workflow', () => {
     expect(screen.getByText('No facts match')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Clear filters' }))
     expect((screen.getByRole('combobox', { name: 'Fact category' }) as HTMLSelectElement).value).toBe('all')
+  })
+
+  it('opens the knowledge base on the approval queue for approvers, and on all facts for others', async () => {
+    const user = userEvent.setup()
+    const mission = seedState.facts.find((f) => f.category === 'mission' && f.status === 'approved')!
+    const { unmount } = renderPage('/apply/knowledge')
+    expect(pressed(/^Needs approval/)).toBe('true')
+    expect(screen.queryByRole('button', { name: new RegExp(`^${mission.title}`) })).toBeNull()
+    await user.click(screen.getByRole('button', { name: /^All/ }))
+    expect(screen.getByRole('button', { name: new RegExp(`^${mission.title}`) })).toBeTruthy()
+    unmount()
+
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply/knowledge')
+    expect(pressed(/^All/)).toBe('true')
+  })
+
+  it('lists applications by deadline across stages, shows owners, and filters to mine', async () => {
+    const user = userEvent.setup()
+    // Move the prospect's deadline ahead of the draft's: it should now be listed first.
+    const draftDue = drafting.deadlines.find((d) => d.kind === 'application')!.date
+    const earlier = { ...prospect, deadlines: [{ id: 'd-early', label: 'Letter of inquiry due', date: draftDue.replace(/\d\d$/, '01'), kind: 'application' as const }] }
+    saveState({ grants: seedState.grants.map((g) => (g.id === prospect.id ? earlier : g)) })
+    renderPage('/apply/applications')
+    const names = screen.getAllByRole('link').map((l) => l.textContent)
+    expect(names.indexOf(prospect.name)).toBeLessThan(names.indexOf(drafting.name))
+
+    const owner = seedState.users.find((u) => u.id === prospect.ownerId)!
+    expect(screen.getAllByText(owner.name).length).toBeGreaterThan(0)
+    expect(pressed(/^Mine$/)).toBe('false')
+    await user.click(screen.getByRole('button', { name: 'Mine' }))
+    expect(pressed(/^Mine$/)).toBe('true')
+    // The demo user is the director, who owns the draft but not the prospect.
+    expect(screen.getByRole('link', { name: drafting.name })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: prospect.name })).toBeNull()
+  })
+
+  it('states fit as focus areas covered and shows funder requirements on each recommendation', () => {
+    renderPage('/apply')
+    expect(screen.queryByText(/% fit/)).toBeNull()
+    expect(screen.getAllByText(/^\d+ of \d+ focus areas$/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Requirements').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/^Source: /).length).toBeGreaterThan(0)
   })
 })

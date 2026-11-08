@@ -15,7 +15,10 @@ export default function KnowledgeBase() {
   const { state, me, setFactStatus, notify } = useStore()
   const [params, setParams] = useSearchParams()
   const [cat, setCat] = useState<FactCategory | 'all'>('all')
-  const [status, setStatus] = useState<StatusFilter>((params.get('status') as StatusFilter) ?? 'all')
+  // Approvers land on their queue: open on "Needs approval" when something is waiting that they can approve.
+  const [status, setStatus] = useState<StatusFilter>(
+    () => (params.get('status') as StatusFilter) ?? (state.facts.some((f) => f.status === 'pending' && canApproveFact(me.role, f.category)) ? 'pending' : 'all'),
+  )
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Fact | 'new' | null>(null)
   const [hint, setHint] = useState<string>()
@@ -42,8 +45,10 @@ export default function KnowledgeBase() {
       state.facts
         .filter((f) => cat === 'all' || f.category === cat)
         .filter((f) => status === 'all' || f.status === status)
-        .filter((f) => (f.title + f.content + f.tags.join(' ')).toLowerCase().includes(q.toLowerCase())),
-    [state.facts, cat, status, q],
+        .filter((f) => (f.title + f.content + f.tags.join(' ')).toLowerCase().includes(q.toLowerCase()))
+        // In the approval queue, list what this person can approve first (program staff approve program-side facts only).
+        .sort((a, b) => (status === 'pending' ? Number(canApproveFact(me.role, b.category)) - Number(canApproveFact(me.role, a.category)) : 0)),
+    [state.facts, cat, status, q, me.role],
   )
   const counts = (s: FactStatus) => state.facts.filter((f) => f.status === s).length
   const gaps = FACT_CATEGORIES.filter((c) => !state.facts.some((f) => f.category === c.id && f.status === 'approved'))

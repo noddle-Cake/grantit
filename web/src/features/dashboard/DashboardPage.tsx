@@ -6,7 +6,7 @@ import { STAGES } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
 import { Card, Meter, PageHeader, Pill } from '@/components/ui'
-import { checkApplication } from '@grantit/shared/drafting'
+import { applicationNextStep } from '@grantit/shared/applications'
 import { computeFinancials, sumDollars } from '@grantit/shared/finance'
 import { needsSetup } from '@grantit/shared/setup'
 import { NeedsSetupPill } from '@/features/grants/NeedsSetupPill'
@@ -77,9 +77,10 @@ export default function Dashboard() {
     can(me.role, 'finance:review') &&
       flaggedTx.length > 0 && { icon: Receipt, tone: 'bad' as const, text: `${flaggedTx.length} transactions flagged for review`, to: '/funds/spending?view=flagged' },
     ...(can(me.role, 'application:draft')
-      ? drafting.map((g) => {
-          const c = checkApplication(g.questions, state.facts)
-          return { icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${c.unanswered} of ${g.questions.length} questions unanswered`, to: `/grants/${g.id}?tab=application` }
+      ? drafting.flatMap((g) => {
+          // The same next step the Applications list shows, so the two never disagree.
+          const next = applicationNextStep(g, state.facts)
+          return next.ready ? [] : [{ icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${next.text}`, to: `/grants/${g.id}?tab=${g.questions.length ? 'application' : 'setup'}` }]
         })
       : []),
   ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad'; text: string; to: string }[]
@@ -111,7 +112,7 @@ export default function Dashboard() {
               <span className="min-w-0 flex-1 text-sm">
                 <span className="block truncate font-medium text-slate">{best.opportunity.program}</span>
                 <span className="block truncate text-xs text-slate-3">
-                  {best.opportunity.funder} · up to {money(best.opportunity.amountMax)} · {Math.round(best.fit * 100)}% fit
+                  {best.opportunity.funder} · up to {money(best.opportunity.amountMax)} · {best.matchedAreas.length} of {best.opportunity.focusAreas.length} focus areas
                 </span>
               </span>
             </Link>
