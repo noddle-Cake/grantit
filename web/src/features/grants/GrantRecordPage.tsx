@@ -53,9 +53,10 @@ export default function GrantRecord() {
   // Before award the application comes first; after award, the money does.
   const workspace = workspaceFor(grant.stage)
   const funded = workspace.home === '/funds'
-  const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : grant.questions.length ? 'application' : 'overview'
+  const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : 'application'
+  const availableTabs: Tab[] = funded ? ['overview', 'budget', 'application', 'setup'] : ['application', 'setup']
   const requestedTab = params.get('tab')
-  const tab: Tab = ['overview', 'application', 'budget', 'setup'].includes(requestedTab ?? '') ? requestedTab as Tab : defaultTab
+  const tab: Tab = availableTabs.includes(requestedTab as Tab) ? requestedTab as Tab : defaultTab
 
   const owner = state.users.find((u) => u.id === grant.ownerId)
   const check = checkApplication(grant.questions, state.facts)
@@ -64,14 +65,14 @@ export default function GrantRecord() {
 
   return (
     <>
-      <Link to={workspace.home} className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
-        <ArrowLeft size={14} /> {workspace.label} · {workspace.listLabel}
+      <Link to={funded ? workspace.home : "/apply/applications"} className="mb-4 inline-flex items-center gap-1 text-sm text-link hover:underline">
+        <ArrowLeft size={14} /> {workspace.label} · {funded ? workspace.listLabel : 'Applications'}
       </Link>
 
-      <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_300px]">
+      <div className={clsx('grid gap-5', funded ? 'xl:grid-cols-[300px_minmax(0,1fr)_300px]' : 'lg:grid-cols-[260px_minmax(0,1fr)]')}>
         {/* ── Left: record summary (HubSpot "about" column) ── */}
         <aside className="self-start overflow-hidden rounded-lg border border-line-2 bg-surface">
-          <div className={clsx('h-20', `cover-${grant.cover}`)} />
+          <div className={clsx(funded ? 'h-20' : 'h-2', `cover-${grant.cover}`)} />
           <div className="px-5 pb-4 pt-4">
             <h1 className="text-lg font-semibold leading-snug text-slate">{grant.name}</h1>
             <p className="mt-0.5 text-sm text-slate-2">{grant.funder}</p>
@@ -95,21 +96,31 @@ export default function GrantRecord() {
               )}
             </div>
           </div>
-          <Section title="About this grant">
-            <Prop icon={<CircleDollarSign size={12} />} label="Award amount">{money(grant.amount)}</Prop>
-            <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">
+          <Section title={funded ? "About this grant" : "Application details"}>
+            <Prop icon={<CircleDollarSign size={12} />} label={funded ? "Award amount" : "Requested amount"}>{money(grant.amount)}</Prop>
+            {funded && <Prop icon={<CalendarRange size={12} />} label="Funding / reporting period">
               {fmtDate(grant.periodStart)} – {fmtDate(grant.periodEnd)}
-            </Prop>
+            </Prop>}
             <Prop icon={<User size={12} />} label="Grant owner">{owner?.name ?? '—'}</Prop>
-            <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>
+            {funded && <Prop icon={<Split size={12} />} label="Shared-cost allocation">{grant.allowSplit ? 'Permitted' : 'Not permitted'}</Prop>}
           </Section>
-          <Section title="Budget categories" count={grant.categories.length} defaultOpen={false}>
+          {funded && <Section title="Budget categories" count={grant.categories.length} defaultOpen={false}>
             <ul className="space-y-1.5 text-sm">
               {grant.categories.map((c) => (
                 <li key={c.id} className="flex justify-between"><span className="text-slate-2">{c.name}</span><span className="tabular-nums">{money(c.budget)}</span></li>
               ))}
             </ul>
-          </Section>
+          </Section>}
+          {!funded && (
+            <>
+              <Section title="Application deadlines">
+                <DeadlineTimeline items={grant.deadlines.filter((d) => d.kind === 'application').map((d) => ({ deadline: d, grant }))} showGrant={false} empty="No application deadlines set" />
+              </Section>
+              {grant.rules.length > 0 && <Section title="Funder rules" defaultOpen={false} count={grant.rules.length}>
+                <ul className="space-y-2 text-sm text-slate-2">{grant.rules.map((r, i) => <li key={i}>{r}</li>)}</ul>
+              </Section>}
+            </>
+          )}
         </aside>
 
         {/* ── Middle: tabs ── */}
@@ -129,15 +140,16 @@ export default function GrantRecord() {
                   ) : undefined,
                 }
                 const budget = { id: 'budget' as const, label: 'Budget & spending' }
+                if (!funded) return [application, { id: 'setup' as const, label: 'Application setup' }]
                 return [
                   { id: 'overview' as const, label: 'Overview' },
-                  ...(funded ? [budget, application] : [application, budget]),
+                  budget, application,
                   { id: 'setup' as const, label: 'Configuration' },
                 ]
               })()}
             />
           </div>
-          {(['overview', 'application', 'budget', 'setup'] as const).map((panel) => (
+          {availableTabs.map((panel) => (
             <div key={panel} id={`grant-record-${panel}-panel`} role="tabpanel" aria-labelledby={`grant-record-${panel}-tab`} hidden={tab !== panel} tabIndex={0} className="rounded-b-lg border border-line-2 bg-surface p-5">
               {tab === panel && panel === 'overview' && <OverviewTab grant={grant} />}
               {tab === panel && panel === 'application' && <ApplicationTab grant={grant} />}
@@ -148,7 +160,7 @@ export default function GrantRecord() {
         </div>
 
         {/* ── Right: associations ── */}
-        <aside className="space-y-4 self-start">
+        {funded && <aside className="space-y-4 self-start">
           <div className="rounded-lg border border-line-2 bg-surface">
             <div className="px-5 py-3 text-sm font-semibold text-slate">Upcoming deadlines</div>
             <div className="border-t border-line-2 p-5">
@@ -178,7 +190,7 @@ export default function GrantRecord() {
               )}
             </ul>
           </div>
-        </aside>
+        </aside>}
       </div>
     </>
   )

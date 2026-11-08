@@ -14,8 +14,8 @@ The platform needs a reliable source of information from which to generate grant
 | P0 | Allow staff to add, edit, and approve organizational facts. | ✅ |
 | P0 | Generate application responses using only approved organizational facts. | ✅ |
 | P0 | Show which stored facts support each generated response. | ✅ |
-| P1 | Store previous grant applications and reports for reuse. | 🟡 list only, no upload |
-| P1 | Learn the organization's writing style from approved examples. | 🟡 static profile |
+| P1 | Store previous grant applications and reports for reuse. | ⬜ sample documents retained in data; upload and reuse UI not implemented |
+| P1 | Learn the organization's writing style from approved examples. | ⬜ |
 | P1 | Identify missing information rather than inventing it. | ✅ |
 
 ## 2. Grant-specific configuration

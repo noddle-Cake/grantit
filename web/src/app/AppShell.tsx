@@ -3,7 +3,7 @@ import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass,
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { todayISO } from '@grantit/shared/format'
-import { recommendOpportunities } from '@grantit/shared/opportunities'
+import { isAtRisk } from '@grantit/shared/applications'
 import { ROLE_LABEL, ROLE_SUMMARY } from '@grantit/shared/permissions'
 import { workspaceOf } from '@grantit/shared/workspaces'
 import { WORKSPACES } from '@/lib/labels'
@@ -35,20 +35,21 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
 ]
 
 function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { collapsed: boolean; onToggle: () => void; onCloseMobile: () => void; mobile?: boolean }) {
-  const { state, flags, opportunities, dismissedOpportunities } = useStore()
+  const { state, flags } = useStore()
   const { pathname } = useLocation()
   const pendingFacts = state.facts.filter((f) => f.status === 'pending').length
   const flagged = [...flags.values()].filter((f) => f.length).length
-  const recommended = useMemo(
-    () => recommendOpportunities(opportunities, state.facts, state.grants, { today: todayISO(), dismissed: dismissedOpportunities }).length,
-    [opportunities, state.facts, state.grants, dismissedOpportunities],
-  )
-  const badges: Record<string, number> = { '/apply': recommended, '/apply/knowledge': pendingFacts, '/funds/spending': flagged }
+  // Badge what needs action, not what's merely available: applications due soon that aren't ready.
+  const atRisk = useMemo(() => {
+    const today = todayISO()
+    return state.grants.filter((g) => isAtRisk(g, state.facts, today)).length
+  }, [state.grants, state.facts])
+  const badges: Record<string, number> = { '/apply/applications': atRisk, '/apply/knowledge': pendingFacts, '/funds/spending': flagged }
 
   // A grant's record page belongs to the workspace for its stage, so highlight that workspace's list.
   const grantId = matchPath('/grants/:id', pathname)?.params.id
   const recordGrant = grantId ? state.grants.find((g) => g.id === grantId) : undefined
-  const activeOverride = recordGrant ? WORKSPACES[workspaceOf(recordGrant.stage)].home : undefined
+  const activeOverride = recordGrant ? workspaceOf(recordGrant.stage) === 'apply' ? '/apply/applications' : '/funds' : undefined
 
   return (
     <>
