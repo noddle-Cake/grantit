@@ -166,11 +166,18 @@ This workspace focuses on discovering funding and preparing applications:
 - **Opportunities** shows recommendations, funding ranges, deadlines, funder requirements, the listing's
   source and focus areas. Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage.
   Supporting facts sit behind “Why this matches.” The application pipeline lives on Applications.
-- **Applications** shows the next step, who takes it ("Your turn" or "Waiting on <name>"), the owner, and
+- **Applications** opens with four summary tiles (`pipelineSummary`): In progress (count and amount
+  requested), At risk, Answers to approve, and Submitted (amount awaiting decisions). Each tile is a toggle
+  that filters the list; Mine applies to the tiles too. Rows show the next step, who takes it ("Your turn" or "Waiting on <name>"), the owner, and
   how many answers are ready (written, within limit, supported and approved), with separate views for work
   in progress, submitted applications and declined applications, and a Mine filter. Rows sort by the
   soonest application deadline regardless of stage. Continue opens the first question with the problem
   (`#q-<id>`, which the application tab scrolls to and focuses). Rows wrap on narrow screens.
+- **Writers hear when missing facts are approved.** An answer's last draft records the topics it lacked
+  (`missing`). Once an approved fact covers one (`newlyCovered`), the question shows "New approved facts
+  cover …" with **Regenerate with new facts**, its row on Applications links "New facts for N answers",
+  and the application owner gets a Home to-do. The missing-information notice lists only topics still
+  uncovered.
 - **Knowledge base** opens with **Needed now** (`shared/src/needs.ts`): what applications in progress and
   recommended opportunities are waiting on, soonest deadline first. Gaps are computed live from each
   unapproved question's prompt, so they clear as soon as a covering fact is approved. Each item offers the

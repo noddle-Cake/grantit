@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline } from './applications.ts'
+import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline, pipelineSummary, regenerable } from './applications.ts'
+import { newlyCovered } from './drafting.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
 const TODAY = '2026-11-08'
@@ -60,6 +61,41 @@ describe('answerReady', () => {
     expect(answerReady(q({ status: 'draft' }), facts)).toBe(false)
     expect(answerReady(q({ wordLimit: 1 }), facts)).toBe(false)
     expect(answerReady(q({ answer: 'We served 400 families.' }), facts)).toBe(false)
+  })
+})
+
+describe('pipelineSummary', () => {
+  it('totals in-progress and submitted money, at-risk applications, and answers to approve', () => {
+    const grants = [
+      { ...app({ questions: [q({ answer: '' })], deadlines: [due('2026-11-15')] }), amount: 100 },
+      { ...app({ stage: 'prospect', questions: [q({ status: 'draft' }), q({ id: 'q2', status: 'draft' })] }), amount: 50 },
+      { ...app({ stage: 'submitted' }), amount: 30 },
+      { ...app({ stage: 'declined' }), amount: 999 },
+    ]
+    expect(pipelineSummary(grants, facts, TODAY)).toEqual({
+      inProgress: { count: 2, amount: 150 },
+      atRisk: 1,
+      toApprove: { answers: 2, applications: 1 },
+      submitted: { count: 1, amount: 30 },
+    })
+  })
+})
+
+describe('newlyCovered and regenerable', () => {
+  const prompt = 'How will you sustain this work after the grant ends?'
+  const sustain: Fact = { id: 's', category: 'finance', title: 'Funding mix', content: '', tags: ['sustainability'], status: 'pending', updatedAt: '2026-01-01', updatedBy: 'u' }
+  const drafted = q({ id: 'd', prompt, status: 'draft', missing: ['sustainability / funding plan'] })
+
+  it('reports topics the last draft missed once an approved fact covers them', () => {
+    expect(newlyCovered(drafted, [sustain])).toEqual([])
+    expect(newlyCovered(drafted, [{ ...sustain, status: 'approved' }])).toEqual(['sustainability / funding plan'])
+    expect(newlyCovered(q({ prompt }), [{ ...sustain, status: 'approved' }])).toEqual([])
+  })
+
+  it('lists unapproved answers that would gain from regenerating', () => {
+    const approvedFacts = [{ ...sustain, status: 'approved' as const }]
+    expect(regenerable({ questions: [drafted, { ...drafted, id: 'a', status: 'approved' }] }, approvedFacts).map((x) => x.id)).toEqual(['d'])
+    expect(regenerable({ questions: [drafted] }, [sustain])).toEqual([])
   })
 })
 

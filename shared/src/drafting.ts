@@ -115,6 +115,16 @@ export function gapsForPrompt(prompt: string, facts: Fact[]): PromptGap[] {
   return TOPICS.filter((t) => t.triggers.test(prompt) && !approved.some(t.match)).map((t) => ({ label: t.label, covering: unapproved.filter(t.match) }))
 }
 
+/**
+ * Topics the answer's last draft reported missing that approved facts now cover: regenerating would use
+ * them. This is how a writer hears that a fact they asked for was approved, with no extra bookkeeping.
+ */
+export function newlyCovered(q: Pick<Question, 'prompt' | 'missing'>, facts: Fact[]): string[] {
+  if (!q.missing.length) return []
+  const open = new Set(gapsForPrompt(q.prompt, facts).map((g) => g.label))
+  return q.missing.filter((label) => !open.has(label))
+}
+
 /** Simulated latency so the UI's loading states are exercised. */
 export function draftAnswerAsync(q: Pick<Question, 'prompt' | 'wordLimit'>, facts: Fact[]): Promise<DraftResult> {
   return new Promise((resolve) => setTimeout(() => resolve(draftAnswer(q, facts)), 700 + Math.random() * 600))
