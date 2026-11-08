@@ -9,6 +9,7 @@ import { workspaceOf } from '@grantit/shared/workspaces'
 import { WORKSPACES } from '@/lib/labels'
 import { useAuth } from '@/lib/auth'
 import { useStore } from '@/store'
+import { useFunds } from '@/features/funds/useFunds'
 import { Logo } from '@/components/Logo'
 import { Avatar, Dialog } from '@/components/ui'
 
@@ -35,16 +36,16 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
 ]
 
 function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { collapsed: boolean; onToggle: () => void; onCloseMobile: () => void; mobile?: boolean }) {
-  const { state, flags } = useStore()
+  const { state } = useStore()
   const { pathname } = useLocation()
   const pendingFacts = state.facts.filter((f) => f.status === 'pending').length
-  const flagged = [...flags.values()].filter((f) => f.length).length
+  const toReview = useFunds().queue.count
   // Badge what needs action, not what's merely available: applications due soon that aren't ready.
   const atRisk = useMemo(() => {
     const today = todayISO()
     return state.grants.filter((g) => isAtRisk(g, state.facts, today)).length
   }, [state.grants, state.facts])
-  const badges: Record<string, number> = { '/apply/applications': atRisk, '/apply/knowledge': pendingFacts, '/funds/spending': flagged }
+  const badges: Record<string, number> = { '/apply/applications': atRisk, '/apply/knowledge': pendingFacts, '/funds/spending': toReview }
 
   // A grant's record page belongs to the workspace for its stage, so highlight that workspace's list.
   const grantId = matchPath('/grants/:id', pathname)?.params.id

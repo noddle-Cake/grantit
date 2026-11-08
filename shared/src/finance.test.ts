@@ -111,11 +111,12 @@ describe('periodOptions', () => {
 describe('computeFinancials', () => {
   const f = computeFinancials(anchor, seedState.transactions)
 
-  it('only counts spending inside the grant funding period', () => {
+  it('only counts reportable spending inside the grant funding period', () => {
     // The Dec 2025 event deposit falls before the Jan 2026 start and must be excluded.
-    expect(f.spent).toBe(81_300)
+    // ...and leaves out the $2,400 charged to Equipment, which the funder didn't approve.
+    expect(f.spent).toBe(78_900)
     expect(f.budget).toBe(96_000)
-    expect(f.remaining).toBe(14_700)
+    expect(f.remaining).toBe(17_100)
   })
 
   it('reports category status against each approved budget line', () => {

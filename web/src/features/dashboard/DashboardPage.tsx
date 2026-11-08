@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
-import { Card, Meter, PageHeader, Pill } from '@/components/ui'
+import { Card, PageHeader, Pill } from '@/components/ui'
 import { applicationNextStep, isInProgress, regenerable } from '@grantit/shared/applications'
-import { computeFinancials, sumDollars } from '@grantit/shared/finance'
-import { needsSetup } from '@grantit/shared/setup'
+import { isOpenAward, needsSetup } from '@grantit/shared/setup'
+import { ActionCards } from '@/features/funds/ActionCards'
+import { useFunds } from '@/features/funds/useFunds'
 import { NeedsSetupPill } from '@/features/grants/NeedsSetupPill'
-import { money, moneyCompact, pct, todayISO } from '@grantit/shared/format'
+import { money, moneyCompact, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
@@ -46,7 +47,7 @@ const Figure = ({ label, value, sub }: { label: string; value: ReactNode; sub?: 
 
 /** Home: both workspaces at a glance, plus what needs attention and what's coming up. */
 export default function Dashboard() {
-  const { state, me, flags, opportunities, dismissedOpportunities } = useStore()
+  const { state, me, opportunities, dismissedOpportunities } = useStore()
   const [now] = useState(() => new Date())
 
   // Find & apply
@@ -57,15 +58,9 @@ export default function Dashboard() {
   )
   const best = recs[0]
 
-  // Manage funds
-  const active = useMemo(() => state.grants.filter((g) => g.stage === 'awarded' || g.stage === 'reporting'), [state.grants])
-  const fin = useMemo(() => active.map((g) => computeFinancials(g, state.transactions)), [active, state.transactions])
-  const totalAwarded = active.reduce((s, g) => s + g.amount, 0)
-  const totalSpent = sumDollars(fin.map((f) => f.spent))
-  const unconfigured = active.filter(needsSetup)
-  const atRisk = fin.reduce((n, f) => n + f.categories.filter((c) => c.status !== 'ok').length, 0)
-
-  const flaggedTx = [...flags.values()].filter((f) => f.length)
+  // Manage funds: the same action counts as the Funded grants page (shared/src/funds.ts).
+  const { queue } = useFunds()
+  const unconfigured = state.grants.filter((g) => isOpenAward(g) && needsSetup(g))
   const pendingFacts = state.facts.filter((f) => f.status === 'pending')
   const drafting = state.grants.filter((g) => g.stage === 'drafting')
 
@@ -76,7 +71,7 @@ export default function Dashboard() {
       ? unconfigured.map((g) => ({ icon: Settings2, tone: 'warn' as const, text: `${g.name} needs setup: confirm its award period and budget`, to: `/grants/${g.id}?tab=setup` }))
       : []),
     can(me.role, 'finance:review') &&
-      flaggedTx.length > 0 && { icon: Receipt, tone: 'bad' as const, text: `${flaggedTx.length} transactions flagged for review`, to: '/funds/spending?view=flagged' },
+      queue.count > 0 && { icon: Receipt, tone: 'warn' as const, text: `${queue.count} expense${queue.count === 1 ? '' : 's'} to review`, to: '/funds/spending' },
     ...(can(me.role, 'application:draft')
       ? drafting.flatMap((g) => {
           // The same next step the Applications list shows, so the two never disagree.
@@ -130,20 +125,7 @@ export default function Dashboard() {
         </WorkspaceCard>
 
         <WorkspaceCard icon={<CircleDollarSign size={16} />} title="Manage funds" to="/funds" cta="Go to funded grants">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Figure label="Active funding" value={money(totalAwarded)} sub={`${active.length} active grants`} />
-            <Figure label="Remaining" value={money(totalAwarded - totalSpent)} sub="Within each grant's own period" />
-          </div>
-          <div className="mt-4">
-            <Meter value={totalSpent} max={totalAwarded} />
-            <div className="mt-1.5 text-xs tabular-nums text-slate-2">
-              {money(totalSpent)} spent · {pct(totalAwarded ? totalSpent / totalAwarded : 0)} of active budgets
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Pill tone={flaggedTx.length ? 'bad' : 'good'} dot>{flaggedTx.length} flagged transactions</Pill>
-            <Pill tone={atRisk ? 'warn' : 'good'} dot>{atRisk} categories near or over budget</Pill>
-          </div>
+          <ActionCards className="grid grid-cols-1 gap-3 sm:grid-cols-3" />
           {unconfigured.length > 0 && (
             <div className="mt-3 space-y-1.5">
               {unconfigured.map((g) => (

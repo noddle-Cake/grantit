@@ -101,6 +101,20 @@ export interface Grant {
   setupConfirmedAt?: string
   /** Month (1-12) the funder's fiscal year starts. Absent: the month the grant period starts. */
   funderFiscalYearStartMonth?: number
+  /**
+   * Largest share of a category's budget (in percent) that may be moved to another category without the funder's
+   * written approval. Absent: any move needs approval.
+   */
+  rebudgetThresholdPct?: number
+  /** Budget moves between categories, newest last. Category budgets already include them. */
+  reallocations?: BudgetReallocation[]
+}
+
+export interface BudgetReallocation {
+  date: string // ISO date
+  fromCategoryId: string
+  toCategoryId: string
+  amount: number
 }
 
 // 4. Accounting ----------------------------------------------------------------
@@ -131,6 +145,8 @@ export interface Transaction {
   source: (typeof TRANSACTION_SOURCES)[number]
   /** Paid from unrestricted funds on purpose, so it isn't flagged as unassigned. Cleared when a grant is assigned. */
   notGrantFunded?: boolean
+  /** When the paid-for service happens, if not the transaction date. Period checks use it. */
+  serviceDate?: string
 }
 
 export type FlagKind = 'unassigned' | 'unauthorized-category' | 'over-budget' | 'outside-period' | 'split-not-allowed'

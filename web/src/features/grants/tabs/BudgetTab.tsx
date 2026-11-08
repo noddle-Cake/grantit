@@ -1,23 +1,21 @@
 import clsx from 'clsx'
-import { AlertOctagon, Download, Settings2, Table2 } from 'lucide-react'
+import { Settings2, Table2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MonthlySpendChart } from '@/components/MonthlySpendChart'
-import { Button, EmptyState, Meter, Segmented, Stat, StatusPill } from '@/components/ui'
-import { allocationCategoryName, computeFinancials, FLAG_LABEL, inPeriod, periodOptions, quarterlySpend } from '@grantit/shared/finance'
+import { Button, EmptyState, StatusPill } from '@/components/ui'
+import { GrantReport } from '@/features/reports/GrantReport'
+import { allocationCategoryName, computeFinancials, FLAG_LABEL, quarterlySpend, sumDollars } from '@grantit/shared/finance'
+import { fmtDate, money, moneyExact } from '@grantit/shared/format'
 import { needsSetup } from '@grantit/shared/setup'
-import { fmtDate, money, moneyExact, pct } from '@grantit/shared/format'
-import { downloadFile, expenditureReportCsv } from '@/lib/report'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
 
+const RECENT = 5
+
 export function BudgetTab({ grant }: { grant: Grant }) {
   const { state, flags } = useStore()
-  const options = periodOptions(grant, state.org.fiscalYearStartMonth)
-  const [idx, setIdx] = useState(0)
-  const [showTable, setShowTable] = useState(false)
-  const period = options[idx] ?? options[0]
-  const f = computeFinancials(grant, state.transactions, period)
+  const [showMonthly, setShowMonthly] = useState(false)
 
   const setupBanner = needsSetup(grant) && (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warn/40 bg-warn-soft px-4 py-3 text-sm">
@@ -40,161 +38,64 @@ export function BudgetTab({ grant }: { grant: Grant }) {
     )
 
   const quarterly = quarterlySpend(grant, state.transactions)
-
-  const lines = state.transactions
-    .flatMap((t) => t.allocations.filter((a) => a.grantId === grant.id).map((a) => ({ t, a })))
-    .filter(({ t }) => inPeriod(t.date, period) || flags.get(t.id)?.some((x) => x.kind === 'outside-period' && x.grantId === grant.id))
+  const recent = state.transactions
+    .flatMap((t) => t.allocations.filter((a) => a.grantId === grant.id).map((a, i) => ({ t, a, i })))
     .sort((x, y) => y.t.date.localeCompare(x.t.date))
+  const shownRecent = recent.slice(0, RECENT)
+  // "Q1 FY2026" → "Q1 ’26" so four quarters fit beside the categories.
+  const qLabel = (s = '') => s.replace(/ FY(\d{2})(\d{2})$/, ' ’$2')
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {setupBanner}
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="text-xs font-medium uppercase tracking-wide text-slate-3">Reporting period</span>
-        <Segmented<string>
-          label="Reporting period"
-          value={String(idx)}
-          onChange={(v) => setIdx(Number(v))}
-          options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}
-        />
-        <span className="text-sm text-slate-2">{fmtDate(period.start)} – {fmtDate(period.end)}</span>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="ml-auto"
-          icon={<Download size={14} />}
-          onClick={() => downloadFile(`${grant.name.replace(/\W+/g, '-')}-expenditures.csv`, expenditureReportCsv(grant, state.transactions, period))}
-        >
-          Export report
-        </Button>
-      </div>
 
-      {idx > 0 && (
-        <p className="-mt-3 text-xs text-slate-2">
-          {period.label}: spending in this {period.kind === 'funder-fy' ? "funder fiscal year" : "organization fiscal year"} against the full grant budget.{' '}
-          <span className="font-medium">Over-budget flags are always checked against the full grant period</span>, the period the funder audits.
-        </p>
-      )}
+      {/* The same report component as the Reports page. */}
+      <GrantReport grant={grant} />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat label="Approved budget" value={money(f.budget)} />
-        <Stat label="Actual spending" value={money(f.spent)} sub={pct(f.ratio)} />
-        <Stat label="Remaining" value={<span className={f.remaining < 0 ? 'text-bad' : ''}>{money(f.remaining)}</span>} />
-        <Stat label="Unauthorized spend" value={<span className={f.unauthorized.length ? 'text-bad' : ''}>{money(f.unauthorized.reduce((s, u) => s + u.spent, 0))}</span>} sub={f.unauthorized.length ? `${f.unauthorized.length} category` : 'None'} />
-      </div>
-
-      <div className="overflow-hidden rounded-lg border border-line-2">
-        <table className="w-full text-sm">
-          <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
-            <tr>
-              <th className="px-4 py-2.5">Category</th>
-              <th className="px-4 py-2.5 text-right">Budget</th>
-              <th className="px-4 py-2.5 text-right">Actual</th>
-              <th className="px-4 py-2.5 text-right">Remaining</th>
-              <th className="hidden w-48 px-4 py-2.5 md:table-cell">Used</th>
-              <th className="px-4 py-2.5">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line-2">
-            {f.categories.map((c) => (
-              <tr key={c.id}>
-                <td className="px-4 py-3 font-medium text-slate">{c.name}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{money(c.budget)}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{money(c.spent)}</td>
-                <td className={clsx('px-4 py-3 text-right tabular-nums', c.remaining < 0 && 'font-medium text-bad')}>{money(c.remaining)}</td>
-                <td className="hidden px-4 py-3 md:table-cell">
-                  <div className="flex items-center gap-2">
-                    <Meter value={c.spent} max={c.budget} height={6} />
-                    <span className="w-10 text-right text-xs tabular-nums text-slate-2">{pct(c.ratio)}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3">
-                  {c.status === 'over' ? <StatusPill tone="bad">Over</StatusPill> : c.status === 'approaching' ? <StatusPill tone="warn">Approaching</StatusPill> : <StatusPill tone="good">OK</StatusPill>}
-                </td>
-              </tr>
-            ))}
-            {f.unauthorized.map((u) => (
-              <tr key={u.category} className="bg-bad-soft/50">
-                <td className="px-4 py-3 font-medium text-bad">
-                  <span className="flex items-center gap-1.5"><AlertOctagon size={14} /> {u.category}</span>
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums text-slate-3">—</td>
-                <td className="px-4 py-3 text-right tabular-nums">{money(u.spent)}</td>
-                <td className="px-4 py-3 text-right tabular-nums text-bad">{money(-u.spent)}</td>
-                <td className="hidden px-4 py-3 md:table-cell" />
-                <td className="px-4 py-3"><StatusPill tone="bad">Not authorized</StatusPill></td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="border-t border-line bg-canvas font-semibold">
-            <tr>
-              <td className="px-4 py-3">Total</td>
-              <td className="px-4 py-3 text-right tabular-nums">{money(f.budget)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{money(f.spent)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{money(f.remaining)}</td>
-              <td className="hidden md:table-cell" />
-              <td />
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-
-      <div>
+      <section>
         <h4 className="mb-1 text-sm font-semibold text-slate">Spending by funder fiscal quarter</h4>
-        <p className="mb-2 text-xs text-slate-3">Spending inside the grant period, grouped by the funder's fiscal calendar. Hover a quarter for its dates.</p>
-        <div className="overflow-x-auto rounded-lg border border-line-2">
-          <table className="w-full text-sm">
+        <p className="mb-2 text-xs text-slate-3">Reportable spending inside the grant period, by the funder's fiscal calendar. Hover a quarter for its dates.</p>
+        <div className="overflow-hidden rounded-lg border border-line-2">
+          <table className="w-full table-fixed text-sm">
             <thead className="bg-canvas text-left text-xs font-semibold tracking-wide text-slate-2">
               <tr>
-                <th className="px-4 py-2.5 uppercase">Category</th>
-                {quarterly.quarters.map((q) => <th key={q.start} className="whitespace-nowrap px-3 py-2.5 text-right" title={q.label}>{q.short}</th>)}
-                <th className="px-4 py-2.5 text-right uppercase">Total</th>
+                <th className="w-[28%] px-3 py-2.5 uppercase">Category</th>
+                {quarterly.quarters.map((q) => <th key={q.start} className="px-2 py-2.5 text-right" title={q.label}>{qLabel(q.short)}</th>)}
+                <th className="px-3 py-2.5 text-right uppercase">Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line-2">
               {quarterly.rows.map((r) => (
-                <tr key={r.name} className={clsx(!r.approved && 'bg-bad-soft/50')}>
-                  <td className={clsx('px-4 py-2.5 font-medium', r.approved ? 'text-slate' : 'text-bad')}>{r.name}{!r.approved && ' (not approved)'}</td>
-                  {r.spent.map((v, i) => <td key={i} className={clsx('px-3 py-2.5 text-right tabular-nums', !v && 'text-slate-3')}>{v ? money(v) : '–'}</td>)}
-                  <td className="px-4 py-2.5 text-right font-medium tabular-nums">{money(r.total)}</td>
+                <tr key={r.name}>
+                  <td className="truncate px-3 py-2.5 font-medium text-slate" title={r.name}>{r.name}</td>
+                  {r.spent.map((v, i) => <td key={i} className={clsx('px-2 py-2.5 text-right tabular-nums', !v && 'text-slate-3')}>{v ? money(v) : '–'}</td>)}
+                  <td className="px-3 py-2.5 text-right font-medium tabular-nums">{money(r.total)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot className="border-t border-line bg-canvas font-semibold">
               <tr>
-                <td className="px-4 py-2.5">Total</td>
-                {quarterly.totals.map((v, i) => <td key={i} className="px-3 py-2.5 text-right tabular-nums">{money(v)}</td>)}
-                <td className="px-4 py-2.5 text-right tabular-nums">{money(quarterly.totals.reduce((s, v) => s + Math.round(v * 100), 0) / 100)}</td>
+                <td className="px-3 py-2.5">Total</td>
+                {quarterly.totals.map((v, i) => <td key={i} className="px-2 py-2.5 text-right tabular-nums">{money(v)}</td>)}
+                <td className="px-3 py-2.5 text-right tabular-nums">{money(sumDollars(quarterly.totals))}</td>
               </tr>
             </tfoot>
           </table>
         </div>
-      </div>
+        <button type="button" onClick={() => setShowMonthly((s) => !s)} aria-expanded={showMonthly} className="mt-2 text-xs text-link hover:underline">
+          {showMonthly ? 'Hide monthly' : 'Show monthly'}
+        </button>
+        {showMonthly && <div className="mt-2"><MonthlySpendChart data={computeFinancials(grant, state.transactions).byMonth} /></div>}
+      </section>
 
-      <div>
-        <div className="mb-2 flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-slate">Monthly spending</h4>
-          <button onClick={() => setShowTable((s) => !s)} className="text-xs text-link hover:underline">{showTable ? 'Show chart' : 'Show as table'}</button>
-        </div>
-        {showTable ? (
-          <div className="grid grid-cols-3 gap-x-6 gap-y-1 text-sm sm:grid-cols-4">
-            {f.byMonth.map((m) => (
-              <div key={m.month} className="flex justify-between border-b border-line-2 py-1"><span className="text-slate-2">{m.month}</span><span className="tabular-nums">{money(m.spent)}</span></div>
-            ))}
-          </div>
-        ) : (
-          <MonthlySpendChart data={f.byMonth} />
-        )}
-      </div>
-
-      <div>
-        <h4 className="mb-2 text-sm font-semibold text-slate">Charged transactions <span className="font-normal text-slate-3">({lines.length})</span></h4>
-        <div className="overflow-hidden rounded-lg border border-line-2">
-          <ul className="max-h-80 divide-y divide-line-2 overflow-y-auto scrollbar-thin">
-            {lines.map(({ t, a }) => {
+      <section>
+        <h4 className="mb-2 text-sm font-semibold text-slate">Recent transactions</h4>
+        {shownRecent.length ? (
+          <ul className="divide-y divide-line-2 rounded-lg border border-line-2">
+            {shownRecent.map(({ t, a, i }) => {
               const fl = (flags.get(t.id) ?? []).filter((x) => !x.grantId || x.grantId === grant.id)
               return (
-                <li key={`${t.id}-${a.categoryId ?? a.unmatchedCategory}`} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <li key={`${t.id}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5 text-sm">
                   <span className="w-20 shrink-0 text-xs text-slate-3">{fmtDate(t.date, { month: 'short', day: 'numeric', year: '2-digit' })}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate">{t.description}</span>
@@ -206,9 +107,13 @@ export function BudgetTab({ grant }: { grant: Grant }) {
               )
             })}
           </ul>
-        </div>
-        <Link to={`/funds/spending?grant=${grant.id}`} className="mt-2 inline-block text-sm text-link hover:underline">Review in Spending →</Link>
-      </div>
+        ) : (
+          <p className="text-sm text-slate-3">No transactions charged yet.</p>
+        )}
+        <Link to={`/funds/spending?view=all&grant=${grant.id}`} className="mt-2 inline-block text-sm text-link hover:underline">
+          See all {recent.length} in Spending →
+        </Link>
+      </section>
     </div>
   )
 }

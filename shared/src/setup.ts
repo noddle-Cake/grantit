@@ -1,6 +1,5 @@
 import { fromCents, toCents } from './finance.ts'
 import type { BudgetCategory, Grant, GrantStage } from './types.ts'
-import { FUNDED_STAGES } from './workspaces.ts'
 
 /** Stages where an award's budget and period must be confirmed before money can be tracked against it. */
 export const SETUP_STAGES = ['awarded', 'reporting'] as const satisfies readonly GrantStage[]
@@ -8,9 +7,11 @@ export const SETUP_STAGES = ['awarded', 'reporting'] as const satisfies readonly
 /** Awarded or reporting, but the award's budget and period haven't been confirmed yet. */
 export const needsSetup = (g: Grant) => (SETUP_STAGES as readonly GrantStage[]).includes(g.stage) && !g.setupConfirmedAt
 
-/** Only confirmed, funded grants with a budget can have transactions charged to them. */
-export const canReceiveTransactions = (g: Grant) =>
-  (FUNDED_STAGES as readonly GrantStage[]).includes(g.stage) && !!g.setupConfirmedAt && g.categories.length > 0
+/** Awarded grants still open for spending or close-out (not closed, not applications). */
+export const isOpenAward = (g: Grant) => (SETUP_STAGES as readonly GrantStage[]).includes(g.stage)
+
+/** Only open, confirmed awards with a budget can have transactions charged to them. */
+export const canReceiveTransactions = (g: Grant) => isOpenAward(g) && !!g.setupConfirmedAt && g.categories.length > 0
 
 export interface SetupInput {
   amount: number
