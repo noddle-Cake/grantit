@@ -1,8 +1,8 @@
 import clsx from 'clsx'
-import { ArrowRight, Check, CircleAlert } from 'lucide-react'
+import { ArrowRight, Check } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { factCategoryLabel } from '@/lib/labels'
-import { Avatar, Button, Card } from '@/components/ui'
+import { Avatar, Button } from '@/components/ui'
 import { daysUntil, fmtDate, relativePhrase, todayISO } from '@grantit/shared/format'
 import { neededNow, type Need, type NeedRef } from '@grantit/shared/needs'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
@@ -66,56 +66,57 @@ export function NeededNow({ onAdd, onOpen }: { onAdd: (hint: string) => void; on
   }
 
   return (
-    <Card
-      className="mb-5"
-      padded={false}
-      title={<span className="flex items-center gap-2"><CircleAlert size={16} className="text-warn" /> Needed now</span>}
-      action={<span className="text-xs text-slate-3">What applications and matches are waiting on, soonest deadline first</span>}
-    >
-      <ul aria-label="Needed now" className="divide-y divide-line-2">
-        {visible.map((need) => {
-          const key = need.kind === 'approve' ? need.fact.id : need.kind === 'add' ? need.topic : need.category
-          return (
-            <li key={`${need.kind}:${key}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-              <div className="min-w-0 flex-1 basis-60">
-                <p className="text-sm text-slate">
-                  {need.kind === 'approve' ? (
-                    <>
-                      Approve{' '}
-                      <button type="button" onClick={() => onOpen(state.facts.find((f) => f.id === need.fact.id)!)} className="text-left font-medium text-link hover:underline">
-                        {need.fact.title}
-                      </button>
-                    </>
-                  ) : need.kind === 'add' ? (
-                    <>Add a fact about <span className="font-medium">{need.topic}</span></>
-                  ) : (
-                    <>No approved <span className="font-medium">{factCategoryLabel(need.category).toLowerCase()}</span> facts</>
-                  )}
-                </p>
-                <p className="mt-0.5 text-xs text-slate-2">
-                  <Blocks need={need} />
-                  {need.due && (
-                    <span title={fmtDate(need.due)} className={clsx(daysUntil(need.due) <= 14 && 'font-medium text-brand-dark')}>
-                      {' · '}Due {relativePhrase(need.due)}
-                    </span>
-                  )}
-                </p>
-              </div>
-              {action(need)}
-            </li>
-          )
-        })}
-      </ul>
-      {needs.length > SHOWN && (
-        <button
-          type="button"
-          aria-expanded={showAll}
-          onClick={() => setShowAll((s) => !s)}
-          className="flex w-full items-center gap-1 border-t border-line-2 px-5 py-2.5 text-sm font-medium text-link hover:bg-canvas"
-        >
-          {showAll ? 'Show fewer' : `Show all ${needs.length}`} <ArrowRight size={14} />
-        </button>
-      )}
-    </Card>
+    <details className="mb-5 rounded-lg border border-line-2 bg-surface">
+      <summary className="cursor-pointer px-5 py-3 text-sm font-medium text-slate">
+        Needed now · {needs.length} item{needs.length === 1 ? '' : 's'}
+      </summary>
+      <div className="border-t border-line-2">
+        <p className="px-5 py-3 text-xs text-slate-3">What applications and matches are waiting on, soonest deadline first</p>
+        <ul aria-label="Needed now" className="divide-y divide-line-2">
+          {visible.map((need) => {
+            const key = need.kind === 'approve' ? need.fact.id : need.kind === 'add' ? need.topic : need.category
+            return (
+              <li key={`${need.kind}:${key}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+                <div className="min-w-0 flex-1 basis-60">
+                  <p className="text-sm text-slate">
+                    {need.kind === 'approve' ? (
+                      <>
+                        Approve{' '}
+                        <button type="button" onClick={() => onOpen(state.facts.find((f) => f.id === need.fact.id)!)} className="text-left font-medium text-link hover:underline">
+                          {need.fact.title}
+                        </button>
+                      </>
+                    ) : need.kind === 'add' ? (
+                      <>Add a fact about <span className="font-medium">{need.topic}</span></>
+                    ) : (
+                      <>No approved <span className="font-medium">{factCategoryLabel(need.category).toLowerCase()}</span> facts</>
+                    )}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-2">
+                    <Blocks need={need} />
+                    {need.due && (
+                      <span title={fmtDate(need.due)} className={clsx(daysUntil(need.due) <= 14 && 'font-medium text-brand-dark')}>
+                        {' · '}Due {relativePhrase(need.due)}
+                      </span>
+                    )}
+                  </p>
+                </div>
+                {action(need)}
+              </li>
+            )
+          })}
+        </ul>
+        {needs.length > SHOWN && (
+          <button
+            type="button"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((s) => !s)}
+            className="flex w-full items-center gap-1 border-t border-line-2 px-5 py-2.5 text-sm font-medium text-link hover:bg-canvas"
+          >
+            {showAll ? 'Show fewer' : `Show all ${needs.length}`} <ArrowRight size={14} />
+          </button>
+        )}
+      </div>
+    </details>
   )
 }

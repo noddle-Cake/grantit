@@ -225,6 +225,20 @@ checkboxes align with the fact title; dates 45+ days out no longer repeat ("Due 
 `dateWithRelative`); "Due in 37 days" reads in sentence case (`relativePhrase`). Not covered: VoiceOver, touch
 emulation, and browsers other than Chrome.
 
+**Focus refinement on current main, November 8, 2026.** Opportunity cards keep the funding range,
+deadline, focus-area count and deadline-conflict warning visible; requirements, supporting facts, focus
+chips, source and award comparisons share the “Why this matches” disclosure. The actions wrap at 320px.
+Applications use one set of stage counts and compact attention filters only when there is work to do;
+optional row-detail controls sit under “View options,” initially expanded for Finance. The Knowledge
+Base's “Needed now” queue is collapsed initially so fact search and approvals remain in view. Existing
+role permissions, budget details, next-step links and bulk approval are preserved.
+
+This refinement was checked in Chrome at 320 CSS pixels (Applications and Opportunities in light
+appearance; Knowledge Base in dark) and at 1200 CSS pixels (Knowledge Base in dark). Native disclosures
+were exercised with Enter and Space; the view selector retained focus when returning from Budget to
+Progress. Browser console inspection showed no runtime errors. Full cross-browser, VoiceOver and a
+separate 200% zoom pass were not performed for this refinement.
+
 ## Audit record: November 7, 2026
 
 The initial HIG pass shipped in [PR #92](https://github.com/noddle-Cake/grantit/pull/92). A follow-up found
