@@ -1,14 +1,26 @@
 import clsx from 'clsx'
-import { AlertOctagon, AlertTriangle, BookOpenCheck, Check, CheckCircle2, ClipboardCheck, Copy, Hourglass, Lock, Plus, RefreshCw, Sparkles, Undo2 } from 'lucide-react'
+import { AlertOctagon, AlertTriangle, BookOpenCheck, Check, CheckCircle2, CircleCheck, CircleDashed, CircleX, ClipboardCheck, Copy, FileSearch, Hourglass, Lock, Plus, RefreshCw, Sparkles, Undo2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Button, EmptyState, Pill, StatusPill } from '@/components/ui'
-import { checkApplication, draftAnswerAsync, findUnsupportedClaims, newlyCovered } from '@grantit/shared/drafting'
+import { checkApplication, citationProblems, newlyCovered, unsupportedClaims } from '@grantit/shared/drafting'
 import { wordCount } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Grant, Question } from '@grantit/shared/types'
+import type { DocCitation, Grant, Question } from '@grantit/shared/types'
+import { PdfViewer } from '@/features/knowledge/PdfViewer'
+import { AiError, draftFromKnowledge } from '@/lib/draft'
+
+const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`
+
+/** A PDF citation's review state, worst first: marked wrong, quote not found, confirmed, found but unreviewed. */
+function citationState(c: DocCitation) {
+  if (c.check?.ok === false) return { label: 'Marked wrong', icon: <CircleX size={15} className="text-bad" />, tone: 'border-bad/40 bg-bad-soft' }
+  if (c.check?.ok) return { label: 'Checked', icon: <CircleCheck size={15} className="text-good" />, tone: 'border-line-2' }
+  if (!c.verified) return { label: 'Not found in PDF', icon: <AlertTriangle size={15} className="text-warn" />, tone: 'border-warn-line bg-warn-soft' }
+  return { label: 'To review', icon: <CircleDashed size={15} className="text-slate-3" />, tone: 'border-line-2' }
+}
 
 function WordMeter({ count, limit }: { count: number; limit: number }) {
   const over = count > limit
@@ -26,13 +38,18 @@ function WordMeter({ count, limit }: { count: number; limit: number }) {
 }
 
 function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: number }) {
-  const { state, me, updateQuestion, notify } = useStore()
+  const { state, me, updateQuestion, checkCitation, notify } = useStore()
   const [busy, setBusy] = useState(false)
+  const [reviewAt, setReviewAt] = useState<number | null>(null)
   const canDraft = can(me.role, 'application:draft')
   const canApprove = can(me.role, 'application:approve')
   const words = wordCount(q.answer)
   const over = words > q.wordLimit
-  const unsupported = findUnsupportedClaims(q.answer, state.facts)
+  const unsupported = unsupportedClaims(q, state.facts)
+  const docCitations = q.docCitations ?? []
+  const problems = q.answer.trim() ? citationProblems(q) : []
+  const reviewed = docCitations.filter((c) => c.check).length
+  const canReview = canDraft || canApprove
   const citedFacts = q.citations.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f !== undefined)
   const unapprovedCited = citedFacts.filter((f) => f.status !== 'approved')
   // Gaps the last draft reported that approved facts now cover: the writer's cue to regenerate.
@@ -42,11 +59,21 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
 
   async function generate() {
     setBusy(true)
-    const r = await draftAnswerAsync(q, state.facts)
-    setBusy(false)
-    setBlocked(r.blockedBy)
-    updateQuestion(grant.id, q.id, { answer: r.text, citations: r.citations, missing: r.missing, status: r.text ? 'draft' : 'empty' })
-    notify(r.text ? `Draft generated from ${r.citations.length} approved fact${r.citations.length === 1 ? '' : 's'}` : 'Not enough approved information to draft this answer', r.text ? 'success' : 'error')
+    try {
+      const r = await draftFromKnowledge(q, state)
+      setBlocked(r.blockedBy)
+      updateQuestion(grant.id, q.id, { answer: r.text, citations: r.citations, docCitations: r.docCitations, missing: r.missing, status: r.text ? 'draft' : 'empty' })
+      const pdfs = new Set(r.docCitations.map((c) => c.docId)).size
+      const from = [pdfs && plural(pdfs, 'PDF'), r.citations.length && plural(r.citations.length, 'approved fact')].filter(Boolean).join(' and ')
+      const unchecked = r.docCitations.filter((c) => !c.verified).length
+      if (!r.text) notify('Not enough approved information to draft this answer', 'error')
+      else notify(`Draft written${r.by === 'built-in' ? '' : ` by ${r.by}`} from ${from}${unchecked ? ` · ${plural(unchecked, 'quote')} not found in the PDF` : ''}`, unchecked ? 'info' : 'success')
+      if (r.unreadable.length) notify(`Couldn’t open ${r.unreadable.map((d) => `“${d.name}”`).join(', ')} in this browser, so the draft doesn’t use ${r.unreadable.length === 1 ? 'it' : 'them'}.`, 'info')
+    } catch (e) {
+      notify(e instanceof AiError ? e.message : 'Couldn’t draft this answer. Try again.', 'error')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const blockedFacts = blocked.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f && f.status !== 'approved')
@@ -71,7 +98,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
         ) : q.status === 'empty' && !q.answer ? (
           <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed border-line bg-gradient-to-br from-brand-soft/60 via-surface to-link-soft/50 p-5 sm:flex-row sm:items-center">
             <Sparkles className="text-brand" size={20} />
-            <p className="flex-1 text-sm text-slate-2">Generate a first draft using only approved organizational facts. Every sentence will cite its source.</p>
+            <p className="flex-1 text-sm text-slate-2">Generate a first draft from your approved PDFs and facts only. Every sentence quotes its source, and each PDF quote opens on its page.</p>
             {canDraft ? (
               <Button size="sm" icon={<Sparkles size={14} />} onClick={generate}>Generate draft</Button>
             ) : (
@@ -100,10 +127,52 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
           </div>
         )}
 
-        {/* Sources */}
+        {/* PDF quotes, each opening its page with the quote highlighted */}
+        {!busy && q.answer && docCitations.length > 0 && (
+          <div className="mt-4">
+            <div className="mb-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-3">Quoted from PDFs</span>
+              <span className="text-xs tabular-nums text-slate-3">{reviewed} of {docCitations.length} reviewed</span>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto"
+                icon={<FileSearch size={14} />}
+                onClick={() => setReviewAt(Math.max(0, docCitations.findIndex((c) => !c.check)))}
+              >
+                {reviewed < docCitations.length ? 'Review citations' : 'Open citations'}
+              </Button>
+            </div>
+            <ul aria-label="PDF citations" className="space-y-1.5">
+              {docCitations.map((c, i) => {
+                const doc = state.sourceDocs.find((d) => d.id === c.docId)
+                const st = citationState(c)
+                return (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      onClick={() => setReviewAt(i)}
+                      aria-label={`Open citation ${i + 1}: ${doc?.name ?? 'deleted document'}, page ${c.page}. ${st.label}`}
+                      className={clsx('flex w-full items-start gap-2.5 rounded-lg border px-3 py-2 text-left text-sm transition hover:shadow-sm', st.tone)}
+                    >
+                      <span className="mt-0.5 shrink-0">{st.icon}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="font-medium text-link">{doc?.name ?? 'Deleted document'} · p. {c.page}</span>
+                        <span className="block truncate text-slate-2">“{c.quote}”</span>
+                      </span>
+                      <span className="hidden shrink-0 text-xs text-slate-3 sm:block">{st.label}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        )}
+
+        {/* Facts */}
         {!busy && citedFacts.length > 0 && (
           <div className="mt-4">
-            <div className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-3">Supported by</div>
+            <div className="mb-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-3">{docCitations.length ? 'Also supported by facts' : 'Supported by'}</div>
             <div className="flex flex-wrap gap-1.5">
               {citedFacts.map((f) => (
                 <Link
@@ -123,8 +192,19 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
         )}
 
         {/* Issues */}
-        {!busy && (covered.length > 0 || stillMissing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0) && (
+        {!busy && (covered.length > 0 || stillMissing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0 || problems.length > 0) && (
           <div className="mt-4 space-y-2">
+            {problems.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2.5 rounded-lg bg-bad-soft px-3.5 py-2.5 text-sm">
+                <AlertOctagon size={16} className="shrink-0 text-bad" />
+                <div className="min-w-0 flex-1 text-slate-2">
+                  <span className="font-medium text-slate">{plural(problems.length, 'PDF citation')} to check.</span>{' '}
+                  {problems.some((c) => c.check?.ok === false) ? 'A reviewer marked a quote as not supporting its sentence.' : 'A quote wasn’t found word for word in its PDF.'}{' '}
+                  Confirm it against the page, or edit or regenerate the answer.
+                </div>
+                <Button size="sm" variant="secondary" icon={<FileSearch size={13} />} onClick={() => setReviewAt(docCitations.indexOf(problems[0]))}>Check</Button>
+              </div>
+            )}
             {covered.length > 0 && (
               <div role="status" className="flex flex-wrap items-center gap-2.5 rounded-lg bg-good-soft px-3.5 py-2.5 text-sm">
                 <Sparkles size={16} className="shrink-0 text-good" />
@@ -140,8 +220,10 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
                 <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
                 <div className="flex-1">
                   <span className="font-medium text-slate">Missing information — not invented.</span>{' '}
-                  <span className="text-slate-2">No approved facts cover: {stillMissing.join(', ')}.</span>{' '}
-                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(stillMissing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
+                  <span className="text-slate-2">No approved PDF or fact covers: {stillMissing.join(', ')}.</span>{' '}
+                  <Link to="/apply/knowledge" className="whitespace-nowrap font-medium text-link hover:underline">Upload a PDF</Link>
+                  <span className="text-slate-3"> or </span>
+                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(stillMissing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">add a fact →</Link>
                 </div>
               </div>
             )}
@@ -203,8 +285,8 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
               <Button
                 size="sm"
                 icon={<Check size={14} />}
-                disabled={over || unsupported.length > 0 || !q.answer.trim()}
-                title={over ? 'Over word limit' : unsupported.length ? 'Resolve unsupported claims first' : undefined}
+                disabled={over || unsupported.length > 0 || problems.length > 0 || !q.answer.trim()}
+                title={over ? 'Over word limit' : unsupported.length ? 'Resolve unsupported claims first' : problems.length ? 'Check the flagged PDF citations first' : undefined}
                 onClick={() => {
                   updateQuestion(grant.id, q.id, { status: 'approved' })
                   notify('Answer approved')
@@ -217,6 +299,13 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
             )}
           </div>
         </footer>
+      )}
+
+      {reviewAt !== null && docCitations.length > 0 && (
+        <PdfViewer
+          review={{ items: docCitations, index: Math.min(reviewAt, docCitations.length - 1), canCheck: canReview, onCheck: (c, ok) => checkCitation(grant.id, q.id, c.id, ok) }}
+          onClose={() => setReviewAt(null)}
+        />
       )}
     </article>
   )
@@ -250,6 +339,7 @@ export function ApplicationTab({ grant }: { grant: Grant }) {
     { n: check.unanswered, label: 'unanswered' },
     { n: check.overLimit, label: 'over word limit' },
     { n: check.unsupported, label: 'unsupported claims' },
+    { n: check.citations, label: 'PDF citations to check' },
     { n: check.unapproved, label: 'awaiting approval' },
   ]
 

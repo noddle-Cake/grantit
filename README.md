@@ -90,6 +90,23 @@ npm run dev:api        # API on http://127.0.0.1:8787/api (Vite proxies /api to 
   LLM service must return, so the UI won't change when the backend is wired in.
 - API endpoints follow [`docs/api.md`](docs/api.md). Stack decision: [ADR 0001](docs/adr/0001-backend.md).
 
+## PDF knowledge sources
+
+In **Knowledge base**, upload PDFs with selectable text (up to 25 MB each). Approved PDFs supplement
+approved facts and are the primary document sources for drafting. Scans need OCR before uploading.
+Two sample PDFs are included; regenerate them with `npm run samples:knowledge -w web`.
+
+**Generate draft** uses the provider and key selected in Connectors. Without a key, the built-in drafter
+copies relevant source sentences. PDF citations open a popup on the cited page with the quote highlighted
+beside the answer sentence. Writers and approvers can mark whether the quote supports that sentence.
+Unmatched quotes and citations marked wrong block answer approval until reviewed or corrected.
+
+Uploaded PDFs and extracted text currently stay in this browser's IndexedDB; document metadata,
+answers, and citation reviews are in localStorage. These documents are not yet stored in the API or
+shared across browsers. With an AI key configured, drafting sends approved facts and selected approved
+PDF passages to that provider. Matching a quote confirms its location; reviewers still check whether
+it supports the answer.
+
 ## Design direction
 
 Grantit follows Apple's Human Interface Guidelines, applied to the web: contrast checked in CI, Dark Mode
