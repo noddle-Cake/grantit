@@ -36,6 +36,20 @@
       "when": 1794162534949,
       "tag": "0004_pacing_and_reports",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794165929495,
+      "tag": "0005_category_first_coding",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794165931586,
+      "tag": "0006_remove_review_columns",
+      "breakpoints": true
     }
   ]
 }

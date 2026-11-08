@@ -14,7 +14,7 @@ import type { Transaction } from '@grantit/shared/types'
 const TEMPLATE = `date,vendor,description,account,amount,grant,category
 2026-10-30,Brightpath Curriculum Co.,Coping-skills cards for workshops,6400 Program Supplies,1250.00,Safe & Strong School Workshops,Curriculum & Materials
 2026-10-31,Payroll,Mentor coordinator – 10/2026 overtime,6000 Salaries,800,Anchor Mentors 2026,Mentor Coordinator
-2026-11-01,Sunline Charter Bus,Mentoring outing transportation,6600 Activities,640,,
+2026-11-01,Sunline Charter Bus,Mentoring outing transportation,6650 Activities,640,,
 `
 
 /** QuickBooks-style transaction export served from web/public (about 30 rows, incl. a duplicate, a bad row and a refund). */
@@ -30,7 +30,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
   const [drag, setDrag] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   const allowed = can(me.role, 'finance:import')
-  const grantFor = (id: string) => state.grants.find((g) => g.id === id)
+  const grantFor = (id: string | null) => state.grants.find((g) => g.id === id)
 
   const reset = () => {
     setPreview(null)
@@ -42,9 +42,9 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
     onClose()
   }
 
-  function load(name: string, text: string, source: Transaction['source']) {
+  function load(name: string, text: string, origin: Transaction['origin']) {
     const parsed = Papa.parse<string[]>(text, { skipEmptyLines: 'greedy' })
-    const p = prepareImport(parsed.data, state.grants, state.transactions, source)
+    const p = prepareImport(parsed.data, state.grants, state.transactions, origin, state.programs)
     setFileName(name)
     if (p.missingColumns.length) {
       setPreview(null)
@@ -153,8 +153,8 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
                         <td className="px-3 py-2 text-right tabular-nums">{moneyExact(r.tx.amount)}</td>
                         <td className="px-3 py-2">
                           {r.duplicate ? <Pill><Copy size={11} /> Already imported</Pill>
-                            : a ? <Pill tone={a.categoryId ? 'info' : 'bad'}>{allocationCategoryName(grantFor(a.grantId), a)}{a.categoryId ? '' : ' (not approved)'}</Pill>
-                            : <Pill>Unassigned</Pill>}
+                            : a ? <Pill tone="info">{allocationCategoryName(grantFor(a.grantId), a)}</Pill>
+                            : <Pill>Auto-assign</Pill>}
                         </td>
                       </tr>
                     )

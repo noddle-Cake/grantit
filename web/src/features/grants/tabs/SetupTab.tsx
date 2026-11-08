@@ -7,6 +7,7 @@ import type { AwardLetterFields } from '@grantit/shared/award-letter'
 import { allocationCountByCategory, categoryByName } from '@grantit/shared/finance'
 import { fmtDate, moneyExact, uid } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
+import { ADMIN_PROGRAM_ID } from '@grantit/shared/auto-assign'
 import { needsSetup, validateSetup } from '@grantit/shared/setup'
 import { FUNDED_STAGES } from '@grantit/shared/workspaces'
 import { AwardLetterError, extractAwardLetter } from '@/lib/award-letter-ai'
@@ -37,7 +38,7 @@ function Block({ title, desc, children, action }: { title: string; desc?: ReactN
 const missingRing = 'ring-2 ring-warn/70 border-warn'
 
 export function SetupTab({ grant }: { grant: Grant }) {
-  const { me, state, updateGrant, confirmGrantSetup, notify } = useStore()
+  const { me, state, updateGrant, confirmGrantSetup, reassignUnconfirmed, notify } = useStore()
   const editable = can(me.role, 'grant:configure')
   const [draft, setDraft] = useState<Grant>(grant)
   // Reset the form when the saved grant changes (e.g. after Save), without an effect.
@@ -90,7 +91,10 @@ export function SetupTab({ grant }: { grant: Grant }) {
     if (fields.periodEnd) patch.periodEnd = fields.periodEnd
     if (fields.funderFiscalYearStartMonth !== null) patch.funderFiscalYearStartMonth = fields.funderFiscalYearStartMonth
     if (fields.categories) {
-      const next: BudgetCategory[] = fields.categories.map((c) => ({ id: categoryByName(draft, c.name)?.id ?? uid('c'), name: c.name, budget: c.budget }))
+      const next: BudgetCategory[] = fields.categories.map((c) => {
+        const existing = categoryByName(draft, c.name)
+        return { ...existing, id: existing?.id ?? uid('c'), name: c.name, budget: c.budget }
+      })
       // Categories that already have transactions stay, so nothing is orphaned; validation shows the mismatch.
       const kept = draft.categories.filter((c) => usage.get(c.id) && !next.some((n) => n.id === c.id))
       patch.categories = [...next, ...kept]
@@ -141,6 +145,7 @@ export function SetupTab({ grant }: { grant: Grant }) {
       notify('Setup confirmed. This grant can now receive transactions.')
     } else {
       updateGrant(grant.id, patch)
+      reassignUnconfirmed()
       notify('Grant configuration saved')
     }
     setAi(null)
@@ -211,6 +216,12 @@ export function SetupTab({ grant }: { grant: Grant }) {
           <Field label="Award amount">
             <Input type="number" min={0} step="0.01" className={clsx(isMissing('amount') && missingRing)} value={draft.amount} onChange={(e) => set({ amount: Number(e.target.value) }, 'amount')} />
           </Field>
+          <Field label="Program" hint="Expenses coded to this program can be charged to this grant.">
+            <Select value={draft.programId ?? ''} onChange={(e) => set({ programId: e.target.value || undefined })}>
+              <option value="">Choose a program</option>
+              {state.programs.filter((p) => p.id !== ADMIN_PROGRAM_ID).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          </Field>
           <Field label="Grant name" className="@xl:col-span-2"><Input value={draft.name} onChange={(e) => set({ name: e.target.value })} /></Field>
           <Field label="Shared costs">
             <Select value={draft.allowSplit ? 'yes' : 'no'} onChange={(e) => set({ allowSplit: e.target.value === 'yes' })}>
@@ -273,7 +284,7 @@ export function SetupTab({ grant }: { grant: Grant }) {
 
       {funded && <Block
         title="Approved budget"
-        desc="Spending categories the funder approved. Renaming a category keeps its transactions; transactions in other categories are flagged as unauthorized."
+        desc="Budget lines the funder approved, and the spending category each one pays for. Renaming a line keeps its transactions."
         action={editable && <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => set({ categories: [...draft.categories, { id: uid('c'), name: '', budget: 0 }] }, 'categories')}>Add category</Button>}
       >
         <div className={clsx('overflow-hidden rounded-lg border border-line-2', isMissing('categories') && missingRing)}>
@@ -284,6 +295,15 @@ export function SetupTab({ grant }: { grant: Grant }) {
               <div key={c.id} className="border-b border-line-2 p-2 last:border-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <Input className={clsx('min-w-40 flex-1', issue && 'border-bad')} placeholder="Category name" aria-label="Budget category name" value={c.name} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }, 'categories')} />
+                  <Select
+                    aria-label={`What ${c.name || 'this line'} pays for`}
+                    className="w-44"
+                    value={c.acceptedCategoryIds?.[0] ?? ''}
+                    onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, acceptedCategoryIds: e.target.value ? [e.target.value] : [] } : x)) }, 'categories')}
+                  >
+                    <option value="">Pays for…</option>
+                    {state.orgCategories.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </Select>
                   <div className="relative w-28 @sm:w-36">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-3">$</span>
                     <Input type="number" min={0} step="0.01" aria-label="Category budget" className="pl-6 text-right" value={c.budget} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, budget: Number(e.target.value) } : x)) }, 'categories')} />

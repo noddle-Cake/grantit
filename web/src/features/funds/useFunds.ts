@@ -8,13 +8,13 @@ import { useStore } from '@/store'
  * page, the sidebar badge and Reports always show the same counts.
  */
 export function useFunds() {
-  const { state, flags } = useStore()
+  const { state } = useStore()
   const today = todayISO()
   return useMemo(() => {
     const rows = state.grants
       .filter((g) => fundingState(g, today) !== undefined)
       .map((grant) => ({ grant, pace: pacing(grant, state.transactions, today), issues: grantIssues(grant, state.transactions, today) }))
-    const queue = reviewQueue(state.grants, state.transactions, flags, today)
+    const queue = reviewQueue(state.grants, state.transactions, today)
     const due = dueReports(state.grants, today)
     return {
       today,
@@ -24,5 +24,5 @@ export function useFunds() {
       offPace: rows.filter((r) => isOffPace(r.pace)),
       dueSoon: due.filter((d) => d.daysLeft <= 30),
     }
-  }, [state.grants, state.transactions, flags, today])
+  }, [state.grants, state.transactions, today])
 }

@@ -28,6 +28,8 @@ describe.skipIf(!hasTestDb)('grants API', () => {
       org: { id: 'org-other', name: 'Other Org', ein: '11-1111111', fiscalYearStartMonth: 1 },
       users: [{ id: 'u-other', name: 'Other Director', role: 'director', title: 'Director', initials: 'OD' }],
       facts: [],
+      orgCategories: [],
+      programs: [],
       documents: [],
       grants: [{ ...seedState.grants[0], id: 'g-other', ownerId: 'u-other' }],
       transactions: [],
@@ -216,7 +218,6 @@ describe.skipIf(!hasTestDb)('grants API', () => {
       expect(fin.budget).toBe(96000)
       const coordinator = fin.categories.find((c) => c.name === 'Mentor Coordinator')!
       expect(coordinator.spent).toBe(45000) // 10 × 4500 payroll, all inside 2026
-      expect(fin.unauthorized).toEqual([{ category: 'Equipment', spent: 2400 }])
     })
 
     it('honours start/end overrides', async () => {

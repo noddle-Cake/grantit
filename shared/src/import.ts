@@ -1,10 +1,10 @@
 import { allocationFor, toCents } from './finance.ts'
 import { canReceiveTransactions, isOpenAward } from './setup.ts'
-import type { Grant, Transaction } from './types.ts'
+import type { Grant, Program, Transaction } from './types.ts'
 
 // ─── Header mapping ─────────────────────────────────────────────────────────
 
-export type ImportField = 'date' | 'vendor' | 'description' | 'account' | 'amount' | 'grant' | 'category'
+export type ImportField = 'date' | 'vendor' | 'description' | 'account' | 'amount' | 'grant' | 'category' | 'program'
 
 /** Accepted headers per field, in order of preference (Grantit template + QuickBooks transaction exports). */
 export const HEADER_ALIASES: Record<ImportField, string[]> = {
@@ -15,6 +15,7 @@ export const HEADER_ALIASES: Record<ImportField, string[]> = {
   amount: ['amount'],
   grant: ['grant'],
   category: ['category'],
+  program: ['class', 'program'],
 }
 
 const REQUIRED: ImportField[] = ['date', 'amount']
@@ -139,11 +140,11 @@ export interface ImportPreview {
 }
 
 /**
- * Turn a parsed CSV (first row = headers) into transactions ready to import. Rows naming a confirmed grant and a
- * category are allocated to it; a grant that still needs setup (or doesn't exist) leaves the row unassigned
- * with a warning.
+ * Turn a parsed CSV (first row = headers) into transactions ready to import. Rows naming a confirmed grant and one
+ * of its budget lines are allocated to it and await confirmation; any other named grant or line leaves the row
+ * unassigned with a warning. A QuickBooks class matching a program sets the program; auto-assign does the rest.
  */
-export function prepareImport(table: string[][], grants: Grant[], existing: Transaction[], source: Transaction['source']): ImportPreview {
+export function prepareImport(table: string[][], grants: Grant[], existing: Transaction[], origin: Transaction['origin'], programs: Program[] = []): ImportPreview {
   const [headers = [], ...body] = table
   const map = mapHeaders(headers)
   const empty: ImportPreview = { rows: [], errors: [], missingColumns: map.missing, ignoredColumns: map.ignored, ready: [], duplicates: 0 }
@@ -171,12 +172,29 @@ export function prepareImport(table: string[][], grants: Grant[], existing: Tran
     else if (grant && !isOpenAward(grant)) warning = `${grant.name} isn't an open award; imported as unassigned`
     else if (grant && !canReceiveTransactions(grant)) warning = `${grant.name} needs setup before it can receive transactions; imported as unassigned`
     else if (grant && !category) warning = `No category given for ${grant.name}; imported as unassigned`
-    else if (grant) allocations = [allocationFor(grant, category, amount)]
+    else if (grant) {
+      const allocation = allocationFor(grant, category, amount)
+      if (allocation) allocations = [allocation]
+      else warning = `${grant.name} has no “${category}” budget line; imported as unassigned`
+    }
+    const programId = programs.find((p) => norm(p.name) === norm(cell(r, 'program')))?.id
 
     parsed.push({
       line,
       warning,
-      tx: { date, vendor: cell(r, 'vendor'), description: cell(r, 'description'), account: cell(r, 'account'), amount, allocations, reviewed: false, source },
+      tx: {
+        date,
+        vendor: cell(r, 'vendor'),
+        description: cell(r, 'description'),
+        account: cell(r, 'account'),
+        amount,
+        allocations,
+        origin,
+        ...(programId ? { programId } : {}),
+        // Naming a line in the file is a person's choice, so auto-assign leaves it alone; it still gets confirmed.
+        source: allocations.length ? 'manual' : 'auto',
+        status: allocations.length ? 'suggested' : 'needs_input',
+      },
     })
   })
 

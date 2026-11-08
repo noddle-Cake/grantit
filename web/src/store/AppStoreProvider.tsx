@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { assignManually, autoAssign, canConfirm, codeTransaction, recode } from '@grantit/shared/auto-assign'
 import { grantFromOpportunity } from '@grantit/shared/opportunities'
 import { demoOpportunities } from '@grantit/shared/opportunities-demo'
 import { seedState } from '@grantit/shared/seed'
@@ -10,7 +11,7 @@ import { loadState, STORAGE_KEY } from './migrate'
 
 const DISMISSED_KEY = 'grantit:dismissed-opportunities:v1'
 
-/** Saved state (v3, or v2 upgraded), falling back to the seed if storage is unavailable or unreadable. */
+/** Saved state (v4, or an older version upgraded), falling back to the seed if storage is unavailable or unreadable. */
 function load(): AppState {
   const read = (key: string) => {
     try {
@@ -109,43 +110,29 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     updateGrant: (id, patch) => updateGrants((g) => ({ ...g, ...patch }), id),
-    confirmGrantSetup: (id, patch) => updateGrants((g) => ({ ...g, ...patch, setupConfirmedAt: todayISO() }), id),
+    confirmGrantSetup: (id, patch) =>
+      setState((s) => {
+        const grants = s.grants.map((g) => (g.id === id ? { ...g, ...patch, setupConfirmedAt: todayISO() } : g))
+        return { ...s, grants, transactions: autoAssign({ ...s, grants }) }
+      }),
     updateQuestion: (grantId, qid, patch) =>
       updateGrants((g) => ({ ...g, questions: g.questions.map((q) => (q.id === qid ? { ...q, ...patch, updatedAt: todayISO() } : q)) }), grantId),
 
     importTransactions: (txs) =>
-      setState((s) => ({ ...s, transactions: [...txs.map((t) => ({ ...t, id: uid('t') })), ...s.transactions] })),
-    // Changing a classification means it needs review again; assigning a grant clears "not grant-funded".
-    setAllocations: (txId, allocations) =>
-      setState((s) => ({
-        ...s,
-        transactions: s.transactions.map((t) => {
-          if (t.id !== txId || JSON.stringify(t.allocations) === JSON.stringify(allocations)) return t
-          const { notGrantFunded: _n, ...rest } = t
-          return { ...(allocations.length ? rest : t), allocations, reviewed: false }
-        }),
-      })),
-    setNotGrantFunded: (ids, value) =>
-      setState((s) => ({
-        ...s,
-        transactions: s.transactions.map((t) => {
-          if (!ids.includes(t.id) || (value && t.allocations.length)) return t
-          const { notGrantFunded: _n, ...rest } = t
-          // Deciding a cost is unrestricted is a review decision, so it also counts as reviewed.
-          return value ? { ...rest, notGrantFunded: true, reviewed: true } : rest
-        }),
-      })),
-    setServiceDate: (txId, serviceDate) =>
-      setState((s) => ({
-        ...s,
-        transactions: s.transactions.map((t) => {
-          if (t.id !== txId || (t.serviceDate ?? t.date) === (serviceDate || t.date)) return t
-          const { serviceDate: _d, ...rest } = t
-          return serviceDate && serviceDate !== t.date ? { ...rest, serviceDate, reviewed: false } : { ...rest, reviewed: false }
-        }),
-      })),
-    markReviewed: (ids, reviewed = true) =>
-      setState((s) => ({ ...s, transactions: s.transactions.map((t) => (ids.includes(t.id) ? { ...t, reviewed } : t)) })),
+      setState((s) => {
+        const incoming = txs.map((t) => codeTransaction({ ...t, id: uid('t') }, s))
+        return { ...s, transactions: autoAssign({ ...s, transactions: [...incoming, ...s.transactions] }) }
+      }),
+    recodeTransaction: (txId, coding) =>
+      setState((s) => ({ ...s, transactions: s.transactions.map((t) => (t.id === txId ? recode(t, coding, s) : t)) })),
+    assignTransaction: (txId, allocations) =>
+      setState((s) => ({ ...s, transactions: s.transactions.map((t) => (t.id === txId ? assignManually(t, allocations) : t)) })),
+    confirmTransactions: (ids) =>
+      setState((s) => ({ ...s, transactions: s.transactions.map((t) => (ids.includes(t.id) && canConfirm(t) ? { ...t, status: 'done' as const } : t)) })),
+    reassignUnconfirmed: () => setState((s) => ({ ...s, transactions: autoAssign(s) })),
+
+    addOrgCategory: (name) => setState((s) => ({ ...s, orgCategories: [...s.orgCategories, { id: uid('cat'), name, glAccounts: [] }] })),
+    renameOrgCategory: (id, name) => setState((s) => ({ ...s, orgCategories: s.orgCategories.map((c) => (c.id === id ? { ...c, name } : c)) })),
 
     opportunities: demoOpportunities,
     dismissedOpportunities,

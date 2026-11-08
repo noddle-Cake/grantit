@@ -46,7 +46,7 @@ describe.skipIf(!hasTestDb)('role enforcement', () => {
   it('program staff can draft but not approve applications or finance work', async () => {
     expect((await send(app, 'PATCH', '/grants/g-anchor/questions/q1', { answer: 'Draft edit.' }, tokens.program)).status).toBe(200)
     await expectForbidden(send(app, 'PATCH', '/grants/g-anchor/questions/q1', { status: 'approved' }, tokens.program))
-    await expectForbidden(send(app, 'PATCH', '/transactions/t-u1', { reviewed: true }, tokens.program))
+    await expectForbidden(send(app, 'PATCH', '/transactions/t-u1', { status: 'done' }, tokens.program))
     await expectForbidden(send(app, 'POST', '/transaction-imports', { csv: 'date,vendor,amount\n2026-01-01,x,1' }, tokens.program))
   })
 
@@ -72,6 +72,6 @@ describe.skipIf(!hasTestDb)('role enforcement', () => {
 
   it('header-mode requests (no session) stay permissive', async () => {
     expect((await send(app, 'PATCH', '/organization', { name: seedState.org.name })).status).toBe(200)
-    expect((await send(app, 'PATCH', '/transactions/t-u1', { reviewed: true })).status).toBe(200)
+    expect((await send(app, 'PATCH', '/transactions/t-u1', { status: 'done' })).status).toBe(200)
   })
 })

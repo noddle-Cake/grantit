@@ -1,4 +1,4 @@
-import type { AnswerStatus, FactCategory, FactStatus, GrantStage, Transaction } from '@grantit/shared/types'
+import type { AnswerStatus, FactCategory, FactStatus, GrantStage, Transaction, TransactionStatus } from '@grantit/shared/types'
 import { workspaceOf, type Workspace } from '@grantit/shared/workspaces'
 import type { Tone } from '@/components/ui'
 
@@ -42,7 +42,14 @@ export const WORKSPACES: Record<Workspace, { label: string; home: string; listLa
 }
 export const workspaceFor = (stage: GrantStage) => WORKSPACES[workspaceOf(stage)]
 
-export const SOURCE_LABEL: Record<Transaction['source'], string> = {
+export const TX_STATUS: Record<TransactionStatus, { label: string; tone: 'good' | 'warn' | 'info' }> = {
+  needs_input: { label: 'Needs you', tone: 'warn' },
+  suggested: { label: 'Suggested', tone: 'info' },
+  check_split: { label: 'Check split', tone: 'warn' },
+  done: { label: 'Done', tone: 'good' },
+}
+
+export const ORIGIN_LABEL: Record<Transaction['origin'], string> = {
   csv: 'CSV import',
   'quickbooks-sample': 'QuickBooks sample',
   manual: 'Entered manually',

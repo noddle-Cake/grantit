@@ -9,6 +9,7 @@
     "./finance": "./src/finance.ts",
     "./setup": "./src/setup.ts",
     "./funds": "./src/funds.ts",
+    "./auto-assign": "./src/auto-assign.ts",
     "./import": "./src/import.ts",
     "./award-letter": "./src/award-letter.ts",
     "./drafting": "./src/drafting.ts",

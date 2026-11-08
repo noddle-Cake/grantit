@@ -1,15 +1,17 @@
+import { categoryForAccount } from '@grantit/shared/auto-assign'
 import { allocationFor } from '@grantit/shared/finance'
 import type { Transaction } from '@grantit/shared/types'
 import { Hono } from 'hono'
 import Papa from 'papaparse'
 import { z } from 'zod'
-import { loadGrants, loadTransactions } from '../db/organization-data.ts'
+import { loadGrants, loadOrgCategories, loadTransactions } from '../db/organization-data.ts'
 import { allocations, auditEvents, transactions } from '../db/schema.ts'
 import { actorId, requireAction, validate, type AppEnv } from '../http.ts'
 
 // Server-side CSV transaction import (docs/api.md). Same column rules as the web import modal:
-// date, vendor, description, account, amount, and optional grant (matched by name) + category (matched by name to
-// the grant's category id; a name the grant lacks is kept as unmatchedCategory and flagged as unauthorized).
+// date, vendor, description, account, amount, and optional grant + category (a budget line, both matched by name; a
+// line the grant lacks leaves the row unassigned). The GL account sets the spending category. Suggesting grants for
+// the rest (shared/src/auto-assign.ts) currently runs in the browser.
 
 const importBody = z.object({ csv: z.string().min(1) })
 
@@ -30,6 +32,7 @@ export const transactionImportRoutes = new Hono<AppEnv>()
     const db = c.get('db')
     const organizationId = c.get('organizationId')
     const grantByName = new Map((await loadGrants(db, organizationId)).map((g) => [g.name.toLowerCase(), g]))
+    const orgCategories = await loadOrgCategories(db, organizationId)
 
     const parsed = Papa.parse<Record<string, string>>(csv.trim(), {
       header: true,
@@ -49,6 +52,8 @@ export const transactionImportRoutes = new Hono<AppEnv>()
       const id = crypto.randomUUID()
       const grant = grantByName.get((r.grant ?? '').trim().toLowerCase())
       const category = (r.category ?? '').trim()
+      const allocation = grant && category ? allocationFor(grant, category, amount) : undefined
+      const account = (r.account ?? '').trim()
       rows.push({
         transaction: {
           id,
@@ -56,12 +61,14 @@ export const transactionImportRoutes = new Hono<AppEnv>()
           date,
           vendor: (r.vendor ?? '').trim(),
           description: (r.description ?? r.memo ?? '').trim(),
-          account: (r.account ?? '').trim(),
+          account,
           amount,
-          reviewed: false,
-          source: 'csv',
+          categoryId: categoryForAccount(orgCategories, account),
+          origin: 'csv',
+          source: allocation ? 'manual' : 'auto',
+          status: allocation ? 'suggested' : 'needs_input',
         },
-        allocation: grant && category ? { ...allocationFor(grant, category, amount), transactionId: id, position: 0 } : undefined,
+        allocation: allocation && { ...allocation, transactionId: id, position: 0 },
       })
     })
 

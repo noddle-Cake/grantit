@@ -103,7 +103,7 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
   last page. Cursors are opaque: pass them back unchanged.
 - Each list has a fixed order, stated in its route comment (grants are ordered by `id`).
 - Filters are query parameters named after the field: `/grants?stage=awarded`,
-  `/transactions?grantId=g-anchor&reviewed=false`.
+  `/transactions?grantId=g-anchor&status=needs_input`.
 
 ## Organizations and auth
 

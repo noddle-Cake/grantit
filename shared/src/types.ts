@@ -56,6 +56,8 @@ export interface BudgetCategory {
   id: string
   name: string
   budget: number
+  /** The organization's spending categories this budget line can pay for. */
+  acceptedCategoryIds?: string[]
 }
 
 export const ANSWER_STATUSES = ['empty', 'draft', 'approved'] as const
@@ -108,6 +110,8 @@ export interface Grant {
   rebudgetThresholdPct?: number
   /** Budget moves between categories, newest last. Category budgets already include them. */
   reallocations?: BudgetReallocation[]
+  /** The program this award funds. Expenses coded to that program can be charged to it. */
+  programId?: string
 }
 
 export interface BudgetReallocation {
@@ -119,19 +123,35 @@ export interface BudgetReallocation {
 
 // 4. Accounting ----------------------------------------------------------------
 
-/**
- * Part of a transaction charged to a grant. Exactly one of `categoryId` (a category of that grant; ids are
- * unique only within a grant) or `unmatchedCategory` (a name the grant doesn't have, flagged as unauthorized)
- * is set.
- */
+/** A stable spending category from the organization's chart of accounts, independent of any grant's budget lines. */
+export interface OrgCategory {
+  id: string
+  name: string
+  glAccounts: string[]
+}
+
+export interface Program {
+  id: string
+  name: string
+}
+
+/** Part of a transaction paid from one grant budget line, or from General funds when `grantId` is null. */
 export interface Allocation {
-  grantId: string
-  categoryId?: string
-  unmatchedCategory?: string
+  grantId: string | null
+  /** A budget line of that grant (ids are unique only within a grant). Absent for General funds. */
+  budgetLineId?: string
   amount: number
 }
 
-export const TRANSACTION_SOURCES = ['csv', 'quickbooks-sample', 'manual'] as const
+/** Where a ledger line came from. */
+export const TRANSACTION_ORIGINS = ['csv', 'quickbooks-sample', 'manual'] as const
+
+/** Who chose the allocations: auto-assign, or a person. Auto-assign never changes a person's choice. */
+export const ASSIGNMENT_SOURCES = ['auto', 'manual'] as const
+export type AssignmentSource = (typeof ASSIGNMENT_SOURCES)[number]
+
+export const TRANSACTION_STATUSES = ['needs_input', 'suggested', 'check_split', 'done'] as const
+export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number]
 
 export interface Transaction {
   id: string
@@ -140,16 +160,20 @@ export interface Transaction {
   description: string
   account: string
   amount: number
+  /** Organization spending category. */
+  categoryId?: string
+  programId?: string
   allocations: Allocation[]
-  reviewed: boolean
-  source: (typeof TRANSACTION_SOURCES)[number]
-  /** Paid from unrestricted funds on purpose, so it isn't flagged as unassigned. Cleared when a grant is assigned. */
-  notGrantFunded?: boolean
+  origin: (typeof TRANSACTION_ORIGINS)[number]
+  source: AssignmentSource
+  status: TransactionStatus
+  /** Why auto-assign chose General funds, or what it needs from a person. */
+  reason?: string
   /** When the paid-for service happens, if not the transaction date. Period checks use it. */
   serviceDate?: string
 }
 
-export type FlagKind = 'unassigned' | 'unauthorized-category' | 'over-budget' | 'outside-period' | 'split-not-allowed'
+export type FlagKind = 'over-budget' | 'split-not-allowed'
 
 export interface TxFlag {
   kind: FlagKind
@@ -174,6 +198,8 @@ export interface AppState {
   currentUserId: string
   facts: Fact[]
   documents: PastDocument[]
+  orgCategories: OrgCategory[]
+  programs: Program[]
   grants: Grant[]
   transactions: Transaction[]
 }

@@ -81,12 +81,19 @@ describe('prepareImport', () => {
 
   it('allocates rows to confirmed grants by category id', () => {
     const p = prepareImport([headers, ['2026-10-30', 'Payroll', 'OT', '6000', '800', 'Anchor Mentors 2026', 'mentor coordinator']], seedState.grants, [], 'csv')
-    expect(p.ready[0].allocations).toEqual([{ grantId: 'g-anchor', categoryId: 'c1', amount: 800 }])
+    expect(p.ready[0].allocations).toEqual([{ grantId: 'g-anchor', budgetLineId: 'c1', amount: 800 }])
+    expect(p.ready[0]).toMatchObject({ source: 'manual', status: 'suggested', origin: 'csv' })
   })
 
-  it('keeps an unknown category as an unmatched name (flagged later as unauthorized)', () => {
+  it('imports a line the grant does not have as unassigned, with a warning', () => {
     const p = prepareImport([headers, ['2026-10-30', 'Shop', 'Laptop', '6800', '900', 'Anchor Mentors 2026', 'Equipment']], seedState.grants, [], 'csv')
-    expect(p.ready[0].allocations).toEqual([{ grantId: 'g-anchor', unmatchedCategory: 'Equipment', amount: 900 }])
+    expect(p.ready[0]).toMatchObject({ allocations: [], source: 'auto', status: 'needs_input' })
+    expect(p.rows[0].warning).toMatch(/no “Equipment” budget line/)
+  })
+
+  it('sets the program from a QuickBooks class', () => {
+    const table = [['Date', 'Name', 'Account', 'Amount', 'Class'], ['2026-10-30', 'Shop', '6400', '9', 'mentoring'], ['2026-10-31', 'Shop', '6400', '9', 'Unknown']]
+    expect(prepareImport(table, seedState.grants, [], 'csv', seedState.programs).ready.map((t) => t.programId)).toEqual(['p-mentoring', undefined])
   })
 
   it('imports rows for a grant that needs setup as unassigned, with a warning', () => {

@@ -18,27 +18,26 @@ const normName = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
 export const categoryByName = (grant: Grant, name: string): BudgetCategory | undefined =>
   grant.categories.find((c) => normName(c.name) === normName(name))
 
-/** The approved category an allocation is charged to, or undefined when it names one the grant doesn't have. */
+/** The budget line an allocation is charged to, if the grant still has it. */
 export const categoryOf = (grant: Grant | undefined, a: Allocation): BudgetCategory | undefined =>
-  a.categoryId ? grant?.categories.find((c) => c.id === a.categoryId) : undefined
+  a.budgetLineId ? grant?.categories.find((c) => c.id === a.budgetLineId) : undefined
 
-/** Display name for an allocation's category, approved or not. */
+/** Display name for an allocation's budget line. */
 export function allocationCategoryName(grant: Grant | undefined, a: Allocation): string {
-  const c = categoryOf(grant, a)
-  if (c) return c.name
-  return a.unmatchedCategory?.trim() || (a.categoryId ? 'Deleted category' : 'No category')
+  if (a.grantId === null) return 'General funds'
+  return categoryOf(grant, a)?.name ?? 'Deleted line'
 }
 
-/** Allocation for a category name: by id when the grant has it, otherwise kept as an unmatched name. */
-export function allocationFor(grant: Grant, categoryName: string, amount: number): Allocation {
-  const c = categoryByName(grant, categoryName)
-  return c ? { grantId: grant.id, categoryId: c.id, amount } : { grantId: grant.id, unmatchedCategory: categoryName.trim(), amount }
+/** Allocation to the budget line with this name, or undefined when the grant has none. */
+export function allocationFor(grant: Grant, lineName: string, amount: number): Allocation | undefined {
+  const c = categoryByName(grant, lineName)
+  return c && { grantId: grant.id, budgetLineId: c.id, amount }
 }
 
-/** Number of allocations charged to each of the grant's category ids. */
+/** Number of allocations charged to each of the grant's budget lines. */
 export function allocationCountByCategory(grantId: string, txs: Transaction[]): Map<string, number> {
   const counts = new Map<string, number>()
-  for (const t of txs) for (const a of t.allocations) if (a.grantId === grantId && a.categoryId) counts.set(a.categoryId, (counts.get(a.categoryId) ?? 0) + 1)
+  for (const t of txs) for (const a of t.allocations) if (a.grantId === grantId && a.budgetLineId) counts.set(a.budgetLineId, (counts.get(a.budgetLineId) ?? 0) + 1)
   return counts
 }
 
@@ -160,7 +159,6 @@ export interface GrantFinancials {
   remaining: number
   ratio: number
   categories: CategorySpend[]
-  unauthorized: { category: string; spent: number }[]
   byMonth: { month: string; spent: number }[]
 }
 
@@ -189,9 +187,8 @@ function grantLines(grant: Grant, txs: Transaction[]): Line[] {
 }
 
 /**
- * Budget, reportable spend and remaining for one grant in one period. Reportable spend excludes disallowed costs:
- * charges to categories the funder didn't approve (listed in `unauthorized`) and charges whose service date falls
- * outside the period. Every screen and report uses these figures.
+ * Budget, reportable spend and remaining for one grant in one period. Reportable spend leaves out charges whose
+ * service date falls outside the period. Every screen and report uses these figures.
  */
 export function computeFinancials(grant: Grant, txs: Transaction[], period: { start: string; end: string } = grantPeriod(grant)): GrantFinancials {
   const lines = grantLines(grant, txs).filter((l) => inPeriod(effectiveDate(l.tx), period))
@@ -209,13 +206,6 @@ export function computeFinancials(grant: Grant, txs: Transaction[], period: { st
       status: spendStatus(spent, budget),
     }
   })
-
-  const unauthorizedMap = new Map<string, number>()
-  for (const l of lines) {
-    if (l.category) continue
-    const name = allocationCategoryName(grant, l.alloc)
-    unauthorizedMap.set(name, (unauthorizedMap.get(name) ?? 0) + l.cents)
-  }
 
   const monthMap = new Map<string, number>()
   // seed every month in the period so the chart has a continuous axis
@@ -240,7 +230,6 @@ export function computeFinancials(grant: Grant, txs: Transaction[], period: { st
     remaining: fromCents(budget - spent),
     ratio: budget ? spent / budget : 0,
     categories,
-    unauthorized: [...unauthorizedMap].map(([category, cents]) => ({ category, spent: fromCents(cents) })),
     byMonth: [...monthMap].map(([month, cents]) => ({ month, spent: fromCents(cents) })),
   }
 }
@@ -265,7 +254,6 @@ export function quarterlySpend(grant: Grant, txs: Transaction[]): QuarterlySpend
     }
     return { name, approved, spent: cents.map(fromCents), total: fromCents(cents.reduce((s, c) => s + c, 0)) }
   }
-  // Disallowed costs (unapproved categories) are left out, as in every report figure.
   const rows = grant.categories.map((c) => row(c.name, true, lines.filter((l) => l.category?.id === c.id)))
   const totals = quarters.map((_, i) => sumDollars(rows.map((r) => r.spent[i])))
   return { quarters, rows, totals }
@@ -274,7 +262,7 @@ export function quarterlySpend(grant: Grant, txs: Transaction[]): QuarterlySpend
 // ─── Compliance flags ───────────────────────────────────────────────────────
 
 /**
- * Compliance checks for every transaction.
+ * Checks on what people have assigned: over-budget lines and splits a funder doesn't permit.
  *
  * Over-budget is always checked against the grant funding period (the period the funder audits), walking each
  * category's spending in date order. The transaction that takes the running total past the budget is flagged,
@@ -286,18 +274,10 @@ export function computeFlags(grants: Grant[], txs: Transaction[]): Map<string, T
   const add = (id: string, f: TxFlag) => flags.set(id, [...(flags.get(id) ?? []), f])
   const byId = new Map(grants.map((g) => [g.id, g]))
 
+  // General funds aren't another funder, so only a split across two grants counts as shared.
   for (const t of txs) {
-    if (t.allocations.length === 0 && !t.notGrantFunded) add(t.id, { kind: 'unassigned', message: 'Not assigned to a grant' })
-    for (const a of t.allocations) {
-      const g = byId.get(a.grantId)
-      if (!g) continue
-      if (!categoryOf(g, a))
-        add(t.id, { kind: 'unauthorized-category', grantId: g.id, message: `“${allocationCategoryName(g, a)}” is not an approved category for ${g.name}` })
-      if (!inPeriod(effectiveDate(t), grantPeriod(g)))
-        add(t.id, { kind: 'outside-period', grantId: g.id, message: t.serviceDate && t.serviceDate !== t.date ? `Service date ${t.serviceDate} is outside ${g.name}'s funding period` : `Dated outside ${g.name}'s funding period` })
-    }
-    const grantIds = new Set(t.allocations.map((a) => a.grantId))
-    if (t.allocations.length > 1 && [...grantIds].some((id) => byId.get(id) && !byId.get(id)!.allowSplit))
+    const grantIds = new Set(t.allocations.flatMap((a) => a.grantId ?? []))
+    if (grantIds.size > 1 && [...grantIds].some((id) => byId.get(id) && !byId.get(id)!.allowSplit))
       add(t.id, { kind: 'split-not-allowed', message: 'Split across grants, but a funder does not permit shared costs' })
   }
 
@@ -332,9 +312,6 @@ export function computeFlags(grants: Grant[], txs: Transaction[]): Map<string, T
 }
 
 export const FLAG_LABEL: Record<TxFlag['kind'], string> = {
-  unassigned: 'Unassigned',
-  'unauthorized-category': 'Unauthorized category',
   'over-budget': 'Over budget',
-  'outside-period': 'Outside period',
   'split-not-allowed': 'Split not allowed',
 }

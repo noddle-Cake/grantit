@@ -1,5 +1,6 @@
 import { createContext, useContext } from 'react'
 import type { Opportunity } from '@grantit/shared/opportunities'
+import type { Coding } from '@grantit/shared/auto-assign'
 import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@grantit/shared/types'
 
 export interface ToastAction {
@@ -38,13 +39,17 @@ export interface Store {
   updateQuestion: (grantId: string, qid: string, patch: Partial<Question>) => void
   // transactions
   importTransactions: (txs: Omit<Transaction, 'id'>[]) => void
-  /** Replace a transaction's allocations. A change resets `reviewed`; any grant clears `notGrantFunded`. */
-  setAllocations: (txId: string, allocations: Allocation[]) => void
-  /** Mark unassigned transactions as paid from unrestricted funds (or undo). Assigned ones are left alone. */
-  setNotGrantFunded: (txIds: string[], value: boolean) => void
-  /** When the paid-for service happens (blank: the transaction date). A change resets `reviewed`. */
-  setServiceDate: (txId: string, serviceDate: string | undefined) => void
-  markReviewed: (txIds: string[], reviewed?: boolean) => void
+  /** Change a row's category, program or service date, and re-suggest for that row only. */
+  recodeTransaction: (txId: string, coding: Coding) => void
+  /** A person's own allocation: saved as manual and confirmed. */
+  assignTransaction: (txId: string, allocations: Allocation[]) => void
+  /** Confirm rows that already have allocations. */
+  confirmTransactions: (txIds: string[]) => void
+  /** Re-run auto-assign over everything unconfirmed, after a grant's terms change. */
+  reassignUnconfirmed: () => void
+  // chart of accounts
+  addOrgCategory: (name: string) => void
+  renameOrgCategory: (id: string, name: string) => void
   // funding opportunities (demo listings until a real search exists)
   opportunities: Opportunity[]
   dismissedOpportunities: string[]

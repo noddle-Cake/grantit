@@ -24,6 +24,8 @@ describe.skipIf(!hasTestDb)('facts API', () => {
       org: { id: 'org-other', name: 'Other Org', ein: '11-1111111', fiscalYearStartMonth: 1 },
       users: [{ id: 'u-other', name: 'Other Director', role: 'director', title: 'Director', initials: 'OD' }],
       facts: [{ id: 'f-other', category: 'mission', title: 'Other mission', content: 'We exist.', tags: [], status: 'approved', updatedAt: '2026-01-01', updatedBy: 'u-other' }],
+      orgCategories: [],
+      programs: [],
       documents: [],
       grants: [],
       transactions: [],

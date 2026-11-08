@@ -14,7 +14,7 @@ const dueLabel = (days: number) => (days < 0 ? `${-days} day${days === -1 ? '' :
 
 /** Reports start from what's due: pick an obligation and the right grant and period are already set. */
 export default function Reports() {
-  const { state, flags, me, updateGrant, notify } = useStore()
+  const { state, me, updateGrant, notify } = useStore()
   const { due, today } = useFunds()
   const reportable = state.grants.filter((g) => g.categories.length && fundingState(g, today) && fundingState(g, today) !== 'needs-setup')
   const [picked, setPicked] = useState<{ grantId: string; deadlineId?: string }>(() => (due[0] ? { grantId: due[0].grant.id, deadlineId: due[0].deadline.id } : { grantId: reportable[0]?.id ?? '' }))
@@ -23,7 +23,7 @@ export default function Reports() {
 
   // The obligation in focus: the one picked from Due next, or this grant's next open report.
   const current: DueReport | undefined = due.find((d) => d.grant.id === grant.id && (picked.deadlineId ? d.deadline.id === picked.deadlineId : true))
-  const toReview = reviewQueue(state.grants, state.transactions, flags, today, grant.id)
+  const toReview = reviewQueue(state.grants, state.transactions, today, grant.id)
   const canSubmit = can(me.role, 'finance:review') || can(me.role, 'grant:configure')
 
   function submit(d: DueReport) {
