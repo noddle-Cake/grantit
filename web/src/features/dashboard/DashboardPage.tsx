@@ -6,7 +6,7 @@ import { STAGES } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
 import { Card, PageHeader, Pill } from '@/components/ui'
-import { applicationNextStep } from '@grantit/shared/applications'
+import { applicationNextStep, isInProgress, regenerable } from '@grantit/shared/applications'
 import { isOpenAward, needsSetup } from '@grantit/shared/setup'
 import { ActionCards } from '@/features/funds/ActionCards'
 import { useFunds } from '@/features/funds/useFunds'
@@ -79,7 +79,16 @@ export default function Dashboard() {
           return next.ready ? [] : [{ icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${next.text}`, to: nextStepHref(g, next) }]
         })
       : []),
-  ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad'; text: string; to: string }[]
+    // The writer hears when facts their drafts were missing get approved.
+    ...(can(me.role, 'application:draft')
+      ? state.grants.filter((g) => isInProgress(g) && g.ownerId === me.id).flatMap((g) => {
+          const fresh = regenerable(g, state.facts)
+          if (!fresh.length) return []
+          const answers = `${fresh.length} answer${fresh.length === 1 ? '' : 's'}`
+          return [{ icon: Sparkles, tone: 'good' as const, text: `${g.name}: new facts approved for ${answers}, regenerate to use them`, to: `/grants/${g.id}?tab=application#q-${fresh[0].id}` }]
+        })
+      : []),
+  ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad' | 'good'; text: string; to: string }[]
 
   return (
     <>
@@ -138,7 +147,7 @@ export default function Dashboard() {
               {todos.map((t) => (
                 <li key={t.text}>
                   <Link to={t.to} className="flex items-center gap-3 px-5 py-3.5 hover:bg-canvas">
-                    <span className={clsx('flex h-8 w-8 items-center justify-center rounded-lg', t.tone === 'bad' ? 'bg-bad-soft text-bad' : 'bg-warn-soft text-warn')}>
+                    <span className={clsx('flex h-8 w-8 items-center justify-center rounded-lg', t.tone === 'bad' ? 'bg-bad-soft text-bad' : t.tone === 'good' ? 'bg-good-soft text-good' : 'bg-warn-soft text-warn')}>
                       <t.icon size={16} />
                     </span>
                     <span className="flex-1 text-sm text-slate">{t.text}</span>
