@@ -4,8 +4,8 @@
 #   sudo bash ~/srv-setup/31-grantit.sh <commit>   # one exact commit on main (what grantit-autodeploy uses)
 #   sudo GRANTIT_PASSWORD=… bash ~/srv-setup/31-grantit.sh   # set or change the site password, then deploy
 #
-# The site password (nginx basic auth + the in-app sign-in) lives only in $SITE/access.env on 5820. The repo is
-# public, so it is never committed: it is passed to the web build and hashed into $SITE/htpasswd here.
+# The site password (nginx basic auth, the only sign-in) lives only in $SITE/access.env on 5820. The repo is
+# public, so it is never committed: it is hashed into $SITE/htpasswd here.
 #
 # Source of truth: deploy/31-grantit.sh in github.com/noddle-Cake/grantit (copied to ~/srv-setup on 5820).
 # Pulls main into ~/Projects/grantit, builds web/ (npm workspace) as chris, copies web/dist into the site, and restarts
@@ -46,7 +46,7 @@ fi
 REV=$($AS_CHRIS "git -C '$SRC' rev-parse --short HEAD")
 echo "    at $REV"
 
-# ─── Site password (basic auth + in-app sign-in), kept out of git ──────────────
+# ─── Site password (basic auth), kept out of git ──────────────────────────────
 ACCESS_ENV=$SITE/access.env
 if [[ -n $NEW_PASSWORD ]]; then
   say "Saving the site password in $ACCESS_ENV"
@@ -63,7 +63,7 @@ source "$ACCESS_ENV"
 
 say "Building web/ (npm ci at the workspace root, checks for shared/ and web/, vite build)"
 # web/node_modules is left over from before the npm workspace; the root install replaces it.
-$AS_CHRIS "rm -rf '$SRC/web/node_modules' && cd '$SRC' && npm ci --no-audit --no-fund && npm run check -w shared -w web && VITE_APP_USERNAME='$GRANTIT_USERNAME' VITE_APP_PASSWORD='$GRANTIT_PASSWORD' npm run build -w web"
+$AS_CHRIS "rm -rf '$SRC/web/node_modules' && cd '$SRC' && npm ci --no-audit --no-fund && npm run check -w shared -w web && npm run build -w web"
 [[ -f $SRC/web/dist/index.html ]] || die "build produced no dist/index.html"
 
 if [[ ! -e $QUADLET ]]; then

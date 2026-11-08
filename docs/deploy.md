@@ -24,11 +24,10 @@ Internet → Cloudflare edge → cjservin tunnel → 127.0.0.1:8307 → rootless
 
 ## Site password and rate limits
 
-The whole site sits behind nginx basic auth; the in-app sign-in screen checks the same credential. The repo is
-public, so the credential is **never committed**. It lives only in `/srv/websvc/sites/grantit/access.env` on 5820
-(root, mode 600). On every deploy `31-grantit.sh` reads it, passes it to the web build (`VITE_APP_USERNAME`,
-`VITE_APP_PASSWORD`), and writes the hashed `sites/grantit/htpasswd` that is mounted into the nginx container.
-Local dev and tests, which have no `access.env`, sign in with `username` / `password`.
+The whole site sits behind nginx basic auth, which is the only sign-in: the app itself has no login screen and
+opens straight to the workspace. The repo is public, so the credential is **never committed**. It lives only in
+`/srv/websvc/sites/grantit/access.env` on 5820 (root, mode 600). On every deploy `31-grantit.sh` reads it and
+writes the hashed `sites/grantit/htpasswd` that is mounted into the nginx container. Local dev has no basic auth.
 
 Set or change the password (username defaults to `username`; pass `GRANTIT_USERNAME=…` to change it):
 

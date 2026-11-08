@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, LogOut, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
+import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { todayISO } from '@grantit/shared/format'
@@ -7,7 +7,6 @@ import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { ROLE_LABEL, ROLE_SUMMARY } from '@grantit/shared/permissions'
 import { workspaceOf } from '@grantit/shared/workspaces'
 import { WORKSPACES } from '@/lib/labels'
-import { useAuth } from '@/lib/auth'
 import { useStore } from '@/store'
 import { Logo } from '@/components/Logo'
 import { Avatar, Dialog } from '@/components/ui'
@@ -131,8 +130,6 @@ function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { colla
 
 function UserMenu() {
   const { state, me, setCurrentUser, notify } = useStore()
-  const { signOut } = useAuth()
-  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -177,19 +174,6 @@ function UserMenu() {
               {u.id === me.id && <Check size={16} className="mt-1 text-good" />}
             </button>
           ))}
-          <div className="border-t border-line-2 p-1.5">
-            <button
-              onClick={() => {
-                setOpen(false)
-                signOut()
-                navigate('/', { replace: true })
-              }}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-slate hover:bg-canvas"
-            >
-              <LogOut size={16} className="text-slate-3" />
-              Sign out
-            </button>
-          </div>
         </div>
       )}
     </div>

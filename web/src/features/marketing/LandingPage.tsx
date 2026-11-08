@@ -20,10 +20,10 @@ function TopBar() {
           <a href="#roles" className="hover:text-slate">Who it's for</a>
         </nav>
         <div className="ml-auto flex items-center gap-2 md:ml-0">
-          <Link to="/login">
-            <Button variant="ghost" size="sm">Sign in</Button>
+          <Link to="/">
+            <Button variant="ghost" size="sm">Open Grantit</Button>
           </Link>
-          <Link to="/login">
+          <Link to="/">
             <Button size="sm" icon={<ArrowRight size={16} />}>Get started</Button>
           </Link>
         </div>
@@ -48,7 +48,7 @@ function Hero() {
           approved facts, and grant-by-grant spending tracking in each funder's own reporting period.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Link to="/login">
+          <Link to="/">
             <Button icon={<ArrowRight size={18} />}>Get started free</Button>
           </Link>
           <a href="#how">
@@ -159,10 +159,10 @@ function CtaBand() {
       <div className="relative mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
         <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">Ready to spend less time on paperwork?</h2>
         <p className="mx-auto mt-3 max-w-xl text-rail-text">
-          Sign in and explore Grantit with a full demo organization — grants, facts, and a ledger already loaded.
+          Open Grantit and explore it with a full demo organization — grants, facts, and a ledger already loaded.
         </p>
         <div className="mt-7 flex justify-center">
-          <Link to="/login">
+          <Link to="/">
             <Button icon={<ArrowRight size={18} />}>Get started</Button>
           </Link>
         </div>
