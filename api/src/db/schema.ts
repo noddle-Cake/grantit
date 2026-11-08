@@ -126,9 +126,17 @@ export const grants = pgTable(
     periodEnd: isoDate().notNull(),
     rules: textArray(),
     allowSplit: boolean().notNull().default(false),
+    // Null until the award's budget and period are confirmed (awarded/reporting grants then "need setup").
+    setupConfirmedAt: isoDate(),
+    // Null means the funder's year starts in the month the grant period starts.
+    funderFiscalYearStartMonth: integer(),
     createdAt: createdAt(),
   },
-  (t) => [index().on(t.organizationId), check('period_order', sql`${t.periodEnd} >= ${t.periodStart}`)],
+  (t) => [
+    index().on(t.organizationId),
+    check('period_order', sql`${t.periodEnd} >= ${t.periodStart}`),
+    check('funder_fiscal_year_start_month_range', sql`${t.funderFiscalYearStartMonth} between 1 and 12`),
+  ],
 )
 
 const grantId = () =>
@@ -145,7 +153,7 @@ export const budgetCategories = pgTable(
     name: text().notNull(),
     budget: money().notNull(),
   },
-  // Allocations refer to categories by name, so names are unique within a grant.
+  // Allocations refer to categories by id; names stay unique within a grant so CSV imports match one category.
   (t) => [primaryKey({ columns: [t.grantId, t.id] }), unique().on(t.grantId, t.name), index().on(t.grantId, t.position)],
 )
 
@@ -192,6 +200,8 @@ export const transactions = pgTable(
     amount: money().notNull(),
     reviewed: boolean().notNull().default(false),
     source: transactionSourceEnum().notNull(),
+    // True when deliberately paid from unrestricted funds; null otherwise (matches the optional shared field).
+    notGrantFunded: boolean(),
     createdAt: createdAt(),
   },
   (t) => [index().on(t.organizationId, t.date)],
@@ -205,10 +215,17 @@ export const allocations = pgTable(
       .references(() => transactions.id, { onDelete: 'cascade' }),
     position: integer().notNull(),
     grantId: grantId(),
-    // Category name as imported or assigned. Not a foreign key: an allocation to a category the grant does
-    // not have is exactly what the "unauthorized category" flag reports.
-    category: text().notNull(),
+    // The grant's budget category (ids are unique within a grant). Not a foreign key, so deleting or
+    // renaming categories never cascades into the ledger; the shared rules flag an id the grant lacks.
+    categoryId: text(),
+    // A category name the grant doesn't have, kept as imported: exactly what the "unauthorized category" flag
+    // reports. Stored in the original `category` column.
+    unmatchedCategory: text('category'),
     amount: money().notNull(),
   },
-  (t) => [primaryKey({ columns: [t.transactionId, t.position] }), index().on(t.grantId)],
+  (t) => [
+    primaryKey({ columns: [t.transactionId, t.position] }),
+    index().on(t.grantId),
+    check('category_or_unmatched', sql`(${t.categoryId} is null) <> (${t.unmatchedCategory} is null)`),
+  ],
 )

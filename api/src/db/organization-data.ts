@@ -51,7 +51,7 @@ export async function loadGrants(db: Db, organizationId: string, ids?: string[])
     db.select().from(t.deadlines).where(inArray(t.deadlines.grantId, grantIds)).orderBy(asc(t.deadlines.position)),
   ])
   return rows.map(({ organizationId: _o, createdAt: _c, ...g }) => ({
-    ...g,
+    ...compact(g),
     categories: categories.filter((c) => c.grantId === g.id).map(({ id, name, budget }) => ({ id, name, budget })),
     questions: questions
       .filter((q) => q.grantId === g.id)
@@ -80,8 +80,10 @@ export async function loadTransactions(db: Db, organizationId: string): Promise<
     )
     .orderBy(asc(t.allocations.position))
   return rows.map(({ organizationId: _o, createdAt: _c, ...txn }) => ({
-    ...txn,
-    allocations: allocs.filter((a) => a.transactionId === txn.id).map(({ grantId, category, amount }) => ({ grantId, category, amount })),
+    ...compact(txn),
+    allocations: allocs
+      .filter((a) => a.transactionId === txn.id)
+      .map(({ grantId, categoryId, unmatchedCategory, amount }) => compact({ grantId, categoryId, unmatchedCategory, amount })),
   }))
 }
 

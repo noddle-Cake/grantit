@@ -1,20 +1,20 @@
 import clsx from 'clsx'
-import { AlertOctagon, CheckCheck, CheckCircle2, Circle, Lock, Search, Upload } from 'lucide-react'
+import { AlertOctagon, Ban, CheckCheck, CheckCircle2, Circle, Lock, Search, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ImportModal } from './ImportModal'
 import { Button, Card, PageHeader, Pill, Segmented, Select, StatusPill } from '@/components/ui'
-import { FLAG_LABEL } from '@grantit/shared/finance'
+import { allocationCategoryName, FLAG_LABEL, sumDollars } from '@grantit/shared/finance'
 import { fmtDate, moneyExact } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Transaction } from '@grantit/shared/types'
 import { AllocationDrawer } from './AllocationDrawer'
 
-type View = 'all' | 'flagged' | 'unassigned' | 'unreviewed'
+type View = 'all' | 'flagged' | 'unassigned' | 'unreviewed' | 'not-funded'
 
 export default function Transactions() {
-  const { state, flags, me, markReviewed, notify } = useStore()
+  const { state, flags, me, markReviewed, setNotGrantFunded, notify } = useStore()
   const [params, setParams] = useSearchParams()
   const view = (params.get('view') as View) ?? 'all'
   const grantFilter = params.get('grant') ?? 'all'
@@ -34,20 +34,32 @@ export default function Transactions() {
   const counts = {
     all: state.transactions.length,
     flagged: state.transactions.filter((t) => flags.get(t.id)?.length).length,
-    unassigned: state.transactions.filter((t) => !t.allocations.length).length,
+    unassigned: state.transactions.filter((t) => !t.allocations.length && !t.notGrantFunded).length,
     unreviewed: state.transactions.filter((t) => !t.reviewed).length,
+    notFunded: state.transactions.filter((t) => t.notGrantFunded).length,
   }
+
 
   const rows = useMemo(
     () =>
       state.transactions
-        .filter((t) => (view === 'flagged' ? flags.get(t.id)?.length : view === 'unassigned' ? !t.allocations.length : view === 'unreviewed' ? !t.reviewed : true))
+        .filter((t) => {
+          switch (view) {
+            case 'flagged': return !!flags.get(t.id)?.length
+            case 'unassigned': return !t.allocations.length && !t.notGrantFunded
+            case 'unreviewed': return !t.reviewed
+            case 'not-funded': return !!t.notGrantFunded
+            default: return true
+          }
+        })
         .filter((t) => grantFilter === 'all' || t.allocations.some((a) => a.grantId === grantFilter))
         .filter((t) => (t.vendor + t.description + t.account).toLowerCase().includes(q.toLowerCase()))
         .sort((a, b) => b.date.localeCompare(a.date)),
     [state.transactions, flags, view, grantFilter, q],
   )
-  const grantName = (id: string) => state.grants.find((g) => g.id === id)?.name ?? 'Unknown grant'
+  const grantFor = (id: string) => state.grants.find((g) => g.id === id)
+  const grantName = (id: string) => grantFor(id)?.name ?? 'Unknown grant'
+  const selectedUnassigned = state.transactions.filter((t) => selected.has(t.id) && !t.allocations.length && !t.notGrantFunded).map((t) => t.id)
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id))
 
   return (
@@ -68,6 +80,7 @@ export default function Transactions() {
             { id: 'flagged', label: <><AlertOctagon size={13} className="text-bad" /> Flagged {counts.flagged}</> },
             { id: 'unassigned', label: `Unassigned ${counts.unassigned}` },
             { id: 'unreviewed', label: `Needs review ${counts.unreviewed}` },
+            { id: 'not-funded', label: `Not grant-funded ${counts.notFunded}` },
           ]}
         />
         <Select value={grantFilter} onChange={(e) => setParam('grant', e.target.value)} className="!h-9 !w-60 !bg-surface">
@@ -85,6 +98,14 @@ export default function Transactions() {
           <span>{selected.size} selected</span>
           <button className="rounded px-2 py-1 font-medium hover:bg-white/10" onClick={() => { markReviewed([...selected]); notify(`${selected.size} marked reviewed`); setSelected(new Set()) }}>
             <CheckCheck size={14} className="mr-1 inline" /> Mark reviewed
+          </button>
+          <button
+            className="rounded px-2 py-1 font-medium hover:bg-white/10 disabled:opacity-50"
+            disabled={!selectedUnassigned.length}
+            title={selectedUnassigned.length ? undefined : 'Only unassigned transactions can be marked not grant-funded'}
+            onClick={() => { setNotGrantFunded(selectedUnassigned, true); notify(`${selectedUnassigned.length} marked not grant-funded`); setSelected(new Set()) }}
+          >
+            <Ban size={14} className="mr-1 inline" /> Mark not grant-funded{selectedUnassigned.length && selectedUnassigned.length < selected.size ? ` (${selectedUnassigned.length})` : ''}
           </button>
           <button className="ml-auto text-white/70 hover:text-white" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
@@ -133,12 +154,12 @@ export default function Transactions() {
                           {t.allocations.map((a, i) => (
                             <div key={i} className="text-xs">
                               <span className="text-link">{grantName(a.grantId)}</span>
-                              <span className="text-slate-3"> · {a.category}{t.allocations.length > 1 && ` · ${moneyExact(a.amount)}`}</span>
+                              <span className="text-slate-3"> · {allocationCategoryName(grantFor(a.grantId), a)}{t.allocations.length > 1 && ` · ${moneyExact(a.amount)}`}</span>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <span className="text-xs text-slate-3">— Assign</span>
+                        t.notGrantFunded ? <span className="text-xs text-slate-2">Not grant-funded</span> : <span className="text-xs text-slate-3">— Assign</span>
                       )}
                     </td>
                     <td className="px-3 py-3">
@@ -158,7 +179,7 @@ export default function Transactions() {
         </div>
         <div className="flex justify-between border-t border-line-2 bg-canvas px-5 py-2.5 text-xs text-slate-2">
           <span>{rows.length} transactions</span>
-          <span className="tabular-nums">Total {moneyExact(rows.reduce((s, r) => s + r.amount, 0))}</span>
+          <span className="tabular-nums">Total {moneyExact(sumDollars(rows.map((r) => r.amount)))}</span>
         </div>
       </Card>
 

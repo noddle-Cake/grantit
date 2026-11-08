@@ -5,6 +5,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { stageMeta, STAGES } from '@/lib/labels'
 import { Avatar, Card, Meter, Pill, Segmented } from '@/components/ui'
 import { computeFinancials } from '@grantit/shared/finance'
+import { needsSetup } from '@grantit/shared/setup'
+import { NeedsSetupPill } from './NeedsSetupPill'
 import { daysUntil, fmtDate, money, relativeDay } from '@grantit/shared/format'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
@@ -128,7 +130,9 @@ export function GrantList({ scope }: { scope: Workspace }) {
                         </span>
                       </Link>
                     </td>
-                    <td className="px-4 py-3"><Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill></td>
+                    <td className="px-4 py-3">
+                      <span className="flex flex-wrap gap-1"><Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill>{needsSetup(g) && <NeedsSetupPill />}</span>
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums">{money(g.amount)}</td>
                     {scope === 'funds' && (
                       <td className="px-4 py-3 text-slate-2">{fmtDate(g.periodStart, { month: 'short', year: 'numeric' })} – {fmtDate(g.periodEnd, { month: 'short', year: 'numeric' })}</td>
@@ -179,6 +183,7 @@ export function GrantList({ scope }: { scope: Workspace }) {
                         <div className="min-w-0">
                           <div className="truncate text-sm font-medium text-link">{g.name}</div>
                           <div className="truncate text-xs text-slate-3">{g.funder}</div>
+                          {needsSetup(g) && <NeedsSetupPill className="mt-1.5" />}
                         </div>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-xs">
@@ -203,7 +208,7 @@ export function GrantList({ scope }: { scope: Workspace }) {
           {rows.map(({ g, f }) => (
             <Link key={g.id} to={`/grants/${g.id}`} className="group overflow-hidden rounded-2xl border border-line-2 bg-surface transition hover:-translate-y-0.5 hover:shadow-lg">
               <div className={clsx('relative h-24', `cover-${g.cover}`)}>
-                <span className="absolute left-3 top-3"><Pill tone={stageMeta(g.stage).tone} dot className="bg-surface/90">{stageMeta(g.stage).label}</Pill></span>
+                <span className="absolute left-3 top-3 flex gap-1"><Pill tone={stageMeta(g.stage).tone} dot className="bg-surface/90">{stageMeta(g.stage).label}</Pill>{needsSetup(g) && <NeedsSetupPill />}</span>
               </div>
               <div className="p-4">
                 <div className="text-xs text-slate-3">{g.funder}</div>

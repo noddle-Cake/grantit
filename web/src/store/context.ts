@@ -33,10 +33,15 @@ export interface Store {
   // grants
   createGrant: (g: Omit<Grant, 'id'>) => string
   updateGrant: (id: string, patch: Partial<Grant>) => void
+  /** Save the award's period and budget and record that setup was confirmed today. */
+  confirmGrantSetup: (id: string, patch: Partial<Grant>) => void
   updateQuestion: (grantId: string, qid: string, patch: Partial<Question>) => void
   // transactions
   importTransactions: (txs: Omit<Transaction, 'id'>[]) => void
+  /** Replace a transaction's allocations. A change resets `reviewed`; any grant clears `notGrantFunded`. */
   setAllocations: (txId: string, allocations: Allocation[]) => void
+  /** Mark unassigned transactions as paid from unrestricted funds (or undo). Assigned ones are left alone. */
+  setNotGrantFunded: (txIds: string[], value: boolean) => void
   markReviewed: (txIds: string[], reviewed?: boolean) => void
   // funding opportunities (demo listings until a real search exists)
   opportunities: Opportunity[]

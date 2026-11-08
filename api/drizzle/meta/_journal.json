@@ -8,6 +8,13 @@
       "when": 1794090576419,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794094742559,
+      "tag": "0001_finance_hardening",
+      "breakpoints": true
     }
   ]
 }

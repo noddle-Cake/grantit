@@ -97,13 +97,23 @@ export interface Grant {
   categories: BudgetCategory[]
   questions: Question[]
   allowSplit: boolean
+  /** ISO date the award's budget and period were confirmed. Awarded/reporting grants without it "need setup". */
+  setupConfirmedAt?: string
+  /** Month (1-12) the funder's fiscal year starts. Absent: the month the grant period starts. */
+  funderFiscalYearStartMonth?: number
 }
 
 // 4. Accounting ----------------------------------------------------------------
 
+/**
+ * Part of a transaction charged to a grant. Exactly one of `categoryId` (a category of that grant; ids are
+ * unique only within a grant) or `unmatchedCategory` (a name the grant doesn't have, flagged as unauthorized)
+ * is set.
+ */
 export interface Allocation {
   grantId: string
-  category: string // category name as imported / assigned
+  categoryId?: string
+  unmatchedCategory?: string
   amount: number
 }
 
@@ -119,6 +129,8 @@ export interface Transaction {
   allocations: Allocation[]
   reviewed: boolean
   source: (typeof TRANSACTION_SOURCES)[number]
+  /** Paid from unrestricted funds on purpose, so it isn't flagged as unassigned. Cleared when a grant is assigned. */
+  notGrantFunded?: boolean
 }
 
 export type FlagKind = 'unassigned' | 'unauthorized-category' | 'over-budget' | 'outside-period' | 'split-not-allowed'
@@ -127,6 +139,8 @@ export interface TxFlag {
   kind: FlagKind
   grantId?: string
   message: string
+  /** over-budget only: how far the category is over its budget after this transaction, in dollars. */
+  overBy?: number
 }
 
 // Organization -----------------------------------------------------------------

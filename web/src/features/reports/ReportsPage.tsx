@@ -57,7 +57,7 @@ export default function Reports() {
         <Segmented<string>
           value={String(pIdx)}
           onChange={(v) => setPIdx(Number(v))}
-          options={options.map((o, i) => ({ id: String(i), label: i === 0 ? 'Funder period' : o.label.replace('Org fiscal year ', '') }))}
+          options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}
         />
         <span className="text-sm text-slate-2">{fmtDate(period.start)} – {fmtDate(period.end)}</span>
       </div>

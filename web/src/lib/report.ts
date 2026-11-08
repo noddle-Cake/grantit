@@ -1,6 +1,6 @@
 import Papa from 'papaparse'
 import type { Grant, Transaction } from '@grantit/shared/types'
-import { computeFinancials, inPeriod, type Period } from '@grantit/shared/finance'
+import { allocationCategoryName, computeFinancials, inPeriod, type Period } from '@grantit/shared/finance'
 
 export function downloadFile(name: string, content: string, type = 'text/csv') {
   const url = URL.createObjectURL(new Blob([content], { type }))
@@ -25,7 +25,7 @@ export function expenditureReportCsv(grant: Grant, txs: Transaction[], period: P
     ['Date', 'Vendor', 'Description', 'GL account', 'Category', 'Amount charged to grant'],
     ...txs
       .filter((t) => inPeriod(t.date, period))
-      .flatMap((t) => t.allocations.filter((a) => a.grantId === grant.id).map((a) => [t.date, t.vendor, t.description, t.account, a.category, a.amount]))
+      .flatMap((t) => t.allocations.filter((a) => a.grantId === grant.id).map((a) => [t.date, t.vendor, t.description, t.account, allocationCategoryName(grant, a), a.amount]))
       .sort((a, b) => String(a[0]).localeCompare(String(b[0]))),
   ])
   return summary
