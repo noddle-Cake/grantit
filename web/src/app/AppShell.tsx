@@ -18,8 +18,8 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
   {
     heading: WORKSPACES.apply.label,
     items: [
-      { to: '/apply', label: 'Opportunities', icon: Compass, end: true },
       { to: '/apply/applications', label: 'Applications', icon: FileText },
+      { to: '/apply', label: 'Opportunities', icon: Compass, end: true },
       { to: '/apply/knowledge', label: 'Knowledge base', icon: BookOpenText },
     ],
   },
