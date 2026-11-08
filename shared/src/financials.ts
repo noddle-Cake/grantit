@@ -9,10 +9,17 @@ import type { Grant, OrgCategory, Transaction } from './types.ts'
 
 export const UNMAPPED_CATEGORY_ID = 'unmapped'
 
+/**
+ * What a budget line, grant or category comes to. `available + overspent = spent + remaining` always holds: money left
+ * after a grant's period ended is lapsed, so it moves out of `available` into `pastDeadline`, and an overspent line
+ * reports its overage instead of negative remaining, so one line's overage never hides another's balance.
+ */
 export interface Money3 {
   available: number
   spent: number
   remaining: number
+  pastDeadline: number
+  overspent: number
 }
 
 export interface CategoryGrantRow extends Money3 {
@@ -50,7 +57,14 @@ export interface FinancialsOverview {
   reconciliation: Reconciliation
 }
 
-const dollars = (c: { available: number; spent: number; remaining: number }): Money3 => ({ available: fromCents(c.available), spent: fromCents(c.spent), remaining: fromCents(c.remaining) })
+const ZERO: Money3 = { available: 0, spent: 0, remaining: 0, pastDeadline: 0, overspent: 0 }
+const dollars = (c: Money3): Money3 => ({
+  available: fromCents(c.available),
+  spent: fromCents(c.spent),
+  remaining: fromCents(c.remaining),
+  pastDeadline: fromCents(c.pastDeadline),
+  overspent: fromCents(c.overspent),
+})
 
 export function financialsOverview(grants: Grant[], txs: Transaction[], orgCategories: OrgCategory[], today: string): FinancialsOverview {
   const included = grants.filter(canReceiveTransactions)
@@ -58,24 +72,35 @@ export function financialsOverview(grants: Grant[], txs: Transaction[], orgCateg
   const nameOf = (id: string) => orgCategories.find((c) => c.id === id)?.name ?? 'Unknown category'
 
   // category id → grant id → cents
-  const buckets = new Map<string, Map<string, { grant: Grant; lines: string[]; available: number; spent: number; remaining: number }>>()
+  const buckets = new Map<string, Map<string, Money3 & { grant: Grant; lines: string[] }>>()
   for (const grant of included) {
     const f = computeFinancials(grant, txs)
+    const ended = today > grant.periodEnd
     for (const line of f.categories) {
       const categoryId = grant.categories.find((c) => c.id === line.id)?.acceptedCategoryIds?.[0] ?? UNMAPPED_CATEGORY_ID
       const byGrant = buckets.get(categoryId) ?? new Map()
-      const row = byGrant.get(grant.id) ?? { grant, lines: [], available: 0, spent: 0, remaining: 0 }
+      const row = byGrant.get(grant.id) ?? { grant, lines: [], ...ZERO }
+      const left = toCents(line.remaining)
+      const lapsed = ended ? Math.max(0, left) : 0
       row.lines.push(line.name)
-      row.available += toCents(line.budget)
+      row.available += toCents(line.budget) - lapsed
       row.spent += toCents(line.spent)
-      row.remaining += toCents(line.remaining)
+      row.remaining += ended ? 0 : Math.max(0, left)
+      row.pastDeadline += lapsed
+      row.overspent += Math.max(0, -left)
       byGrant.set(grant.id, row)
       buckets.set(categoryId, byGrant)
     }
   }
 
-  const sum = (rows: { available: number; spent: number; remaining: number }[]) =>
-    rows.reduce((t, r) => ({ available: t.available + r.available, spent: t.spent + r.spent, remaining: t.remaining + r.remaining }), { available: 0, spent: 0, remaining: 0 })
+  const sum = (rows: Money3[]) =>
+    rows.reduce((t, r) => ({
+      available: t.available + r.available,
+      spent: t.spent + r.spent,
+      remaining: t.remaining + r.remaining,
+      pastDeadline: t.pastDeadline + r.pastDeadline,
+      overspent: t.overspent + r.overspent,
+    }), ZERO)
 
   const categories: CategoryRow[] = [...buckets]
     .map(([id, byGrant]) => {
