@@ -50,6 +50,13 @@
       "when": 1794165931586,
       "tag": "0006_remove_review_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794168981718,
+      "tag": "0007_split_line_coding",
+      "breakpoints": true
     }
   ]
 }

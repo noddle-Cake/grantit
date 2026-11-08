@@ -352,7 +352,7 @@ export default function AppShell({ children }: { children?: ReactNode }) {
           <button className="rounded p-1.5 text-slate-2 hover:bg-canvas-2 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen}>
             <Menu size={20} />
           </button>
-          {pageTitle && <TitleTag className="min-w-0 shrink-0 truncate text-[0.9375rem] font-semibold text-slate">{pageTitle}</TitleTag>}
+          {pageTitle && <TitleTag title={pageTitle} className="min-w-0 max-w-[35%] truncate text-[0.9375rem] font-semibold text-slate">{pageTitle}</TitleTag>}
           <div className="flex min-w-0 flex-1 justify-center px-2">
             <GlobalSearch />
           </div>

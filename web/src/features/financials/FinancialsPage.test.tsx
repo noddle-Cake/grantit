@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import AppShell from '@/app/AppShell'
 import Financials from '@/features/financials/FinancialsPage'
 import { AppStoreProvider } from '@/store'
@@ -20,38 +20,44 @@ function renderFinancials() {
   )
 }
 
+const grantsTable = (name: string) => screen.getByRole('table', { name: `Grants contributing to ${name}` })
+
 describe('Financials', () => {
-  it('lists categories with combined funded/spent/remaining', () => {
+  // Deadlines and urgency depend on the date, so the demo's "today" is fixed.
+  beforeAll(() => { vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-11-08T12:00:00') }) })
+  afterAll(() => { vi.useRealTimers() })
+  beforeEach(() => localStorage.clear())
+
+  it('lists org categories with what is available, spent and remaining', () => {
     renderFinancials()
     expect(screen.getByRole('heading', { level: 1, name: 'Financials' })).toBeTruthy()
-    expect(screen.getByText('Indirect')).toBeTruthy()
-    expect(screen.getByText('Counselors')).toBeTruthy()
+    expect(screen.getByText('$312,800 available across grants')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Show grants for Program activities' })).toBeTruthy()
+    expect(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('link', { name: 'Financials' })).toBeTruthy()
   })
 
-  it('drills a category into each contributing grant, sorted by spend-by date', async () => {
+  it('drills a category into each contributing grant, soonest deadline first', async () => {
     const user = userEvent.setup()
     renderFinancials()
-    await user.click(screen.getByRole('button', { name: 'Show grants funding Indirect' }))
-    const links = screen.getAllByRole('link', { name: /Anchor Mentors 2026|Safe & Strong School Workshops|Mentor Expansion/ })
-    expect(links.map((l) => l.textContent)).toEqual(['Anchor Mentors 2026', 'Safe & Strong School Workshops', 'Mentor Expansion 2026–27'])
+    await user.click(screen.getByRole('button', { name: 'Show grants for Training' }))
+    expect(within(grantsTable('Training')).getAllByRole('link').map((l) => l.textContent)).toEqual(['Anchor Mentors 2026', 'Mentor Expansion 2026–27'])
+    expect(grantsTable('Training').textContent).toContain('Ends Dec 31, 2026')
   })
 
-  it('marks balances past their spending deadline', async () => {
+  it('separates money left after a deadline passed', async () => {
     const user = userEvent.setup()
     renderFinancials()
-    await user.click(screen.getByRole('button', { name: 'Show grants funding Counselors' }))
-    expect(screen.getAllByText(/passed/).length).toBeGreaterThan(0)
-    expect(screen.getByText(/can no longer be planned on/)).toBeTruthy()
+    expect(screen.getByText('Past spending deadline').closest('div')!.parentElement!.textContent).toContain('$17,200')
+    await user.click(screen.getByRole('button', { name: 'Show grants for Program activities' }))
+    expect(grantsTable('Program activities').textContent).toContain('+$4,800 past deadline')
   })
 
-  it('shows two urgent grants whose deadlines are days apart as separate rows', async () => {
+  it('marks both grants with close deadlines urgent, in the same drill-down', async () => {
     const user = userEvent.setup()
     renderFinancials()
-    // Anchor Mentors and Family Nights both end 2026-12-31 — urgent, distinct rows under any shared category.
-    const nav = screen.getByRole('navigation', { name: 'Main navigation' })
-    expect(within(nav).getByRole('link', { name: 'Financials' })).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Show grants funding Indirect' }))
-    const urgent = screen.getAllByText('Due soon · off pace')
-    expect(urgent.length).toBeGreaterThan(0)
+    await user.click(screen.getByRole('button', { name: 'Show grants for Program activities' }))
+    const urgent = within(grantsTable('Program activities')).getAllByText('Urgent').map((el) => el.closest('tr')!.textContent)
+    expect(urgent).toEqual([expect.stringContaining('Anchor Mentors 2026'), expect.stringContaining('Family Nights 2026')])
+    expect(within(screen.getByRole('region', { name: 'Urgent spending' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Anchor Mentors 2026', 'Family Nights 2026'])
   })
 })

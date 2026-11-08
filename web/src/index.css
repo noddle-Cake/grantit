@@ -51,6 +51,7 @@
 
   /* Data viz and avatars */
   --color-viz-1: #2a78d6;
+  --color-viz-2: #eb6834;
   --color-viz-warn: #eda100;
   --color-viz-track: #e5ebf1;
   --color-avatar-1: #bf4219;
@@ -93,6 +94,7 @@
   --color-bad-soft: #3d1d22;
 
   --color-viz-1: #4c95ea;
+  --color-viz-2: #d95926;
   --color-viz-warn: #f0b84a;
   --color-viz-track: #263848;
 }

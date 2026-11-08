@@ -4,12 +4,13 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ImportModal } from './ImportModal'
 import { Button, Card, Pill, Segmented, Select, StatusPill } from '@/components/ui'
-import { canConfirm, PICK_PROGRAM } from '@grantit/shared/auto-assign'
+import { canConfirm, hasMixedCoding, lineCoding, PICK_PROGRAM } from '@grantit/shared/auto-assign'
 import { allocationCategoryName, computeFinancials, effectiveDate, sumDollars, toCents } from '@grantit/shared/finance'
 import { fmtDate, moneyExact } from '@grantit/shared/format'
 import { needsReview } from '@grantit/shared/funds'
 import { can } from '@grantit/shared/permissions'
 import { isOpenAward } from '@grantit/shared/setup'
+import { UrgentGrants } from '@/features/funds/UrgencyPill'
 import { useFunds } from '@/features/funds/useFunds'
 import { TX_STATUS } from '@/lib/labels'
 import { useStore } from '@/store'
@@ -63,6 +64,8 @@ export default function Transactions() {
     [state.transactions, view, grantFilter, from, to, q],
   )
   const missing = view === 'to-review' && !q && !from ? queue.missing.filter((m) => grantFilter === 'all' || m.grantId === grantFilter) : []
+  // A split receipt is listed once at its full amount, so the grant's share has to be shown separately.
+  const filteredGrant = state.grants.find((g) => g.id === grantFilter)
   const grantName = (id: string) => state.grants.find((g) => g.id === id)?.name ?? 'Unknown grant'
   const suggested = rows.filter((t) => t.status === 'suggested')
   const selectedReady = state.transactions.filter((t) => selected.has(t.id) && canConfirm(t))
@@ -109,7 +112,7 @@ export default function Transactions() {
             {fmtDate(from)} – {fmtDate(to)} · <button type="button" className="text-link hover:underline" onClick={clearPeriod}>Clear</button>
           </span>
         )}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
           {can(me.role, 'finance:import') && <Button icon={<Upload size={16} />} onClick={() => setImportOpen(true)}>Import</Button>}
           {canReview && suggested.length > 0 && (
             <Button icon={<CheckCheck size={15} />} onClick={() => confirm(suggested)}>
@@ -133,6 +136,8 @@ export default function Transactions() {
           <button className="ml-auto text-rail-text hover:text-white focus-visible:outline-white" onClick={() => setSelected(new Set())}>Clear</button>
         </div>
       )}
+
+      <UrgentGrants className="mb-3" />
 
       <Card padded={false} className="overflow-hidden">
         <table className="w-full table-fixed text-sm">
@@ -175,7 +180,7 @@ export default function Transactions() {
                   <div className="truncate text-xs text-slate-3" title={t.vendor}>{fmtDate(effectiveDate(t), { month: 'short', day: 'numeric', year: 'numeric' })} · {t.vendor}</div>
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{moneyExact(t.amount)}</td>
-                <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}><CategoryCell tx={t} disabled={!canReview} /></td>
+                <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}><CategoryCell tx={t} disabled={!canReview} onOpenSplit={() => setOpen({ id: t.id })} /></td>
                 <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}><GrantCell tx={t} disabled={!canReview} onPick={(v) => pickGrant(t, v)} /></td>
                 <td className="px-3 py-3"><StatusPill tone={TX_STATUS[t.status].tone}>{TX_STATUS[t.status].label}</StatusPill></td>
               </tr>
@@ -185,7 +190,10 @@ export default function Transactions() {
         {!rows.length && !missing.length && <p className="py-12 text-center text-sm text-slate-3">{view === 'to-review' ? 'Nothing to review. Every expense is confirmed.' : 'No transactions in this view.'}</p>}
         <div className="flex justify-between border-t border-line-2 bg-canvas px-5 py-2.5 text-xs text-slate-2">
           <span>{rows.length} transactions{missing.length ? ` · ${missing.length} missing charges` : ''}</span>
-          <span className="tabular-nums">Total {moneyExact(sumDollars(rows.map((r) => r.amount)))}</span>
+          <span className="tabular-nums">
+            {filteredGrant && <>On this grant {moneyExact(computeFinancials(filteredGrant, rows).spent)} · </>}
+            Receipts {moneyExact(sumDollars(rows.map((r) => r.amount)))}
+          </span>
         </div>
       </Card>
 
@@ -197,8 +205,22 @@ export default function Transactions() {
   )
 }
 
-function CategoryCell({ tx, disabled }: { tx: Transaction; disabled: boolean }) {
+function CategoryCell({ tx, disabled, onOpenSplit }: { tx: Transaction; disabled: boolean; onOpenSplit: () => void }) {
   const { state, recodeTransaction } = useStore()
+  // One dropdown can't describe a split whose lines differ, so those are edited line by line in the drawer.
+  if (hasMixedCoding(tx, tx.allocations)) {
+    const coded = tx.allocations.map((a) => lineCoding(tx, a))
+    const describe = (ids: (string | undefined)[], names: { id: string; name: string }[], plural: string) => {
+      const unique = [...new Set(ids)]
+      return unique.length > 1 ? `${unique.length} ${plural}` : (names.find((n) => n.id === unique[0])?.name ?? 'Not set')
+    }
+    return (
+      <button type="button" onClick={onOpenSplit} aria-label={`Edit split coding for ${tx.description}`} className="block w-full px-1 py-1 text-left text-[0.8125rem] text-link hover:underline">
+        {describe(coded.map((c) => c.categoryId), state.orgCategories, 'categories')}
+        <span className="block text-xs text-slate-2">{describe(coded.map((c) => c.programId), state.programs, 'programs')}</span>
+      </button>
+    )
+  }
   return (
     <>
       <Select aria-label={`Category for ${tx.description}`} disabled={disabled} value={tx.categoryId ?? ''} onChange={(e) => recodeTransaction(tx.id, { categoryId: e.target.value })} className={compact}>

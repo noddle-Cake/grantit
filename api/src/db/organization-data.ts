@@ -85,7 +85,7 @@ export async function loadTransactions(db: Db, organizationId: string, ids?: str
     ...compact(txn),
     allocations: allocs
       .filter((a) => a.transactionId === txn.id)
-      .map(({ grantId, budgetLineId, amount }) => ({ grantId, ...(budgetLineId ? { budgetLineId } : {}), amount })),
+      .map(({ grantId, budgetLineId, amount, categoryId, programId }) => ({ grantId, ...(budgetLineId ? { budgetLineId } : {}), amount, ...(categoryId ? { categoryId } : {}), ...(programId ? { programId } : {}) })),
   }))
 }
 

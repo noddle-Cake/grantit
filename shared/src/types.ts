@@ -191,6 +191,10 @@ export interface Allocation {
   /** A budget line of that grant (ids are unique only within a grant). Absent for General funds. */
   budgetLineId?: string
   amount: number
+  /** This part's spending category, when a split codes its parts separately. Absent: the transaction's own. */
+  categoryId?: string
+  /** This part's program, when a split codes its parts separately. Absent: the transaction's own. */
+  programId?: string
 }
 
 /** Where a ledger line came from. */

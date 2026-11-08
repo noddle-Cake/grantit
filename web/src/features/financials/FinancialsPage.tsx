@@ -1,218 +1,160 @@
 import clsx from 'clsx'
-import { ChevronRight, Search } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { Card, EmptyState, Meter, Pill, Stat, StatusPill } from '@/components/ui'
-import { financialsOverview, URGENT_WINDOW_DAYS, type CategoryFinancials, type CategoryGrantBalance } from '@grantit/shared/financials'
-import { dateWithRelative, fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
+import { SpentRemainingPie } from '@/components/SpentRemainingPie'
+import { Card, Stat } from '@/components/ui'
+import { UrgencyPill, UrgentGrants, useUrgency } from '@/features/funds/UrgencyPill'
+import { financialsOverview, type CategoryGrantRow, type Money3 } from '@grantit/shared/financials'
+import { fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
+import type { GrantUrgency } from '@grantit/shared/urgency'
 import { useStore } from '@/store'
 
-const URGENCY_LABEL: Record<NonNullable<CategoryGrantBalance['urgent']>, string> = {
-  both: 'Due soon · off pace',
-  deadline: 'Due soon',
-  projection: 'Likely unspent',
-}
+const LEFT_OUT_REASON = { 'needs-setup': 'no confirmed budget yet', closed: 'closed, final report submitted' }
 
-function SpendTip({ active, payload }: { active?: boolean; payload?: { name: string; value: number }[] }) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="rounded-lg border border-line-2 bg-surface px-3 py-2 text-xs shadow-lg">
-      <div className="text-slate-3">{payload[0].name}</div>
-      <div className="mt-0.5 font-semibold tabular-nums text-slate">{money(payload[0].value)}</div>
-    </div>
-  )
-}
-
-/** Spending deadline for one grant's share of a category, with its urgency and forecast. */
-function GrantBalanceRow({ b }: { b: CategoryGrantBalance }) {
-  return (
-    <tr className="border-t border-line-2/60">
-      <td className="py-2 pl-9 pr-2">
-        <Link to={`/grants/${b.grantId}`} className="font-medium text-link hover:underline">{b.grantName}</Link>
-        <div className="text-xs text-slate-3">{b.funder}</div>
-      </td>
-      <td className="py-2 text-right tabular-nums text-slate-2">{money(b.budget)}</td>
-      <td className="py-2 text-right tabular-nums">{money(b.spent)}</td>
-      <td className={clsx('py-2 text-right tabular-nums', b.remaining < 0 ? 'font-medium text-bad' : b.pastDeadline ? 'text-slate-3' : 'text-slate')}>
-        {money(b.remaining)}
-      </td>
-      <td className="py-2 pl-4 pr-2 text-xs">
-        <div className={clsx(b.pastDeadline ? 'text-bad' : 'text-slate-2')}>
-          {b.pastDeadline ? `${fmtDate(b.spendBy)} · passed` : dateWithRelative(b.spendBy)}
-        </div>
-        <div className="mt-0.5 text-slate-3">
-          {b.pastDeadline ? (
-            b.remaining > 0 ? 'Balance can no longer be planned on' : 'Period ended'
-          ) : !b.forecast ? (
-            'Not enough history to project'
-          ) : b.forecast.projectedRemaining > 0 ? (
-            `≈${money(b.forecast.projectedRemaining)} left at deadline on current pace`
-          ) : (
-            `On pace to spend ${money(b.forecast.projectedSpend)} by the deadline`
-          )}
-        </div>
-      </td>
-      <td className="py-2 text-right">
-        <div className="flex flex-wrap justify-end gap-1">
-          {b.remaining < 0 && <StatusPill tone="bad">Over budget</StatusPill>}
-          {b.pastDeadline && b.remaining > 0 && <StatusPill tone="bad">Past deadline</StatusPill>}
-          {b.urgent && <StatusPill tone="warn">{URGENCY_LABEL[b.urgent]}</StatusPill>}
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-/** One combined category row; expanding it lists each grant's balance with its own spend-by date. */
-function CategoryRow({ cat, open, onToggle }: { cat: CategoryFinancials; open: boolean; onToggle: () => void }) {
-  const urgentCount = cat.grants.filter((g) => g.urgent || (g.pastDeadline && g.remaining > 0)).length
+function Deadline({ row, urgency }: { row: CategoryGrantRow; urgency?: GrantUrgency }) {
+  const report = row.grant.deadlines.filter((d) => d.kind === 'report' && !d.done).sort((a, b) => a.date.localeCompare(b.date))[0]
+  const ended = urgency ? urgency.daysLeft < 0 : false
   return (
     <>
-      <tr onClick={onToggle} className="cursor-pointer border-t border-line-2 hover:bg-canvas">
-        <td className="px-5 py-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-expanded={open}
-              aria-label={`${open ? 'Hide' : 'Show'} grants funding ${cat.name}`}
-              onClick={(e) => { e.stopPropagation(); onToggle() }}
-              className="rounded p-0.5 text-slate-3 hover:bg-canvas-2"
-            >
-              <ChevronRight size={16} className={clsx('transition-transform', open && 'rotate-90')} />
-            </button>
-            <span className="font-medium text-slate">{cat.name}</span>
-            <Pill tone="neutral">{cat.grants.length} grant{cat.grants.length === 1 ? '' : 's'}</Pill>
-          </div>
-        </td>
-        <td className="px-4 py-3 text-right tabular-nums text-slate-2">{money(cat.budget)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">{money(cat.spent)}</td>
-        <td className="px-4 py-3 text-right tabular-nums">
-          <div className="font-medium text-slate">{money(cat.remaining)}</div>
-          {cat.pastDue > 0 && <div className="text-xs text-bad">+{money(cat.pastDue)} past deadline</div>}
-          {cat.overspent > 0 && <div className="text-xs text-bad">{money(cat.overspent)} over</div>}
-        </td>
-        <td className="w-[18%] px-4 py-3">
-          <Meter value={cat.spent} max={cat.budget} height={6} />
-        </td>
-        <td className="w-24 px-4 py-3 text-right">{urgentCount > 0 && <StatusPill tone="warn">{urgentCount} urgent</StatusPill>}</td>
-      </tr>
-      {open && (
-        <tr className="bg-canvas/60">
-          <td colSpan={6} className="px-5 pb-3 pt-1">
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-slate-3">
-                <tr>
-                  <th className="py-1.5 pl-9 font-medium">Grant</th>
-                  <th className="py-1.5 text-right font-medium">Budget</th>
-                  <th className="py-1.5 text-right font-medium">Spent</th>
-                  <th className="py-1.5 text-right font-medium">Remaining</th>
-                  <th className="py-1.5 pl-4 font-medium">Spend by · forecast</th>
-                  <th className="w-32 py-1.5 text-right font-medium"><span className="sr-only">Urgency</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {cat.grants.map((b) => <GrantBalanceRow key={`${b.grantId}-${b.categoryId}`} b={b} />)}
-              </tbody>
-            </table>
-          </td>
-        </tr>
-      )}
+      <div className="text-slate">{ended ? 'Ended ' : 'Ends '}{fmtDate(row.grant.periodEnd)}</div>
+      <div className="text-xs text-slate-3">
+        {urgency && !ended && `${urgency.daysLeft} day${urgency.daysLeft === 1 ? '' : 's'} left`}
+        {urgency && !ended && report && ' · '}
+        {report && `report due ${fmtDate(report.date, { month: 'short', day: 'numeric' })}`}
+      </div>
     </>
   )
 }
 
-/** Financials: funding combined by category — what's left, where it comes from, and when it must be spent. */
+/** Remaining, with anything lapsed or overspent called out beneath it. */
+function Remaining({ m }: { m: Money3 }) {
+  return (
+    <>
+      {money(m.remaining)}
+      {m.pastDeadline > 0 && <div className="text-xs text-bad">+{money(m.pastDeadline)} past deadline</div>}
+      {m.overspent > 0 && <div className="text-xs font-medium text-bad">{money(m.overspent)} over</div>}
+    </>
+  )
+}
+
+/** Grant money by spending category. Read-only: receipts and splits are entered in Spending. */
 export default function Financials() {
   const { state } = useStore()
-  const today = todayISO()
-  const overview = useMemo(() => financialsOverview(state.grants, state.transactions, today), [state.grants, state.transactions, today])
-  const [q, setQ] = useState('')
+  const urgency = useUrgency()
   const [open, setOpen] = useState<Set<string>>(new Set())
-  const toggle = (key: string) => setOpen((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n })
-
-  const shown = overview.categories.filter((c) => c.name.toLowerCase().includes(q.toLowerCase()))
-  // The donut plots actual spend against plannable remaining; overspend can't be a pie slice, so it gets its own figure.
-  const pie = [
-    { name: 'Spent', value: overview.spent, fill: 'var(--color-viz-1)' },
-    { name: 'Remaining', value: overview.remaining, fill: 'var(--color-viz-track)' },
-    ...(overview.pastDue > 0 ? [{ name: 'Past deadline', value: overview.pastDue, fill: 'var(--color-viz-warn)' }] : []),
-  ].filter((d) => d.value > 0)
+  const today = todayISO()
+  const { categories, totals, leftOut, reconciliation: r } = useMemo(
+    () => financialsOverview(state.grants, state.transactions, state.orgCategories, today),
+    [state.grants, state.transactions, state.orgCategories, today],
+  )
+  const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
+  const urgentCount = (rows: CategoryGrantRow[]) => rows.filter((x) => urgency.get(x.grant.id)?.level === 'urgent').length
 
   return (
     <>
-      {!overview.categories.length ? (
-        <Card><EmptyState title="No funded budgets yet" icon={<ChevronRight />}>Confirm a grant's budget on its Setup tab, then its categories appear here.</EmptyState></Card>
-      ) : (
-        <>
-          <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-[300px_1fr]">
-            <Card title="Actual vs remaining budget" className="row-span-2">
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Tooltip content={<SpendTip />} />
-                  <Pie data={pie} dataKey="value" nameKey="name" innerRadius={58} outerRadius={85} strokeWidth={2} stroke="var(--color-surface)">
-                    {pie.map((d) => <Cell key={d.name} fill={d.fill} />)}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
-              <ul className="mt-1 space-y-1.5 text-sm">
-                {pie.map((d) => (
-                  <li key={d.name} className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.fill }} />
-                    <span className="text-slate-2">{d.name}</span>
-                    <span className="ml-auto tabular-nums text-slate">{moneyExact(d.value)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Stat label="Funded budget" value={money(overview.budget)} sub="Across all funded grants" />
-              <Stat label="Actual spending" value={money(overview.spent)} sub="Reportable charges to approved categories" />
-              <Stat label="Remaining to plan" value={money(overview.remaining)} sub="Balances whose spend-by date hasn't passed" />
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Stat label="Past spending deadline" value={money(overview.pastDue)} sub="Left over after the period ended; not available for planning" />
-              <Stat label="Overspent" value={money(overview.overspent)} sub="Categories charged beyond their approved budget" />
-            </div>
+      <div className="mb-6 grid gap-6 lg:grid-cols-2">
+        <Card title={`${money(totals.available)} available across grants`}>
+          <SpentRemainingPie spent={totals.spent} remaining={totals.remaining} />
+        </Card>
+        <div className="space-y-3">
+          <UrgentGrants />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Stat label="Past spending deadline" value={money(totals.pastDeadline)} sub="Left when a grant's period ended; not counted as available" />
+            <Stat label="Overspent" value={money(totals.overspent)} sub="Charged beyond a line's approved budget" />
           </div>
+        </div>
+      </div>
 
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search categories" placeholder="Search categories" className="h-9 w-60 rounded-[3px] border border-control-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
-            </div>
-          </div>
+      <Card padded={false} className="overflow-hidden">
+        <table className="w-full table-fixed text-sm">
+          <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
+            <tr>
+              <th className="px-5 py-3">Category</th>
+              <th className="w-32 px-4 py-3 text-right">Available</th>
+              <th className="w-32 px-4 py-3 text-right">Spent</th>
+              <th className="w-32 px-4 py-3 text-right">Remaining</th>
+              <th className="w-28 px-4 py-3">Urgent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((c) => {
+              const expanded = open.has(c.id)
+              const urgent = urgentCount(c.grants)
+              return (
+                <Fragment key={c.id}>
+                  <tr onClick={() => toggle(c.id)} className="cursor-pointer border-t border-line-2 hover:bg-canvas">
+                    <td className="px-5 py-3">
+                      <button type="button" aria-expanded={expanded} aria-label={`${expanded ? 'Hide' : 'Show'} grants for ${c.name}`} onClick={(e) => { e.stopPropagation(); toggle(c.id) }} className="mr-2 rounded p-0.5 align-middle text-slate-3 hover:bg-canvas-2">
+                        <ChevronRight size={16} className={clsx('transition-transform', expanded && 'rotate-90')} />
+                      </button>
+                      <span className="font-medium text-slate">{c.name}</span>
+                      <span className="ml-2 text-xs text-slate-3">{c.grants.length} grant{c.grants.length === 1 ? '' : 's'}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums text-slate-2">{money(c.available)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{money(c.spent)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums"><Remaining m={c} /></td>
+                    <td className="px-4 py-3 text-xs">{urgent > 0 ? <span className="font-medium text-bad">{urgent} urgent</span> : <span className="text-slate-3">None</span>}</td>
+                  </tr>
+                  {expanded && (
+                    <tr className="bg-canvas/60">
+                      <td colSpan={5} className="px-5 pb-3 pl-12 pt-1">
+                        <table className="w-full table-fixed text-sm" aria-label={`Grants contributing to ${c.name}`}>
+                          <thead className="text-left text-xs text-slate-3">
+                            <tr>
+                              <th className="py-1.5 font-medium">Grant</th>
+                              <th className="w-24 py-1.5 text-right font-medium">Available</th>
+                              <th className="w-24 py-1.5 text-right font-medium">Spent</th>
+                              <th className="w-24 py-1.5 text-right font-medium">Remaining</th>
+                              <th className="w-44 py-1.5 pl-4 font-medium">Deadline</th>
+                              <th className="w-36 py-1.5 font-medium">Urgency</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {c.grants.map((row) => (
+                              <tr key={row.grant.id} className="align-top">
+                                <td className="py-1.5 pr-2">
+                                  <Link to={`/funds/spending?view=all&grant=${row.grant.id}`} className="font-medium text-link hover:underline">{row.grant.name}</Link>
+                                  <div className="truncate text-xs text-slate-3" title={row.lines.join(', ')}>{row.lines.join(', ')}</div>
+                                </td>
+                                <td className="py-1.5 text-right tabular-nums text-slate-2">{money(row.available)}</td>
+                                <td className="py-1.5 text-right tabular-nums">{money(row.spent)}</td>
+                                <td className="py-1.5 text-right tabular-nums"><Remaining m={row} /></td>
+                                <td className="py-1.5 pl-4"><Deadline row={row} urgency={urgency.get(row.grant.id)} /></td>
+                                <td className="py-1.5"><UrgencyPill urgency={urgency.get(row.grant.id)} /></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+          <tfoot className="border-t border-line bg-canvas font-semibold">
+            <tr>
+              <td className="px-5 py-3">Total</td>
+              <td className="px-4 py-3 text-right tabular-nums">{money(totals.available)}</td>
+              <td className="px-4 py-3 text-right tabular-nums">{money(totals.spent)}</td>
+              <td className="px-4 py-3 text-right tabular-nums"><Remaining m={totals} /></td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </Card>
 
-          <Card padded={false} className="overflow-hidden">
-            <table className="w-full table-fixed text-sm">
-              <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
-                <tr>
-                  <th className="px-5 py-3">Category</th>
-                  <th className="w-28 px-4 py-3 text-right">Funded</th>
-                  <th className="w-28 px-4 py-3 text-right">Spent</th>
-                  <th className="w-36 px-4 py-3 text-right">Remaining</th>
-                  <th className="px-4 py-3"><span className="sr-only">Used</span></th>
-                  <th className="w-24 px-4 py-3 text-right"><span className="sr-only">Urgency</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((c) => (
-                  <Fragment key={c.key}>
-                    <CategoryRow cat={c} open={open.has(c.key)} onToggle={() => toggle(c.key)} />
-                  </Fragment>
-                ))}
-              </tbody>
-            </table>
-            {!shown.length && <p className="py-10 text-center text-sm text-slate-3">No categories match this search.</p>}
-          </Card>
-
-          <p className="mt-3 text-xs text-slate-3">
-            Spend-by is the end of each grant's funding period. Balances within {URGENT_WINDOW_DAYS} days of it are flagged urgent.
-            Forecasts assume spending continues at its current average pace and need at least a month of history; grants with too little
-            history are flagged by deadline alone. Both defaults are provisional.
-          </p>
-        </>
-      )}
+      <section className="mt-4 space-y-1 text-xs text-slate-2" aria-label="How these numbers reconcile">
+        <p>
+          <span className="font-medium text-slate">Every receipt in Spending, {moneyExact(r.ledger)}:</span>{' '}
+          {moneyExact(r.onTheseGrants)} on these grants · {moneyExact(r.onClosedGrants)} on closed grants · {moneyExact(r.generalFunds)} General funds · {moneyExact(r.notAssigned)} not yet assigned
+          {r.notReportable !== 0 && ` · ${moneyExact(r.notReportable)} can't be reported`}
+          {!r.balanced && <span className="font-medium text-bad"> These don't add up. Check Spending before relying on this page.</span>}
+        </p>
+        <p>Spent includes unconfirmed suggestions, as Reports do.</p>
+        {leftOut.length > 0 && <p>Not counted: {leftOut.map((l) => `${l.grant.name} (${LEFT_OUT_REASON[l.reason]})`).join('; ')}.</p>}
+      </section>
     </>
   )
 }

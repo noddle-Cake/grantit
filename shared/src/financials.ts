@@ -1,147 +1,159 @@
-// The Financials tab: a category-first view across every funded grant. "How much is left for Administration?"
-// means summing each grant's remaining budget in that category, then looking at when each piece must be spent.
-// Figures reuse computeFinancials, so totals reconcile with Funded grants and reports. Pure functions; "today"
-// is always passed in.
+// Grant money by spending category, across every grant that can still be charged. A read-only roll-up: spending comes
+// from the same per-line figures as Funded grants and Reports, so a split receipt is counted once, on each line it
+// actually charged.
 
-import { computeFinancials, fromCents, toCents } from './finance.ts'
-import { daysBetween, fundingState } from './funds.ts'
-import type { Grant, Transaction } from './types.ts'
+import { canReceiveTransactions } from './setup.ts'
+import { categoryOf, computeFinancials, effectiveDate, fromCents, grantPeriod, inPeriod, toCents } from './finance.ts'
+import { fundingState } from './funds.ts'
+import type { Grant, OrgCategory, Transaction } from './types.ts'
 
-const normName = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
+export const UNMAPPED_CATEGORY_ID = 'unmapped'
 
-// ─── Provisional defaults ────────────────────────────────────────────────────
-// URGENT_WINDOW_DAYS: a remaining balance within this many days of its spend-by date is flagged urgent, even
-// when the forecast looks fine. Picked as roughly one quarter — long enough to act (hire, reallocate, ask for
-// an extension), short enough to stay actionable. Tune after real use.
-export const URGENT_WINDOW_DAYS = 90
-// MIN_HISTORY_DAYS: below this much of the grant period elapsed, the linear forecast is noise and urgency is
-// deadline-driven only (shown as "Not enough history").
-export const MIN_HISTORY_DAYS = 30
-// FORECAST: straight-line burn. projected spend at the deadline = spent so far ÷ share of the period elapsed.
-// Deliberately the simplest defensible model for the first pass; seasonal or lumpy spending will mislead it.
-
-export interface CategoryGrantBalance {
-  grantId: string
-  grantName: string
-  funder: string
-  categoryId: string
-  budget: number
+/**
+ * What a budget line, grant or category comes to. `available + overspent = spent + remaining` always holds: money left
+ * after a grant's period ended is lapsed, so it moves out of `available` into `pastDeadline`, and an overspent line
+ * reports its overage instead of negative remaining, so one line's overage never hides another's balance.
+ */
+export interface Money3 {
+  available: number
   spent: number
-  /** Negative when the category is overspent on this grant. */
   remaining: number
-  /** The grant's spend-by date (end of its funding period). */
-  spendBy: string
-  daysLeft: number
-  /** The period has ended with money left: this balance can no longer be planned on. */
-  pastDeadline: boolean
-  /** Remaining balance urgent by deadline or forecast. */
-  urgent: 'deadline' | 'projection' | 'both' | null
-  /** Straight-line projection at the deadline; undefined when there is too little history to project. */
-  forecast?: { projectedSpend: number; projectedRemaining: number }
+  pastDeadline: number
+  overspent: number
 }
 
-export interface CategoryFinancials {
-  /** Normalized name (merge key across grants). */
-  key: string
+export interface CategoryGrantRow extends Money3 {
+  grant: Grant
+  /** The grant's budget lines in this category. */
+  lines: string[]
+}
+
+export interface CategoryRow extends Money3 {
+  id: string
   name: string
-  budget: number
-  spent: number
-  /** Remaining on grants whose spend-by date hasn't passed — the plannable balance. */
-  remaining: number
-  /** Remaining on grants past their spend-by date (closing-out or unspent leftovers). */
-  pastDue: number
-  /** How far over budget the category is, summed across grants (positive number or 0). */
-  overspent: number
-  /** Contributing grants, most urgent spend-by date first. */
-  grants: CategoryGrantBalance[]
+  grants: CategoryGrantRow[]
+}
+
+export interface LeftOutGrant {
+  grant: Grant
+  reason: 'needs-setup' | 'closed'
+}
+
+/** Every receipt dollar in Spending, accounted for once. `balanced` is true when the parts add up to the ledger. */
+export interface Reconciliation {
+  ledger: number
+  onTheseGrants: number
+  onClosedGrants: number
+  generalFunds: number
+  notReportable: number
+  notAssigned: number
+  balanced: boolean
 }
 
 export interface FinancialsOverview {
-  budget: number
-  spent: number
-  remaining: number
-  pastDue: number
-  overspent: number
-  categories: CategoryFinancials[]
+  categories: CategoryRow[]
+  totals: Money3
+  leftOut: LeftOutGrant[]
+  reconciliation: Reconciliation
 }
 
-function grantBalance(g: Grant, c: { id: string; name: string; budget: number; spent: number; remaining: number }, today: string): CategoryGrantBalance {
-  const daysLeft = daysBetween(today, g.periodEnd)
-  const pastDeadline = daysLeft < 0
-  const span = Math.max(1, daysBetween(g.periodStart, g.periodEnd))
-  const elapsed = Math.min(span, Math.max(0, daysBetween(g.periodStart, today)))
-  const share = elapsed / span
+const ZERO: Money3 = { available: 0, spent: 0, remaining: 0, pastDeadline: 0, overspent: 0 }
+const dollars = (c: Money3): Money3 => ({
+  available: fromCents(c.available),
+  spent: fromCents(c.spent),
+  remaining: fromCents(c.remaining),
+  pastDeadline: fromCents(c.pastDeadline),
+  overspent: fromCents(c.overspent),
+})
 
-  // Straight-line projection. Needs MIN_HISTORY_DAYS of the period gone and something actually spent;
-  // a zero-spend category can't be projected (it may be unstarted, not free).
-  let forecast: CategoryGrantBalance['forecast']
-  if (elapsed >= MIN_HISTORY_DAYS && c.spent > 0 && share < 1) {
-    const projectedSpend = fromCents(Math.round(toCents(c.spent) / share))
-    forecast = { projectedSpend, projectedRemaining: fromCents(toCents(c.budget) - toCents(projectedSpend)) }
-  }
+export function financialsOverview(grants: Grant[], txs: Transaction[], orgCategories: OrgCategory[], today: string): FinancialsOverview {
+  const included = grants.filter(canReceiveTransactions)
+  const includedIds = new Set(included.map((g) => g.id))
+  const nameOf = (id: string) => orgCategories.find((c) => c.id === id)?.name ?? 'Unknown category'
 
-  const remaining = c.remaining
-  let urgent: CategoryGrantBalance['urgent'] = null
-  if (remaining > 0 && !pastDeadline) {
-    const byDeadline = daysLeft <= URGENT_WINDOW_DAYS
-    const byProjection = !!forecast && forecast.projectedRemaining > 0
-    if (byDeadline && byProjection) urgent = 'both'
-    else if (byDeadline) urgent = 'deadline'
-    else if (byProjection) urgent = 'projection'
-  }
-
-  return {
-    grantId: g.id,
-    grantName: g.name,
-    funder: g.funder,
-    categoryId: c.id,
-    budget: c.budget,
-    spent: c.spent,
-    remaining,
-    spendBy: g.periodEnd,
-    daysLeft,
-    pastDeadline,
-    urgent,
-    forecast,
-  }
-}
-
-/**
- * Funding combined by category across every funded grant (open awards and closed ones; applications and
- * needs-setup grants without a budget are left out). Categories with the same name on different grants merge;
- * the display name is the first spelling seen.
- */
-export function financialsOverview(grants: Grant[], txs: Transaction[], today: string): FinancialsOverview {
-  const byKey = new Map<string, CategoryFinancials>()
-  const add = (k: keyof Pick<CategoryFinancials, 'budget' | 'spent' | 'remaining' | 'pastDue' | 'overspent'>, cat: CategoryFinancials, v: number) => {
-    cat[k] = fromCents(toCents(cat[k]) + toCents(v))
-  }
-
-  for (const g of grants) {
-    // Applications and needs-setup awards are out: their budgets aren't confirmed, so they aren't money yet.
-    const state = fundingState(g, today)
-    if (!state || state === 'needs-setup') continue
-    for (const c of computeFinancials(g, txs).categories) {
-      const key = normName(c.name)
-      let cat = byKey.get(key)
-      if (!cat) {
-        cat = { key, name: c.name, budget: 0, spent: 0, remaining: 0, pastDue: 0, overspent: 0, grants: [] }
-        byKey.set(key, cat)
-      }
-      const b = grantBalance(g, c, today)
-      add('budget', cat, c.budget)
-      add('spent', cat, c.spent)
-      if (b.pastDeadline) add('pastDue', cat, Math.max(0, c.remaining))
-      else if (c.remaining > 0) add('remaining', cat, c.remaining)
-      if (c.remaining < 0) add('overspent', cat, -c.remaining)
-      cat.grants.push(b)
+  // category id → grant id → cents
+  const buckets = new Map<string, Map<string, Money3 & { grant: Grant; lines: string[] }>>()
+  for (const grant of included) {
+    const f = computeFinancials(grant, txs)
+    const ended = today > grant.periodEnd
+    for (const line of f.categories) {
+      const categoryId = grant.categories.find((c) => c.id === line.id)?.acceptedCategoryIds?.[0] ?? UNMAPPED_CATEGORY_ID
+      const byGrant = buckets.get(categoryId) ?? new Map()
+      const row = byGrant.get(grant.id) ?? { grant, lines: [], ...ZERO }
+      const left = toCents(line.remaining)
+      const lapsed = ended ? Math.max(0, left) : 0
+      row.lines.push(line.name)
+      row.available += toCents(line.budget) - lapsed
+      row.spent += toCents(line.spent)
+      row.remaining += ended ? 0 : Math.max(0, left)
+      row.pastDeadline += lapsed
+      row.overspent += Math.max(0, -left)
+      byGrant.set(grant.id, row)
+      buckets.set(categoryId, byGrant)
     }
   }
 
-  const categories = [...byKey.values()]
-    .map((c) => ({ ...c, grants: c.grants.sort((a, b) => a.spendBy.localeCompare(b.spendBy) || a.grantName.localeCompare(b.grantName)) }))
-    .sort((a, b) => b.remaining - a.remaining || b.budget - a.budget || a.name.localeCompare(b.name))
+  const sum = (rows: Money3[]) =>
+    rows.reduce((t, r) => ({
+      available: t.available + r.available,
+      spent: t.spent + r.spent,
+      remaining: t.remaining + r.remaining,
+      pastDeadline: t.pastDeadline + r.pastDeadline,
+      overspent: t.overspent + r.overspent,
+    }), ZERO)
 
-  const sum = (k: 'budget' | 'spent' | 'remaining' | 'pastDue' | 'overspent') => fromCents(categories.reduce((s, c) => s + toCents(c[k]), 0))
-  return { budget: sum('budget'), spent: sum('spent'), remaining: sum('remaining'), pastDue: sum('pastDue'), overspent: sum('overspent'), categories }
+  const categories: CategoryRow[] = [...buckets]
+    .map(([id, byGrant]) => {
+      const rows = [...byGrant.values()]
+      return {
+        id,
+        name: id === UNMAPPED_CATEGORY_ID ? 'Not mapped to a category' : nameOf(id),
+        ...dollars(sum(rows)),
+        grants: rows.map(({ grant, lines, ...cents }) => ({ grant, lines, ...dollars(cents) })).sort((a, b) => a.grant.periodEnd.localeCompare(b.grant.periodEnd) || a.grant.name.localeCompare(b.grant.name)),
+      }
+    })
+    .sort((a, b) => b.available - a.available)
+
+  const totals = dollars(sum([...buckets.values()].flatMap((byGrant) => [...byGrant.values()])))
+
+  const leftOut = grants.flatMap((grant): LeftOutGrant[] => {
+    if (includedIds.has(grant.id)) return []
+    const state = fundingState(grant, today)
+    return state === 'needs-setup' ? [{ grant, reason: 'needs-setup' }] : state === 'closed' ? [{ grant, reason: 'closed' }] : []
+  })
+
+  return { categories, totals, leftOut, reconciliation: reconcile(grants, includedIds, txs, toCents(totals.spent)) }
+}
+
+function reconcile(grants: Grant[], includedIds: Set<string>, txs: Transaction[], spentCents: number): Reconciliation {
+  const byId = new Map(grants.map((g) => [g.id, g]))
+  let ledger = 0
+  let onTheseGrants = 0
+  let onClosedGrants = 0
+  let generalFunds = 0
+  let notReportable = 0
+  let notAssigned = 0
+  for (const t of txs) {
+    ledger += toCents(t.amount)
+    let allocated = 0
+    for (const a of t.allocations) {
+      const cents = toCents(a.amount)
+      allocated += cents
+      const grant = a.grantId === null ? undefined : byId.get(a.grantId)
+      if (a.grantId === null) generalFunds += cents
+      else if (!grant || !categoryOf(grant, a) || !inPeriod(effectiveDate(t), grantPeriod(grant))) notReportable += cents
+      else if (includedIds.has(grant.id)) onTheseGrants += cents
+      else onClosedGrants += cents
+    }
+    notAssigned += toCents(t.amount) - allocated
+  }
+  return {
+    ledger: fromCents(ledger),
+    onTheseGrants: fromCents(onTheseGrants),
+    onClosedGrants: fromCents(onClosedGrants),
+    generalFunds: fromCents(generalFunds),
+    notReportable: fromCents(notReportable),
+    notAssigned: fromCents(notAssigned),
+    balanced: onTheseGrants === spentCents && ledger === onTheseGrants + onClosedGrants + generalFunds + notReportable + notAssigned,
+  }
 }

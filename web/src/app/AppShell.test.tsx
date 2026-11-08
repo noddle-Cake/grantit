@@ -15,7 +15,7 @@ import { STORAGE_KEY } from '@/store/migrate'
 function renderApp(path = '/') {
   return render(<AppStoreProvider><MemoryRouter initialEntries={[path]}><Routes>
     <Route element={<AppShell />}>
-      <Route index element={<h1>Home</h1>} />
+      <Route index element={<div>Home content</div>} />
       <Route path="grants/:id" element={<GrantRecord />} />
       <Route path="apply/knowledge" element={<KnowledgeBase />} />
       <Route path="funds/spending" element={<Transactions />} />

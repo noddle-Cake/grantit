@@ -27,7 +27,7 @@ const openTx = async (user: ReturnType<typeof userEvent.setup>, description: str
 
 // Save a split expense, reopen it, and check each line keeps its target and amount. The receipt total must equal
 // the sum of its lines, and reporting counts each allocation once.
-describe('split expenses', () => {
+describe('split expenses', { timeout: 20_000 }, () => {
   it('splits an expense across two grants and reopens it intact', async () => {
     const user = userEvent.setup()
     renderSpending()

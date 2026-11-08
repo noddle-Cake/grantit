@@ -1,132 +1,115 @@
 import { describe, expect, it } from 'vitest'
-import { computeFinancials } from './finance.ts'
-import { financialsOverview, URGENT_WINDOW_DAYS } from './financials.ts'
+import { assignManually, hasMixedCoding, recode } from './auto-assign.ts'
+import { computeFinancials, sumDollars } from './finance.ts'
+import { financialsOverview } from './financials.ts'
 import { seedState } from './seed.ts'
-import { fundingState } from './funds.ts'
-import type { Allocation, Grant, Transaction } from './types.ts'
+import type { Transaction } from './types.ts'
 
 const TODAY = '2026-11-08'
-
-const overview = () => financialsOverview(seedState.grants, seedState.transactions, TODAY)
-
-const tx = (id: string, date: string, amount: number, allocations: Allocation[]): Transaction => ({
-  id,
-  date,
-  vendor: 'v',
-  description: '',
-  account: '',
-  amount,
-  allocations,
-  origin: 'manual',
-  source: 'manual',
-  status: 'done',
-})
+const { grants, transactions: txs, orgCategories } = seedState
+const o = financialsOverview(grants, txs, orgCategories, TODAY)
+const category = (name: string) => o.categories.find((c) => c.name === name)!
 
 describe('financialsOverview', () => {
-  it('reconciles with computeFinancials grant by grant and in total', () => {
-    const funded = seedState.grants.filter((g) => {
-      const s = fundingState(g, TODAY)
-      return s && s !== 'needs-setup'
-    })
-    const grantTotals = funded.map((g) => computeFinancials(g, seedState.transactions))
-    const o = overview()
-    expect(o.budget).toBeCloseTo(grantTotals.reduce((s, f) => s + f.budget, 0), 2)
-    expect(o.spent).toBeCloseTo(grantTotals.reduce((s, f) => s + f.spent, 0), 2)
-    // Every category row re-derives the same per-grant figures.
-    for (const cat of o.categories)
-      for (const b of cat.grants) {
-        const gc = grantTotals[funded.findIndex((g) => g.id === b.grantId)].categories.find((c) => c.id === b.categoryId)!
-        expect(b.spent).toBe(gc.spent)
-        expect(b.budget).toBe(gc.budget)
-      }
+  it('totals every grant that can still be charged', () => {
+    expect(o.totals).toEqual({ available: 312_800, spent: 202_790, remaining: 110_010, pastDeadline: 17_200, overspent: 0 })
   })
 
-  it('merges same-named lines across grants and keeps each grant as a separate row', () => {
-    const indirect = overview().categories.find((c) => c.key === 'indirect')!
-    // Anchor Mentors (9,000), Mentor Expansion (4,000) and Safe & Strong (6,000) all fund an Indirect line.
-    expect(indirect.budget).toBe(19000)
-    expect(indirect.grants.map((g) => g.grantId).sort()).toEqual(['g-anchor', 'g-mentor-expansion', 'g-safe'])
-  })
-
-  it('separates balances past their spend-by date from plannable remaining', () => {
-    const o = overview()
-    // Family Counseling Access ended 2026-09-30; whatever is left is past deadline, not plannable.
-    const counselors = o.categories.find((c) => c.key === 'counselors')!
-    const counseling = counselors.grants.find((g) => g.grantId === 'g-counseling')!
-    expect(counseling.pastDeadline).toBe(true)
-    expect(counseling.remaining).toBeGreaterThan(0)
-    expect(counselors.pastDue).toBeGreaterThan(0)
-    expect(counselors.remaining).toBe(0)
-    // Every dollar is accounted for: plannable + past-deadline − overspent = budget − spent.
-    expect(o.remaining + o.pastDue - o.overspent).toBeCloseTo(o.budget - o.spent, 2)
-  })
-
-  it('surfaces overspending separately from remaining', () => {
-    const g: Grant = {
-      ...seedState.grants.find((x) => x.id === 'g-anchor')!,
-      id: 'g-over',
-      categories: [{ id: 'c1', name: 'Events', budget: 1000 }],
+  it('matches Funded grants, grant by grant', () => {
+    const open = grants.filter((g) => ['g-anchor', 'g-mentor-expansion', 'g-counseling', 'g-safe', 'g-familynights'].includes(g.id))
+    expect(o.totals.spent).toBe(sumDollars(open.map((g) => computeFinancials(g, txs).spent)))
+    for (const g of open) {
+      const rows = o.categories.flatMap((c) => c.grants.filter((r) => r.grant.id === g.id))
+      expect(sumDollars(rows.map((r) => r.spent))).toBe(computeFinancials(g, txs).spent)
     }
-    const o = financialsOverview([g], [tx('a', '2026-06-01', 1400, [{ grantId: 'g-over', budgetLineId: 'c1', amount: 1400 }])], TODAY)
-    const events = o.categories[0]
-    expect(events.overspent).toBe(400)
-    expect(events.remaining).toBe(0)
-    expect(events.grants[0].remaining).toBe(-400)
   })
 
-  it('flags every urgent balance, including grants whose deadlines are days apart', () => {
-    const o = overview()
-    // Anchor Mentors and Family Nights both end 2026-12-31, inside the urgency window, with money left.
-    const urgent = o.categories.flatMap((c) => c.grants).filter((g) => g.urgent)
-    const ids = new Set(urgent.map((g) => g.grantId))
-    expect(ids.has('g-anchor')).toBe(true)
-    expect(ids.has('g-familynights')).toBe(true)
-    // Sorted by spend-by date within each category.
-    for (const c of o.categories) {
-      const dates = c.grants.map((g) => g.spendBy)
-      expect(dates).toEqual([...dates].sort())
-    }
-    expect(URGENT_WINDOW_DAYS).toBe(90)
-  })
-
-  it('forecasts a straight-line burn and withholds it without history', () => {
-    const g: Grant = {
-      ...seedState.grants.find((x) => x.id === 'g-anchor')!,
-      id: 'g-t1',
-      categories: [{ id: 'c1', name: 'Staff', budget: 12000 }],
-      periodStart: '2026-01-01',
-      periodEnd: '2026-12-31',
-    }
-    // Half the year gone, $3,000 spent → projects ≈$6,000 by Dec 31, leaving ≈$6,000 → projection-urgent.
-    const o1 = financialsOverview(
-      [g],
-      [tx('a', '2026-03-01', 1500, [{ grantId: 'g-t1', budgetLineId: 'c1', amount: 1500 }]), tx('b', '2026-05-01', 1500, [{ grantId: 'g-t1', budgetLineId: 'c1', amount: 1500 }])],
-      '2026-07-01',
-    )
-    const b1 = o1.categories[0].grants[0]
-    expect(b1.forecast?.projectedSpend).toBeGreaterThan(5900)
-    expect(b1.forecast?.projectedSpend).toBeLessThan(6100)
-    expect(b1.forecast?.projectedRemaining).toBeGreaterThan(0)
-    expect(b1.urgent).toBe('projection')
-    // Same grant at day 10 with spend: no forecast, deadline far away → not urgent.
-    const o2 = financialsOverview([g], [tx('a', '2026-01-05', 500, [{ grantId: 'g-t1', budgetLineId: 'c1', amount: 500 }])], '2026-01-10')
-    const b2 = o2.categories[0].grants[0]
-    expect(b2.forecast).toBeUndefined()
-    expect(b2.urgent).toBeNull()
-  })
-
-  it('counts a split transaction once per allocation, reconciling to its total', () => {
-    const grants = seedState.grants.filter((g) => ['g-anchor', 'g-safe'].includes(g.id))
-    const split = tx('t-split', '2026-11-01', 300, [
-      { grantId: 'g-anchor', budgetLineId: 'c3', amount: 200 },
-      { grantId: 'g-safe', budgetLineId: 'c2', amount: 100 },
+  it('drills a category down to every contributing grant, soonest deadline first', () => {
+    const training = category('Training')
+    expect(training.grants.map((r) => [r.grant.name, r.lines, r.available, r.spent])).toEqual([
+      ['Anchor Mentors 2026', ['Mentor Training'], 12_000, 12_000],
+      ['Mentor Expansion 2026–27', ['Training'], 8_000, 300],
     ])
-    const o = financialsOverview(grants, [split], TODAY)
-    expect(o.spent).toBe(300)
-    const anchor = computeFinancials(grants[0], [split])
-    expect(anchor.categories.find((c) => c.id === 'c3')!.spent).toBe(200)
-    // An allocation to General funds (grantId null) never lands in grant figures.
-    const general = tx('t-gen', '2026-11-01', 50, [{ grantId: null, amount: 50 }])
-    expect(financialsOverview(grants, [split, general], TODAY).spent).toBe(300)
+    expect(category('Program activities').grants.map((r) => r.grant.id)).toEqual(['g-counseling', 'g-anchor', 'g-familynights'])
+  })
+
+  it('leaves out grants without a budget and closed grants, and says so', () => {
+    expect(o.leftOut.map((l) => [l.grant.id, l.reason]).sort()).toEqual([['g-camp', 'closed'], ['g-family-wellness', 'needs-setup']])
+  })
+
+  it('accounts for every receipt dollar exactly once', () => {
+    const r = o.reconciliation
+    expect(r.balanced).toBe(true)
+    expect(r.ledger).toBe(sumDollars(txs.map((t) => t.amount)))
+    expect(r.onTheseGrants).toBe(o.totals.spent)
+    expect(r.notAssigned).toBe(410 + 360 + 820)
+  })
+
+  it('counts one split receipt once, on each line it charged', () => {
+    const before = o.reconciliation
+    const deposit = txs.find((t) => t.id === 't-u4')!
+    expect(deposit.allocations.map((a) => a.amount)).toEqual([1200, 300])
+    const without = financialsOverview(grants, txs.filter((t) => t.id !== 't-u4'), orgCategories, TODAY)
+    expect(sumDollars([o.totals.spent, -without.totals.spent])).toBe(1500)
+    expect(sumDollars([before.ledger, -without.reconciliation.ledger])).toBe(1500)
+    expect(category('Training').spent).toBe(12_300)
+  })
+
+  it('moves money left after a grant has ended out of what’s available', () => {
+    const row = category('Program activities').grants.find((r) => r.grant.id === 'g-counseling')!
+    expect(row).toMatchObject({ available: 6_200, spent: 6_200, remaining: 0, pastDeadline: 4_800 })
+  })
+
+  it('reports an overage separately, without netting it against another grant’s balance', () => {
+    const over = grants.map((g) => (g.id === 'g-mentor-expansion' ? g : g.id === 'g-anchor' ? { ...g, categories: g.categories.map((c) => (c.id === 'c2' ? { ...c, budget: 11_000 } : c)) } : g))
+    const training = financialsOverview(over, txs, orgCategories, TODAY).categories.find((c) => c.name === 'Training')!
+    expect(training).toMatchObject({ available: 19_000, spent: 12_300, remaining: 7_700, overspent: 1_000 })
+  })
+
+  it('always balances: available + overspent = spent + remaining', () => {
+    for (const c of [...o.categories, { ...o.totals, name: 'total' }]) expect(sumDollars([c.available, c.overspent])).toBe(sumDollars([c.spent, c.remaining]))
+  })
+
+  it('puts budget lines with no category in their own row rather than dropping them', () => {
+    const unmapped = grants.map((g) => (g.id === 'g-anchor' ? { ...g, categories: g.categories.map((c) => ({ ...c, acceptedCategoryIds: [] })) } : g))
+    const row = financialsOverview(unmapped, txs, orgCategories, TODAY).categories.find((c) => c.id === 'unmapped')!
+    expect(row).toMatchObject({ available: 96_000, spent: 79_500 })
+  })
+})
+
+describe('saving a split', () => {
+  const receipt: Transaction = { id: 'r', date: '2026-06-15', vendor: 'V', description: '', account: '', amount: 100, categoryId: 'cat-training', programId: 'p-mentoring', allocations: [], origin: 'manual', source: 'auto', status: 'needs_input' }
+  const split = [
+    { grantId: 'g-anchor', budgetLineId: 'c2', amount: 70 },
+    { grantId: null, amount: 30, categoryId: 'cat-supplies', programId: 'p-admin' },
+  ]
+
+  it('stores each line’s coding explicitly and takes the row’s from the largest line', () => {
+    const saved = assignManually(receipt, split)
+    expect(saved.allocations).toEqual([
+      { grantId: 'g-anchor', budgetLineId: 'c2', amount: 70, categoryId: 'cat-training', programId: 'p-mentoring' },
+      { grantId: null, amount: 30, categoryId: 'cat-supplies', programId: 'p-admin' },
+    ])
+    expect(saved).toMatchObject({ categoryId: 'cat-training', programId: 'p-mentoring', status: 'done', source: 'manual' })
+    expect(hasMixedCoding(saved, saved.allocations)).toBe(true)
+    expect(JSON.parse(JSON.stringify(saved))).toEqual(saved)
+  })
+
+  it('refuses lines that don’t add up, and rounds to the cent', () => {
+    expect(assignManually(receipt, [{ grantId: null, amount: 99.99 }])).toBe(receipt)
+    expect(assignManually(receipt, [{ grantId: null, amount: 60.004 }, { grantId: null, amount: 39.996 }]).allocations.map((a) => a.amount)).toEqual([60, 40])
+  })
+
+  it('moves a single saved line’s coding to the row', () => {
+    const saved = assignManually(receipt, [{ grantId: null, amount: 100, categoryId: 'cat-supplies', programId: 'p-admin' }])
+    expect(saved.allocations).toEqual([{ grantId: null, amount: 100 }])
+    expect(saved).toMatchObject({ categoryId: 'cat-supplies', programId: 'p-admin' })
+  })
+
+  it('carries a row-level change to a saved split whose lines agree', () => {
+    const same = assignManually(receipt, [{ grantId: 'g-anchor', budgetLineId: 'c2', amount: 70 }, { grantId: null, amount: 30 }])
+    const moved = recode(same, { programId: 'p-workshops' }, seedState)
+    expect(moved.allocations.map((a) => a.programId)).toEqual(['p-workshops', 'p-workshops'])
+    expect(moved.allocations.map((a) => a.amount)).toEqual([70, 30])
   })
 })
