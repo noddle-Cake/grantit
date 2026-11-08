@@ -38,7 +38,8 @@ function SelectAll({ checked, partial, onChange }: { checked: boolean; partial: 
 export default function KnowledgeBase() {
   const { state, me, opportunities, dismissedOpportunities, setFactStatus, notify } = useStore()
   const [params, setParams] = useSearchParams()
-  const [cat, setCat] = useState<FactCategory | 'all'>('all')
+  // ?category= deep links (e.g. "Review finance facts" on Applications); unknown values fall back to all.
+  const [cat, setCat] = useState<FactCategory | 'all'>(() => FACT_CATEGORIES.find((c) => c.id === params.get('category'))?.id ?? 'all')
   // Approvers land on their queue: open on "Needs approval" when something is waiting that they can approve.
   const [status, setStatus] = useState<StatusFilter>(
     () => (params.get('status') as StatusFilter) ?? (state.facts.some((f) => f.status === 'pending' && canApproveFact(me.role, f.category)) ? 'pending' : 'all'),
@@ -152,7 +153,7 @@ export default function KnowledgeBase() {
                   <li key={f.id} className="group flex gap-3 px-5 py-4 hover:bg-canvas">
                     {approvable.length > 1 &&
                       (canApprove ? (
-                        <label className="-ml-1 flex w-6 shrink-0 justify-center pt-0.5">
+                        <label className="-ml-1 flex w-6 shrink-0 items-start justify-center self-start pt-1">
                           <input type="checkbox" aria-label={`Select ${f.title}`} checked={selected.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
                         </label>
                       ) : (

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Button, EmptyState, Pill, StatusPill } from '@/components/ui'
-import { checkApplication, draftAnswerAsync, findUnsupportedClaims } from '@grantit/shared/drafting'
+import { checkApplication, draftAnswerAsync, findUnsupportedClaims, newlyCovered } from '@grantit/shared/drafting'
 import { wordCount } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
@@ -35,6 +35,9 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
   const unsupported = findUnsupportedClaims(q.answer, state.facts)
   const citedFacts = q.citations.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f !== undefined)
   const unapprovedCited = citedFacts.filter((f) => f.status !== 'approved')
+  // Gaps the last draft reported that approved facts now cover: the writer's cue to regenerate.
+  const covered = q.status === 'approved' ? [] : newlyCovered(q, state.facts)
+  const stillMissing = q.missing.filter((label) => !covered.includes(label))
   const [blocked, setBlocked] = useState<string[]>([])
 
   async function generate() {
@@ -120,15 +123,25 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
         )}
 
         {/* Issues */}
-        {!busy && (q.missing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0) && (
+        {!busy && (covered.length > 0 || stillMissing.length > 0 || unsupported.length > 0 || blockedFacts.length > 0 || unapprovedCited.length > 0) && (
           <div className="mt-4 space-y-2">
-            {q.missing.length > 0 && (
+            {covered.length > 0 && (
+              <div role="status" className="flex flex-wrap items-center gap-2.5 rounded-lg bg-good-soft px-3.5 py-2.5 text-sm">
+                <Sparkles size={16} className="shrink-0 text-good" />
+                <div className="min-w-0 flex-1">
+                  <span className="font-medium text-slate">New approved facts cover {covered.join(', ')}.</span>{' '}
+                  <span className="text-slate-2">{canDraft ? 'Regenerate to use them.' : 'A writer can regenerate this answer to use them.'}</span>
+                </div>
+                {canDraft && <Button size="sm" variant="secondary" icon={<RefreshCw size={13} />} onClick={generate}>Regenerate with new facts</Button>}
+              </div>
+            )}
+            {stillMissing.length > 0 && (
               <div className="flex gap-2.5 rounded-lg bg-warn-soft px-3.5 py-2.5 text-sm">
                 <AlertTriangle size={16} className="mt-0.5 shrink-0 text-warn" />
                 <div className="flex-1">
                   <span className="font-medium text-slate">Missing information — not invented.</span>{' '}
-                  <span className="text-slate-2">No approved facts cover: {q.missing.join(', ')}.</span>{' '}
-                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(q.missing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
+                  <span className="text-slate-2">No approved facts cover: {stillMissing.join(', ')}.</span>{' '}
+                  <Link to={`/apply/knowledge?new=1&hint=${encodeURIComponent(stillMissing[0])}`} className="whitespace-nowrap font-medium text-link hover:underline">Add a fact →</Link>
                 </div>
               </div>
             )}

@@ -1,4 +1,4 @@
-import { checkApplication, findUnsupportedClaims, type ApplicationCheck } from './drafting.ts'
+import { checkApplication, findUnsupportedClaims, newlyCovered, type ApplicationCheck } from './drafting.ts'
 import { parseDate, wordCount } from './format.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
@@ -69,6 +69,52 @@ export function isAtRisk(g: AppGrant, facts: Fact[], today: string): boolean {
   const due = nextApplicationDeadline(g)
   if (!due || daysBetween(today, due.date) > AT_RISK_DAYS) return false
   return !applicationNextStep(g, facts).ready
+}
+
+/** Unapproved answers whose last draft lacked facts that have since been approved. */
+export const regenerable = (g: Pick<Grant, 'questions'>, facts: Fact[]): Question[] =>
+  g.questions.filter((q) => q.status !== 'approved' && newlyCovered(q, facts).length > 0)
+
+export interface PipelineSummary {
+  inProgress: { count: number; amount: number }
+  atRisk: number
+  /** Written answers waiting for approval, and how many applications they're in. */
+  toApprove: { answers: number; applications: number }
+  submitted: { count: number; amount: number }
+}
+
+/** The figures for the summary at the top of Applications. */
+export function pipelineSummary(grants: Pick<Grant, 'stage' | 'questions' | 'deadlines' | 'amount'>[], facts: Fact[], today: string): PipelineSummary {
+  const active = grants.filter(isInProgress)
+  const submitted = grants.filter((g) => g.stage === 'submitted')
+  const sum = (gs: typeof grants) => gs.reduce((n, g) => n + g.amount, 0)
+  const unapproved = active.map((g) => checkApplication(g.questions, facts).unapproved)
+  return {
+    inProgress: { count: active.length, amount: sum(active) },
+    atRisk: active.filter((g) => isAtRisk(g, facts, today)).length,
+    toApprove: { answers: unapproved.reduce((a, b) => a + b, 0), applications: unapproved.filter(Boolean).length },
+    submitted: { count: submitted.length, amount: sum(submitted) },
+  }
+}
+
+// ─── Finance view ────────────────────────────────────────────────────────────
+
+const MONEY_RULE = /indirect|overhead|match|cost[- ]?shar|budget|salar|equipment|capital|fiscal|year runs|\$|\d+\s?%/i
+
+/** Funder rules that bear on money (indirect costs, match, budget limits, fiscal year), in their original order. */
+export const moneyRules = (rules: string[]) => rules.filter((r) => MONEY_RULE.test(r))
+
+export interface BudgetStatus {
+  /** Sum of the drafted budget categories; 0 when none are drafted. */
+  total: number
+  categories: number
+  /** True when a budget is drafted and adds up to the amount requested. */
+  matchesRequest: boolean
+}
+
+export function budgetStatus(g: Pick<Grant, 'amount' | 'categories'>): BudgetStatus {
+  const total = g.categories.reduce((n, c) => n + c.budget, 0)
+  return { total, categories: g.categories.length, matchesRequest: g.categories.length > 0 && Math.round(total) === Math.round(g.amount) }
 }
 
 /** Soonest application deadline first; undated applications last. */

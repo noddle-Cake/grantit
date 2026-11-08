@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline } from './applications.ts'
+import { answerReady, applicationNextStep, budgetStatus, byApplicationDeadline, isAtRisk, moneyRules, nextApplicationDeadline, pipelineSummary, regenerable } from './applications.ts'
+import { newlyCovered } from './drafting.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
 const TODAY = '2026-11-08'
@@ -63,11 +64,59 @@ describe('answerReady', () => {
   })
 })
 
+describe('pipelineSummary', () => {
+  it('totals in-progress and submitted money, at-risk applications, and answers to approve', () => {
+    const grants = [
+      { ...app({ questions: [q({ answer: '' })], deadlines: [due('2026-11-15')] }), amount: 100 },
+      { ...app({ stage: 'prospect', questions: [q({ status: 'draft' }), q({ id: 'q2', status: 'draft' })] }), amount: 50 },
+      { ...app({ stage: 'submitted' }), amount: 30 },
+      { ...app({ stage: 'declined' }), amount: 999 },
+    ]
+    expect(pipelineSummary(grants, facts, TODAY)).toEqual({
+      inProgress: { count: 2, amount: 150 },
+      atRisk: 1,
+      toApprove: { answers: 2, applications: 1 },
+      submitted: { count: 1, amount: 30 },
+    })
+  })
+})
+
+describe('newlyCovered and regenerable', () => {
+  const prompt = 'How will you sustain this work after the grant ends?'
+  const sustain: Fact = { id: 's', category: 'finance', title: 'Funding mix', content: '', tags: ['sustainability'], status: 'pending', updatedAt: '2026-01-01', updatedBy: 'u' }
+  const drafted = q({ id: 'd', prompt, status: 'draft', missing: ['sustainability / funding plan'] })
+
+  it('reports topics the last draft missed once an approved fact covers them', () => {
+    expect(newlyCovered(drafted, [sustain])).toEqual([])
+    expect(newlyCovered(drafted, [{ ...sustain, status: 'approved' }])).toEqual(['sustainability / funding plan'])
+    expect(newlyCovered(q({ prompt }), [{ ...sustain, status: 'approved' }])).toEqual([])
+  })
+
+  it('lists unapproved answers that would gain from regenerating', () => {
+    const approvedFacts = [{ ...sustain, status: 'approved' as const }]
+    expect(regenerable({ questions: [drafted, { ...drafted, id: 'a', status: 'approved' }] }, approvedFacts).map((x) => x.id)).toEqual(['d'])
+    expect(regenerable({ questions: [drafted] }, [sustain])).toEqual([])
+  })
+})
+
 describe('byApplicationDeadline', () => {
   it('sorts soonest first and undated last, regardless of stage', () => {
     const later = { deadlines: [due('2027-01-10')] }
     const soon = { deadlines: [due('2026-11-20')] }
     const none = { deadlines: [] }
     expect([later, none, soon].sort(byApplicationDeadline)).toEqual([soon, later, none])
+  })
+})
+
+describe('finance view', () => {
+  it('keeps the funder rules that bear on money', () => {
+    const rules = ['Funder year runs July 1 – June 30.', 'Indirect costs are not allowed.', 'Answers over the word limit are not read.', 'A 25% cash match is required.', 'Report quarterly.']
+    expect(moneyRules(rules)).toEqual(['Funder year runs July 1 – June 30.', 'Indirect costs are not allowed.', 'A 25% cash match is required.'])
+  })
+
+  it('checks the drafted budget against the request', () => {
+    expect(budgetStatus({ amount: 100, categories: [] })).toEqual({ total: 0, categories: 0, matchesRequest: false })
+    expect(budgetStatus({ amount: 100, categories: [{ id: 'a', name: 'A', budget: 60 }, { id: 'b', name: 'B', budget: 40 }] })).toEqual({ total: 100, categories: 2, matchesRequest: true })
+    expect(budgetStatus({ amount: 100, categories: [{ id: 'a', name: 'A', budget: 60 }] }).matchesRequest).toBe(false)
   })
 })

@@ -10,6 +10,9 @@ import GrantRecord from '@/features/grants/GrantRecordPage'
 import KnowledgeBase from '@/features/knowledge/KnowledgeBasePage'
 import Opportunities from './OpportunitiesPage'
 import Applications from './ApplicationsPage'
+import Dashboard from '@/features/dashboard/DashboardPage'
+import { toISO } from '@grantit/shared/format'
+import { demoOpportunities } from '@grantit/shared/opportunities-demo'
 
 function renderPage(path: string) {
   return render(<AppStoreProvider><MemoryRouter initialEntries={[path]}><Routes>
@@ -17,7 +20,26 @@ function renderPage(path: string) {
     <Route path="/apply/applications" element={<Applications />} />
     <Route path="/apply/knowledge" element={<KnowledgeBase />} />
     <Route path="/grants/:id" element={<GrantRecord />} />
+    <Route path="/" element={<Dashboard />} />
   </Routes></MemoryRouter></AppStoreProvider>)
+}
+
+const inDays = (n: number) => {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return toISO(d)
+}
+
+/** The draft's sustainability answer was drafted while its funding fact was still a draft. */
+function draftedBeforeApproval(factStatus: 'draft' | 'approved') {
+  // Only the "Funding mix" fact covers sustainability, so its status alone decides whether the gap is open.
+  const facts = seedState.facts.map((f) => (f.id === 'f-sustain' ? { ...f, status: factStatus } : { ...f, tags: f.tags.filter((t) => t !== 'sustainability') }))
+  const grants = seedState.grants.map((g) =>
+    g.id === drafting.id
+      ? { ...g, questions: g.questions.map((q) => (q.id === 'q5' ? { ...q, answer: 'We will keep going.', status: 'draft' as const, missing: ['sustainability / funding plan'] } : q)) }
+      : g,
+  )
+  saveState({ facts, grants })
 }
 
 const drafting = seedState.grants.find((g) => g.stage === 'drafting')!
@@ -53,11 +75,12 @@ describe('Find & apply workflow', () => {
     expect(screen.getByRole('link', { name: drafting.name })).toBeTruthy()
     expect(screen.queryByRole('link', { name: submitted.name })).toBeNull()
     expect(screen.queryByRole('link', { name: awarded.name })).toBeNull()
-    await user.click(screen.getByRole('button', { name: /^Submitted/ }))
+    const status = screen.getByRole('group', { name: 'Application status' })
+    await user.click(within(status).getByRole('button', { name: /^Submitted/ }))
     expect(screen.getByRole('link', { name: submitted.name })).toBeTruthy()
     expect(screen.getByText('Awaiting a decision')).toBeTruthy()
     expect(screen.queryByText(/answers approved/)).toBeNull()
-    await user.click(screen.getByRole('button', { name: /^Declined/ }))
+    await user.click(within(status).getByRole('button', { name: /^Declined/ }))
     expect(screen.getByRole('link', { name: declined.name })).toBeTruthy()
     await user.type(screen.getByRole('textbox', { name: 'Search applications' }), 'no-such-application')
     expect(screen.getByText('No applications match')).toBeTruthy()
@@ -229,5 +252,114 @@ describe('Find & apply workflow', () => {
     expect(item.textContent).toContain(`Blocks ${drafting.name}`)
     await user.click(within(item).getByRole('button', { name: 'Add fact' }))
     expect(screen.getByRole('dialog')).toBeTruthy()
+  })
+
+  it('summarizes the pipeline in tiles that filter the list', async () => {
+    const user = userEvent.setup()
+    // The draft is due in five days and has one written answer awaiting approval.
+    saveState({
+      grants: seedState.grants.map((g) =>
+        g.id === drafting.id
+          ? { ...g, deadlines: [{ id: 'd-soon', label: 'Application due', date: inDays(5), kind: 'application' as const }], questions: g.questions.map((q, i) => (i === 0 ? { ...q, answer: 'We help families.', status: 'draft' as const } : q)) }
+          : g,
+      ),
+    })
+    renderPage('/apply/applications')
+    const tiles = screen.getByRole('group', { name: 'Summary' })
+    const tile = (label: string) => within(tiles).getByRole('button', { name: new RegExp(`^${label}`) })
+    const inProgress = seedState.grants.filter((g) => g.stage === 'drafting' || g.stage === 'prospect')
+    expect(tile('In progress').textContent).toContain(String(inProgress.length))
+    expect(tile('In progress').getAttribute('aria-pressed')).toBe('true')
+    expect(tile('At risk').textContent).toMatch(/^At risk1/)
+    expect(tile('Answers to approve').textContent).toMatch(/^Answers to approve1In 1 application$/)
+
+    await user.click(tile('At risk'))
+    expect(screen.getByRole('link', { name: drafting.name })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: prospect.name })).toBeNull()
+    await user.click(tile('At risk'))
+    expect(screen.getByRole('link', { name: prospect.name })).toBeTruthy()
+
+    await user.click(tile('Answers to approve'))
+    expect(screen.queryByRole('link', { name: prospect.name })).toBeNull()
+    await user.click(tile('Submitted'))
+    expect(screen.getByRole('link', { name: submitted.name })).toBeTruthy()
+    expect(within(screen.getByRole('group', { name: 'Application status' })).getByRole('button', { name: /^Submitted/ }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('tells the writer when facts a draft was missing get approved, on the question, the list, and Home', async () => {
+    draftedBeforeApproval('approved')
+    const { unmount } = renderPage('/apply/applications')
+    const fresh = screen.getByRole('link', { name: /New facts for 1 answer/ })
+    expect(fresh.getAttribute('href')).toBe(`/grants/${drafting.id}?tab=application#q-q5`)
+    unmount()
+
+    const record = renderPage(`/grants/${drafting.id}?tab=application#q-q5`)
+    const question = document.getElementById('q-q5')!
+    expect(within(question).getByText('New approved facts cover sustainability / funding plan.')).toBeTruthy()
+    expect(within(question).getByRole('button', { name: 'Regenerate with new facts' })).toBeTruthy()
+    expect(within(question).queryByText(/Missing information/)).toBeNull()
+    record.unmount()
+
+    renderPage('/')
+    expect(screen.getByText(`${drafting.name}: new facts approved for 1 answer, regenerate to use them`)).toBeTruthy()
+  })
+
+  it('keeps reporting a gap as missing until a covering fact is approved', () => {
+    draftedBeforeApproval('draft')
+    renderPage(`/grants/${drafting.id}?tab=application`)
+    const question = document.getElementById('q-q5')!
+    expect(within(question).getByText(/No approved facts cover: sustainability \/ funding plan/)).toBeTruthy()
+    expect(within(question).queryByText(/New approved facts/)).toBeNull()
+  })
+
+  it('gives each recommendation a go / no-go panel: requirements, clashing deadlines, size and period', () => {
+    // Put the draft's deadline on the soonest open recommendation's, so the clash holds whatever today's date is.
+    const open = demoOpportunities.filter((o) => o.deadline >= toISO(new Date())).sort((a, b) => a.deadline.localeCompare(b.deadline))
+    saveState({ grants: seedState.grants.map((g) => (g.id === drafting.id ? { ...g, deadlines: [{ id: 'd', label: 'Application due', date: open[0].deadline, kind: 'application' as const }] } : g)) })
+    renderPage('/apply')
+    const panel = screen.getByRole('region', { name: `Go / no-go: ${open[0].program}` })
+    expect(within(panel).getByText('Requirements')).toBeTruthy()
+    expect(panel.textContent).toMatch(/\d of \d with a related fact/)
+    expect(panel.textContent).toMatch(new RegExp(`Within 7 days of [^·]*${drafting.name} \\(due `))
+    expect(panel.textContent).toMatch(/your median award is \$[\d,]+/)
+    expect(panel.textContent).toMatch(/If awarded: \w{3} \d{4} – \w{3} \d{4}/)
+  })
+
+  it('leaves dismissing matches to people who add prospects', () => {
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply')
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add to pipeline' })).toBeNull()
+  })
+
+  it('opens Applications on the budget view for finance: period, budget against request, money rules, and finance facts', async () => {
+    const user = userEvent.setup()
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply/applications')
+    expect(within(screen.getByRole('group', { name: 'Row details' })).getByRole('button', { name: 'Budget' }).getAttribute('aria-pressed')).toBe('true')
+    const row = screen.getByRole('link', { name: drafting.name }).closest('li')!
+    const total = drafting.categories.reduce((n, c) => n + c.budget, 0)
+    expect(row.textContent).toContain(`Budget $${total.toLocaleString('en-US')} in ${drafting.categories.length} categories`)
+    expect(within(row).getByRole('list', { name: 'Money rules' }).textContent).toContain('Indirect costs are not allowed.')
+    expect(screen.getByRole('status').textContent).toContain('Finance facts')
+    expect(screen.getByRole('link', { name: /Review finance facts/ }).getAttribute('href')).toBe('/apply/knowledge?status=all&category=finance')
+    await user.click(screen.getByRole('button', { name: 'Progress' }))
+    expect(screen.queryByRole('list', { name: 'Money rules' })).toBeNull()
+  })
+
+  it('keeps the progress view as the default for everyone else', () => {
+    renderPage('/apply/applications')
+    expect(within(screen.getByRole('group', { name: 'Row details' })).getByRole('button', { name: 'Progress' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByText('Finance facts')).toBeNull()
+  })
+
+  it('lets finance approve finance facts, filtered by a category link', () => {
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply/knowledge?status=all&category=finance')
+    expect((screen.getByRole('combobox', { name: 'Fact category' }) as HTMLSelectElement).value).toBe('finance')
+    const list = screen.getByRole('list', { name: 'Facts' })
+    const draft = seedState.facts.find((f) => f.category === 'finance' && f.status !== 'approved')!
+    const row = within(list).getByRole('button', { name: new RegExp(`^${draft.title}`) }).closest('li')!
+    expect(within(row).getByRole('button', { name: 'Approve' })).toBeTruthy()
   })
 })
