@@ -212,7 +212,6 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
 export function ApplicationTab({ grant }: { grant: Grant }) {
   const { state, me } = useStore()
   const check = checkApplication(grant.questions, state.facts)
-  const approvedFacts = state.facts.filter((f) => f.status === 'approved').length
 
   if (!grant.questions.length)
     return (
@@ -221,7 +220,7 @@ export function ApplicationTab({ grant }: { grant: Grant }) {
         title="No application questions yet"
         action={can(me.role, 'grant:configure') && <Link to="?tab=setup"><Button size="sm" icon={<Plus size={14} />}>Add questions</Button></Link>}
       >
-        Add this funder's questions and word limits in Configuration, then draft answers from your knowledge base.
+        Add this funder's questions and word limits in setup, then draft answers from your knowledge base.
       </EmptyState>
     )
 
@@ -239,16 +238,15 @@ export function ApplicationTab({ grant }: { grant: Grant }) {
           <StatusPill tone="good">Application ready — all answers approved and within limits</StatusPill>
         ) : (
           <>
-            <span className="text-sm font-semibold text-slate">Validation</span>
-            {items.map((it) => (
-              <span key={it.label} className={clsx('flex items-center gap-1.5 text-sm', it.n ? 'text-slate' : 'text-slate-3')}>
-                {it.n ? <AlertTriangle size={14} className={it.label.includes('unsupported') || it.label.includes('limit') ? 'text-bad' : 'text-warn'} /> : <CheckCircle2 size={14} className="text-good" />}
+            <span className="text-sm font-semibold text-slate">To finish</span>
+            {items.filter((it) => it.n > 0).map((it) => (
+              <span key={it.label} className="flex items-center gap-1.5 text-sm text-slate">
+                <AlertTriangle size={14} className={it.label.includes('unsupported') || it.label.includes('limit') ? 'text-bad' : 'text-warn'} />
                 <span className="tabular-nums font-medium">{it.n}</span> {it.label}
               </span>
             ))}
           </>
         )}
-        <span className="ml-auto text-xs text-slate-3">Grounded in {approvedFacts} approved facts</span>
       </div>
       {grant.questions.map((q, i) => (
         <QuestionCard key={q.id} grant={grant} q={q} index={i} />

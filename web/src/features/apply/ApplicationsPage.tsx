@@ -1,110 +1,118 @@
 import clsx from 'clsx'
-import { FileText } from 'lucide-react'
+import { ArrowRight, CalendarClock, FileText, Plus, Search } from 'lucide-react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { stageMeta } from '@/lib/labels'
-import { Card, EmptyState, Meter, PageHeader, Pill, StatusPill } from '@/components/ui'
+import { Button, Card, EmptyState, Meter, PageHeader, Pill, Segmented } from '@/components/ui'
+import { NewGrantModal } from '@/features/grants/NewGrantModal'
 import { checkApplication } from '@grantit/shared/drafting'
-import { daysUntil, money, relativeDay } from '@grantit/shared/format'
+import { daysUntil, fmtDate, money, relativeDay } from '@grantit/shared/format'
+import { can } from '@grantit/shared/permissions'
+import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import type { Grant } from '@grantit/shared/types'
 import { useStore } from '@/store'
 
-const ORDER = { drafting: 0, prospect: 1, submitted: 2 } as Record<string, number>
+type Filter = 'active' | 'submitted' | 'declined'
+const ORDER = { drafting: 0, prospect: 1, submitted: 2, declined: 3 } as Record<string, number>
 
 const nextApplicationDeadline = (g: Grant) =>
   g.deadlines.filter((d) => d.kind === 'application' && !d.done).sort((a, b) => a.date.localeCompare(b.date))[0]
 
-/** Every application in progress, with how close it is to ready: answers, approvals, and problems to fix. */
 export default function Applications() {
-  const { state } = useStore()
-  const grants = state.grants
-    .filter((g) => g.stage in ORDER)
+  const { state, me } = useStore()
+  const [filter, setFilter] = useState<Filter>('active')
+  const [query, setQuery] = useState('')
+  const [newOpen, setNewOpen] = useState(false)
+  const pipeline = state.grants.filter((g) => (APPLY_STAGES as readonly string[]).includes(g.stage))
+  const matchesFilter = (g: Grant, f: Filter) => f === 'active' ? g.stage === 'drafting' || g.stage === 'prospect' : g.stage === f
+  const grants = pipeline
+    .filter((g) => matchesFilter(g, filter))
+    .filter((g) => `${g.name} ${g.funder}`.toLowerCase().includes(query.trim().toLowerCase()))
     .sort((a, b) => ORDER[a.stage] - ORDER[b.stage] || (nextApplicationDeadline(a)?.date ?? '9').localeCompare(nextApplicationDeadline(b)?.date ?? '9'))
 
   return (
     <>
-      <PageHeader eyebrow="Find & apply" title="Applications" subtitle="Each application's questions, drafted answers, and what still blocks submission." />
-
-      {grants.length === 0 ? (
-        <EmptyState icon={<FileText />} title="No applications in progress">
-          Add a prospect from <Link to="/apply" className="text-link">Opportunities</Link> to start one.
+      <PageHeader
+        eyebrow="Find & apply"
+        title="Applications"
+        subtitle="Track your applications and pick up the next step."
+        actions={can(me.role, 'grant:configure') && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
+      />
+      {pipeline.length === 0 ? (
+        <EmptyState icon={<FileText />} title="No applications yet">
+          Find funding in <Link to="/apply" className="text-link hover:underline">Opportunities</Link> or add a prospect to get started.
         </EmptyState>
       ) : (
-        <Card padded={false} className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-sm">
-              <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
-                <tr className="border-b border-line-2">
-                  <th className="px-5 py-3">Application</th>
-                  <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3 text-right">Requested</th>
-                  <th className="w-52 px-4 py-3">Answers</th>
-                  <th className="px-4 py-3">To fix</th>
-                  <th className="px-4 py-3">Due</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line-2">
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Segmented<Filter>
+              label="Application status"
+              value={filter}
+              onChange={setFilter}
+              options={(['active', 'submitted', 'declined'] as const).map((id) => ({
+                id,
+                label: `${id === 'active' ? 'In progress' : stageMeta(id).label} ${pipeline.filter((g) => matchesFilter(g, id)).length}`,
+              }))}
+            />
+            <div className="relative w-full sm:ml-auto sm:w-64">
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
+              <input aria-label="Search applications" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search applications" className="h-9 w-full rounded-lg border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3" />
+            </div>
+          </div>
+          <Card padded={false}>
+            {grants.length ? (
+              <ul className="divide-y divide-line-2">
                 {grants.map((g) => {
-                  const c = checkApplication(g.questions, state.facts)
-                  const answered = g.questions.length - c.unanswered
+                  const check = checkApplication(g.questions, state.facts)
                   const approved = g.questions.filter((q) => q.status === 'approved').length
-                  const gaps = g.questions.reduce((n, q) => n + q.missing.length, 0)
-                  const problems = [
-                    c.unanswered > 0 && `${c.unanswered} unanswered`,
-                    c.overLimit > 0 && `${c.overLimit} over word limit`,
-                    c.unsupported > 0 && `${c.unsupported} unsupported claim${c.unsupported > 1 ? 's' : ''}`,
-                    gaps > 0 && `${gaps} missing fact${gaps > 1 ? 's' : ''}`,
-                    c.unapproved > 0 && `${c.unapproved} awaiting approval`,
-                  ].filter(Boolean) as string[]
                   const due = nextApplicationDeadline(g)
+                  const inactive = g.stage === 'submitted' || g.stage === 'declined'
+                  const nextStep = inactive ? g.stage === 'submitted' ? 'Awaiting a decision' : 'Application declined'
+                    : !g.questions.length ? "Add the funder's questions"
+                    : check.overLimit ? `${check.overLimit} over word limit`
+                    : check.unsupported ? `${check.unsupported} unsupported claim${check.unsupported === 1 ? '' : 's'}`
+                    : check.unanswered ? `${check.unanswered} unanswered`
+                    : check.unapproved ? `${check.unapproved} awaiting approval`
+                    : 'Ready to submit'
                   return (
-                    <tr key={g.id} className="hover:bg-canvas">
-                      <td className="px-5 py-3">
-                        <Link to={`/grants/${g.id}?tab=application`} className="flex items-center gap-3">
-                          <span className={clsx('h-8 w-8 shrink-0 rounded-lg', `cover-${g.cover}`)} />
-                          <span>
-                            <span className="block font-medium text-link hover:underline">{g.name}</span>
-                            <span className="block text-xs text-slate-3">{g.funder}</span>
-                          </span>
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3"><Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill></td>
-                      <td className="px-4 py-3 text-right tabular-nums">{money(g.amount)}</td>
-                      <td className="px-4 py-3">
-                        {g.questions.length ? (
-                          <>
-                            <Meter value={answered} max={g.questions.length} height={6} />
-                            <div className="mt-1 text-xs tabular-nums text-slate-3">{answered}/{g.questions.length} answered · {approved} approved</div>
-                          </>
-                        ) : (
-                          <Link to={`/grants/${g.id}?tab=setup`} className="text-xs text-link hover:underline">Add the funder's questions</Link>
+                    <li key={g.id} className="grid min-w-0 gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(180px,240px)_auto] lg:items-center">
+                      <div className="min-w-0">
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <Link to={`/grants/${g.id}`} className="font-medium text-link hover:underline">{g.name}</Link>
+                          <Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill>
+                        </div>
+                        <p className="text-xs text-slate-2">{g.funder} · {money(g.amount)} requested</p>
+                        {!inactive && due && (
+                          <p title={fmtDate(due.date)} className={clsx('mt-2 flex items-center gap-1.5 text-xs', daysUntil(due.date) <= 14 ? 'font-medium text-brand-dark' : 'text-slate-2')}>
+                            <CalendarClock size={13} /> Due {fmtDate(due.date)} · {relativeDay(due.date)}
+                          </p>
                         )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {g.stage === 'submitted' ? (
-                          <span className="text-xs text-slate-3">Submitted</span>
-                        ) : c.ready ? (
-                          <StatusPill tone="good">Ready to submit</StatusPill>
-                        ) : problems.length ? (
-                          <span className="text-xs text-slate-2">{problems.join(' · ')}</span>
-                        ) : (
-                          <span className="text-xs text-slate-3">—</span>
+                      </div>
+                      <div>
+                        <p className={clsx('text-xs', !inactive && check.ready ? 'font-medium text-good' : 'text-slate-2')}>{nextStep}</p>
+                        {!inactive && g.questions.length > 0 && (
+                          <div className="mt-2">
+                            <Meter value={approved} max={g.questions.length} height={4} />
+                            <p className="mt-1 text-xs tabular-nums text-slate-3">{approved} of {g.questions.length} answers approved</p>
+                          </div>
                         )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {due ? (
-                          <span className={clsx('text-sm', daysUntil(due.date) <= 14 ? 'font-medium text-brand-dark' : 'text-slate-2')}>{relativeDay(due.date)}</span>
-                        ) : (
-                          <span className="text-slate-3">—</span>
-                        )}
-                      </td>
-                    </tr>
+                      </div>
+                      <Link to={`/grants/${g.id}?tab=${g.questions.length || inactive ? 'application' : 'setup'}`} aria-label={`${inactive ? 'View' : 'Continue'} application: ${g.name}`} className="inline-flex items-center gap-1.5 justify-self-start rounded-lg py-1.5 text-sm font-medium text-link hover:underline">
+                        {inactive ? 'View application' : 'Continue'} <ArrowRight size={14} />
+                      </Link>
+                    </li>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+              </ul>
+            ) : (
+              <EmptyState icon={<FileText />} title="No applications match">
+                {query ? 'Try another grant name or funder.' : `No ${filter === 'active' ? 'applications in progress' : `${filter} applications`}.`}
+              </EmptyState>
+            )}
+          </Card>
+        </>
       )}
+      <NewGrantModal open={newOpen} onClose={() => setNewOpen(false)} defaultStage="prospect" />
     </>
   )
 }

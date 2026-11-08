@@ -146,8 +146,8 @@ export function SetupTab({ grant }: { grant: Grant }) {
     setAi(null)
   }
 
-  const canSave = strict ? check.ok : draft.periodStart < draft.periodEnd
-  const blockers = strict ? check.issues.map((i) => i.message) : draft.periodStart < draft.periodEnd ? [] : ['The period must end after it starts.']
+  const canSave = !funded || (strict ? check.ok : draft.periodStart < draft.periodEnd)
+  const blockers = !funded ? [] : strict ? check.issues.map((i) => i.message) : draft.periodStart < draft.periodEnd ? [] : ['The period must end after it starts.']
   const defaultFyMonth = Number(draft.periodStart.slice(5, 7)) || 1
 
   return (
@@ -196,7 +196,15 @@ export function SetupTab({ grant }: { grant: Grant }) {
         </Block>
       )}
 
-      <Block title="Funding period" desc="Spending is calculated within this window, independent of your organization's fiscal year.">
+      {!funded && <Block title="Application details" desc="The prospect you're pursuing and the amount you plan to request.">
+        <div className="grid gap-4 @xl:grid-cols-2">
+          <Field label="Grant name"><Input value={draft.name} onChange={(e) => set({ name: e.target.value })} /></Field>
+          <Field label="Funder"><Input value={draft.funder} onChange={(e) => set({ funder: e.target.value })} /></Field>
+          <Field label="Requested amount"><Input type="number" min={0} step="0.01" value={draft.amount} onChange={(e) => set({ amount: Number(e.target.value) })} /></Field>
+        </div>
+      </Block>}
+
+      {funded && <Block title="Funding period" desc="Spending is calculated within this window, independent of your organization's fiscal year.">
         <div className="grid gap-4 @xl:grid-cols-3">
           <Field label="Period start"><Input type="date" className={clsx(isMissing('periodStart') && missingRing)} value={draft.periodStart} onChange={(e) => set({ periodStart: e.target.value }, 'periodStart')} /></Field>
           <Field label="Period end"><Input type="date" className={clsx(isMissing('periodEnd') && missingRing)} value={draft.periodEnd} onChange={(e) => set({ periodEnd: e.target.value }, 'periodEnd')} /></Field>
@@ -221,7 +229,7 @@ export function SetupTab({ grant }: { grant: Grant }) {
             </Select>
           </Field>
         </div>
-      </Block>
+      </Block>}
 
       <Block
         title="Application questions"
@@ -263,7 +271,7 @@ export function SetupTab({ grant }: { grant: Grant }) {
         </div>
       </Block>
 
-      <Block
+      {funded && <Block
         title="Approved budget"
         desc="Spending categories the funder approved. Renaming a category keeps its transactions; transactions in other categories are flagged as unauthorized."
         action={editable && <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => set({ categories: [...draft.categories, { id: uid('c'), name: '', budget: 0 }] }, 'categories')}>Add category</Button>}
@@ -307,22 +315,22 @@ export function SetupTab({ grant }: { grant: Grant }) {
             {diff === 0 && draft.categories.length ? <StatusPill tone="good">Balanced</StatusPill> : diff > 0 ? <StatusPill tone="warn">{moneyExact(diff)} unallocated</StatusPill> : diff < 0 ? <StatusPill tone="bad">{moneyExact(-diff)} over award</StatusPill> : null}
           </div>
         </div>
-      </Block>
+      </Block>}
 
       <Block
-        title="Deadlines"
-        desc="Application and reporting deadlines appear on the home timeline."
-        action={editable && <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => set({ deadlines: [...draft.deadlines, { id: uid('d'), label: '', date: draft.periodEnd, kind: 'report' }] })}>Add deadline</Button>}
+        title={funded ? "Deadlines" : "Application deadlines"}
+        desc={funded ? "Application and reporting deadlines appear on the home timeline." : "Track when this application is due."}
+        action={editable && <Button variant="secondary" size="sm" icon={<Plus size={14} />} onClick={() => set({ deadlines: [...draft.deadlines, { id: uid('d'), label: '', date: funded ? draft.periodEnd : '', kind: funded ? 'report' : 'application' }] })}>Add deadline</Button>}
       >
         <div className="space-y-2">
-          {draft.deadlines.map((d) => (
+          {draft.deadlines.filter((d) => funded || d.kind === 'application').map((d) => (
             <div key={d.id} className={clsx('flex flex-wrap items-center gap-2 rounded-lg border border-line-2 p-2', d.done && 'opacity-60')}>
               <Input aria-label="Deadline label" className="min-w-40 flex-1" placeholder="Label" value={d.label} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} />
-              <Select aria-label="Deadline type" className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
+              {funded && <Select aria-label="Deadline type" className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
                 <option value="application">Application</option>
                 <option value="report">Report</option>
                 <option value="other">Other</option>
-              </Select>
+              </Select>}
               <Input aria-label="Deadline date" type="date" className="w-40" value={d.date} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, date: e.target.value } : x)) })} />
               <label className="flex items-center gap-1.5 px-2 text-xs text-slate-2">
                 <input type="checkbox" checked={!!d.done} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, done: e.target.checked } : x)) })} /> Done

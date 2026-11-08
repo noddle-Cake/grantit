@@ -1,14 +1,12 @@
 import clsx from 'clsx'
-import { ArrowRight, CalendarClock, Compass, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, Plus, Sparkles, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { GrantList } from '@/features/grants/GrantList'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
-import { Button, Card, EmptyState, PageHeader, Pill, Stat } from '@/components/ui'
-import { daysUntil, fmtDate, money, moneyCompact, relativeDay, todayISO } from '@grantit/shared/format'
+import { Button, Card, EmptyState, PageHeader, Pill } from '@/components/ui'
+import { daysUntil, fmtDate, money, relativeDay, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities, type Recommendation } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
-import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import { useStore } from '@/store'
 
 function FitBadge({ fit }: { fit: number }) {
@@ -28,7 +26,7 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs text-slate-3">{o.funder}</div>
-          <div className="font-semibold text-slate">{o.program}</div>
+          <h2 className="font-semibold text-slate">{o.program}</h2>
         </div>
         <FitBadge fit={rec.fit} />
       </div>
@@ -47,33 +45,37 @@ function RecommendationCard({ rec, canAdd }: { rec: Recommendation; canAdd: bool
         ))}
       </div>
 
-      <div className="mt-3 space-y-1 text-xs text-slate-2">
-        <div>
-          <span className="font-medium text-slate">Backed by </span>
-          {rec.supportingFacts.map((f, i) => (
-            <span key={f.id}>
-              {i > 0 && ', '}
-              <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
-            </span>
-          ))}
-        </div>
-        {rec.wouldStrengthen.length > 0 && (
+      <details className="mt-3 text-xs text-slate-2">
+        <summary className="cursor-pointer font-medium text-link">Why this matches</summary>
+        <div className="mt-2 space-y-1">
           <div>
-            <span className="font-medium text-warn">Approve to strengthen: </span>
-            {rec.wouldStrengthen.map((f, i) => (
+            <span className="font-medium text-slate">Backed by </span>
+            {rec.supportingFacts.map((f, i) => (
               <span key={f.id}>
                 {i > 0 && ', '}
                 <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
               </span>
             ))}
           </div>
-        )}
-      </div>
+          {rec.wouldStrengthen.length > 0 && (
+            <div>
+              <span className="font-medium text-warn">Approve to strengthen: </span>
+              {rec.wouldStrengthen.map((f, i) => (
+                <span key={f.id}>
+                  {i > 0 && ', '}
+                  <Link to={`/apply/knowledge?fact=${f.id}`} className="text-link hover:underline">{f.title}</Link>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </details>
 
       <div className="mt-auto flex items-center gap-2 pt-4">
         {canAdd && (
           <Button
             size="sm"
+            variant="secondary"
             icon={<Plus size={14} />}
             onClick={() => {
               const id = addOpportunity(o)
@@ -102,7 +104,6 @@ export default function Opportunities() {
     () => recommendOpportunities(opportunities, state.facts, state.grants, { today: todayISO(), dismissed: dismissedOpportunities }),
     [opportunities, state.facts, state.grants, dismissedOpportunities],
   )
-  const pipeline = state.grants.filter((g) => (APPLY_STAGES as readonly string[]).includes(g.stage) && g.stage !== 'declined')
   const visible = showAll ? recs : recs.slice(0, 3)
 
   return (
@@ -110,16 +111,9 @@ export default function Opportunities() {
       <PageHeader
         eyebrow="Find & apply"
         title="Opportunities"
-        subtitle="Funding that fits your work, and the applications you're pursuing."
+        subtitle="Find funding that fits your organization."
         actions={canAdd && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
       />
-
-      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
-        <Stat icon={<Sparkles size={15} />} label="Recommended" value={recs.length} sub="Open opportunities that fit" />
-        <Stat icon={<Compass size={15} />} label="In pipeline" value={pipeline.length} sub={`${moneyCompact(pipeline.reduce((s, g) => s + g.amount, 0))} requested`} />
-        <Stat label="Drafting" value={state.grants.filter((g) => g.stage === 'drafting').length} sub="Applications being written" />
-        <Stat label="Submitted" value={state.grants.filter((g) => g.stage === 'submitted').length} sub="Awaiting a decision" />
-      </div>
 
       <Card
         className="mb-6"
@@ -150,7 +144,7 @@ export default function Opportunities() {
               ))}
             </ul>
             {recs.length > 3 && (
-              <button onClick={() => setShowAll((s) => !s)} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
+              <button aria-expanded={showAll} onClick={() => setShowAll((s) => !s)} className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
                 {showAll ? 'Show fewer' : `See all ${recs.length} recommendations`} <ArrowRight size={14} />
               </button>
             )}
@@ -162,8 +156,9 @@ export default function Opportunities() {
         )}
       </Card>
 
-      <h2 className="mb-3 text-base font-semibold text-slate">Pipeline</h2>
-      <GrantList scope="apply" />
+      <Link to="/apply/applications" className="inline-flex items-center gap-1 text-sm font-medium text-link hover:underline">
+        View applications <ArrowRight size={14} />
+      </Link>
 
       <NewGrantModal open={newOpen} onClose={() => setNewOpen(false)} defaultStage="prospect" />
     </>

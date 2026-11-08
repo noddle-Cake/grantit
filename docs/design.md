@@ -61,8 +61,8 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
 
 *HIG: [Layout](https://developer.apple.com/design/human-interface-guidelines/layout)*
 
-- **The most important content goes first.** Page header with the main action, then summary stats, then
-  detail.
+- **The most important content goes first.** Page header with the main action, then the task content.
+  Summary stats belong only where they help someone decide what to do next.
 - **Group related things** in cards and sections, and use progressive disclosure (collapsible record
   sections, "See all" links) instead of showing everything at once.
 - **Layouts adapt to width, not device.** Grids collapse to one column, the rail becomes a drawer below
@@ -158,6 +158,28 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
   sparingly ("Pipeline", not "My pipeline").
 - **Empty states say what to do next,** for example "Add a prospect from Opportunities to start one."
 - **Error and blocked states say why and what fixes it.**
+
+## Find & apply scope
+
+This workspace focuses on discovering funding and preparing applications:
+
+- **Opportunities** shows recommendations, funding ranges, deadlines and focus areas. Supporting facts
+  sit behind “Why this matches.” The application pipeline lives on Applications.
+- **Applications** shows the next step and approved-answer progress, with separate views for work in
+  progress, submitted applications and declined applications. Rows wrap on narrow screens.
+- **Knowledge base** keeps fact search, category and approval filters, editing and approval. Information
+  gaps use a disclosure. Placeholder writing-style and document-upload panels are omitted until functional.
+- **Application records** show requested funding, owner, application deadlines, questions and application
+  setup. Award dates, fiscal years, shared-cost allocation, approved budgets and spending appear for funded
+  stages. Changing a record to Awarded reveals that workspace's controls; saved award data is retained.
+- **New prospects** need a name, funder and requested amount, with an optional application deadline.
+  Award setup is confirmed after funding is awarded.
+
+Refinement uses the existing tokens and controls, informed by
+[Better UI](https://www.ui-skills.com/skills/jakubkrehel/better-ui). Workflow tests cover discovery,
+status filtering, prospect creation, saving application details without changing award data, and revealing
+finance controls after award. Browser visual checks for this refinement remain outstanding because the
+browser access host was unavailable; the earlier checks below describe the earlier HIG pass only.
 
 ## Audit record: November 7, 2026
 

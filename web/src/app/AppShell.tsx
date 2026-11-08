@@ -48,7 +48,7 @@ function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { colla
   // A grant's record page belongs to the workspace for its stage, so highlight that workspace's list.
   const grantId = matchPath('/grants/:id', pathname)?.params.id
   const recordGrant = grantId ? state.grants.find((g) => g.id === grantId) : undefined
-  const activeOverride = recordGrant ? WORKSPACES[workspaceOf(recordGrant.stage)].home : undefined
+  const activeOverride = recordGrant ? workspaceOf(recordGrant.stage) === 'apply' ? '/apply/applications' : '/funds' : undefined
 
   return (
     <>
