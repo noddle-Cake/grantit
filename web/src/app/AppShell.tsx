@@ -324,8 +324,9 @@ export default function AppShell({ children }: { children?: ReactNode }) {
     if (matchPath('/settings', loc.pathname)) return 'Settings'
     return ''
   }, [loc.pathname, state.grants, isGrantRecord])
-  // Grant record pages already render their own h1, so the label is a span there.
-  const TitleTag = isGrantRecord ? 'span' : 'h1'
+  // Pages that render their own h1 (grant record, or a PageHeader hero) get a span instead of a second h1.
+  const ownH1 = isGrantRecord || ['/', '/calendar', '/apply/applications', '/funds/financials', '/funds/spending'].some((p) => matchPath({ path: p, end: true }, loc.pathname))
+  const TitleTag = ownH1 ? 'span' : 'h1'
   const previousPath = useRef(loc.pathname)
   useEffect(() => {
     const main = document.querySelector('main')
