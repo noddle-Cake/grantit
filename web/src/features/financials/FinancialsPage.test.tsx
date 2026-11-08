@@ -60,4 +60,25 @@ describe('Financials', () => {
     expect(urgent).toEqual([expect.stringContaining('Anchor Mentors 2026'), expect.stringContaining('Family Nights 2026')])
     expect(within(screen.getByRole('region', { name: 'Urgent spending' })).getAllByRole('link').map((l) => l.textContent)).toEqual(['Anchor Mentors 2026', 'Family Nights 2026'])
   })
+
+  it('opens a category spending breakdown from the legend', async () => {
+    const user = userEvent.setup()
+    renderFinancials()
+    await user.click(screen.getByRole('button', { name: 'Show breakdown for Training' }))
+    const dialog = screen.getByRole('dialog', { name: 'Training spending breakdown' })
+    const table = within(dialog).getByRole('table', { name: 'Grants funding Training' })
+    expect(within(table).getAllByRole('link').map((l) => l.textContent)).toEqual(['Anchor Mentors 2026', 'Mentor Expansion 2026–27'])
+    expect(table.textContent).toContain('Ends Dec 31, 2026')
+    expect(table.textContent).toContain('Biscayne Youth Fund')
+    expect(table.textContent).toContain('Keys Neighborhood Fund')
+  })
+
+  it('closes the category breakdown', async () => {
+    const user = userEvent.setup()
+    renderFinancials()
+    await user.click(screen.getByRole('button', { name: 'Show breakdown for Training' }))
+    expect(screen.getByRole('dialog', { name: 'Training spending breakdown' })).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
 })

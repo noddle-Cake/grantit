@@ -1,12 +1,12 @@
 import clsx from 'clsx'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { SpentRemainingPie } from '@/components/SpentRemainingPie'
-import { Card, Stat } from '@/components/ui'
+import { Card, Modal, Stat } from '@/components/ui'
+import { CategoryPie, categoryColor } from '@/features/financials/CategoryPie'
 import { UrgencyPill, UrgentGrants, useUrgency } from '@/features/funds/UrgencyPill'
-import { financialsOverview, type CategoryGrantRow, type Money3 } from '@grantit/shared/financials'
-import { fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
+import { financialsOverview, type CategoryGrantRow, type CategoryRow, type Money3 } from '@grantit/shared/financials'
+import { fmtDate, money, moneyExact, pct, todayISO } from '@grantit/shared/format'
 import type { GrantUrgency } from '@grantit/shared/urgency'
 import { useStore } from '@/store'
 
@@ -38,33 +38,133 @@ function Remaining({ m }: { m: Money3 }) {
   )
 }
 
+/** The grants behind one category, opened from a pie slice or the legend. */
+function CategoryBreakdown({ category: c, colorIndex, urgency, onClose }: {
+  category: CategoryRow
+  colorIndex: number
+  urgency: Map<string, GrantUrgency>
+  onClose: () => void
+}) {
+  const color = categoryColor(colorIndex)
+  return (
+    <Modal open onClose={onClose} label={`${c.name} spending breakdown`} width={760}>
+      <div className="flex items-center justify-between border-b border-line-2 px-6 py-4">
+        <h2 className="flex items-center gap-2 text-lg font-semibold text-slate">
+          <span aria-hidden className="h-3 w-3 rounded-sm" style={{ background: color }} />
+          {c.name}
+        </h2>
+        <button type="button" onClick={onClose} aria-label="Close" className="rounded-full p-1.5 text-slate-2 hover:bg-canvas-2"><X size={18} /></button>
+      </div>
+      <div className="space-y-5 p-6">
+        <div>
+          <dl className="grid grid-cols-3 gap-3 text-sm">
+            <div><dt className="text-slate-3">Available</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate">{money(c.available)}</dd></div>
+            <div><dt className="text-slate-3">Spent</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate">{money(c.spent)}</dd></div>
+            <div><dt className="text-slate-3">Remaining</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate"><Remaining m={c} /></dd></div>
+          </dl>
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-2 flex-1 rounded-full bg-viz-track">
+              <div className="h-2 rounded-full" style={{ width: `${Math.min(100, c.available ? (c.spent / c.available) * 100 : 0)}%`, background: color }} />
+            </div>
+            <span className="text-sm tabular-nums text-slate-2">{pct(c.available ? c.spent / c.available : 0)} spent</span>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table aria-label={`Grants funding ${c.name}`} className="w-full text-sm">
+            <thead className="text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
+              <tr>
+                <th className="py-1.5 pr-3">Grant</th>
+                <th className="w-24 py-1.5 pr-3 text-right">Available</th>
+                <th className="w-28 py-1.5 pr-3 text-right">Spent</th>
+                <th className="w-24 py-1.5 pr-3 text-right">Remaining</th>
+                <th className="w-40 py-1.5 pr-3">Spend by</th>
+                <th className="w-32 py-1.5">Urgency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {c.grants.map((row) => (
+                <tr key={row.grant.id} className="border-t border-line-2 align-top">
+                  <td className="py-2.5 pr-3">
+                    <Link to={`/funds/spending?view=all&grant=${row.grant.id}`} className="font-medium text-link hover:underline">{row.grant.name}</Link>
+                    <div className="text-xs text-slate-3">{row.grant.funder}</div>
+                    <div className="text-xs text-slate-3">{row.lines.join(', ')}</div>
+                  </td>
+                  <td className="py-2.5 pr-3 text-right tabular-nums text-slate-2">{money(row.available)}</td>
+                  <td className="py-2.5 pr-3 text-right tabular-nums">
+                    {money(row.spent)}
+                    <div className="ml-auto mt-1 h-1 w-16 rounded-full bg-viz-track">
+                      <div className="h-1 rounded-full" style={{ width: `${Math.min(100, row.available ? (row.spent / row.available) * 100 : 0)}%`, background: color }} />
+                    </div>
+                  </td>
+                  <td className="py-2.5 pr-3 text-right tabular-nums"><Remaining m={row} /></td>
+                  <td className="py-2.5 pr-3"><Deadline row={row} urgency={urgency.get(row.grant.id)} /></td>
+                  <td className="py-2.5"><UrgencyPill urgency={urgency.get(row.grant.id)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 /** Grant money by spending category. Read-only: receipts and splits are entered in Spending. */
 export default function Financials() {
   const { state } = useStore()
   const urgency = useUrgency()
   const [open, setOpen] = useState<Set<string>>(new Set())
+  const [breakdownId, setBreakdownId] = useState<string | null>(null)
   const today = todayISO()
   const { categories, totals, leftOut, reconciliation: r } = useMemo(
     () => financialsOverview(state.grants, state.transactions, state.orgCategories, today),
     [state.grants, state.transactions, state.orgCategories, today],
   )
+  const breakdownIndex = categories.findIndex((c) => c.id === breakdownId)
+  const breakdown = breakdownIndex >= 0 ? categories[breakdownIndex] : undefined
   const toggle = (id: string) => setOpen((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const urgentCount = (rows: CategoryGrantRow[]) => rows.filter((x) => urgency.get(x.grant.id)?.level === 'urgent').length
 
   return (
     <>
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <Card title={`${money(totals.available)} available across grants`}>
-          <SpentRemainingPie spent={totals.spent} remaining={totals.remaining} />
+      <div className="mb-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <Card title="Spending by category" padded={false} className="min-w-0">
+          <CategoryPie categories={categories} onSelect={setBreakdownId} />
         </Card>
-        <div className="space-y-3">
-          <UrgentGrants />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Stat label="Past spending deadline" value={money(totals.pastDeadline)} sub="Left when a grant's period ended; not counted as available" />
-            <Stat label="Overspent" value={money(totals.overspent)} sub="Charged beyond a line's approved budget" />
-          </div>
+        <div className="space-y-4">
+          <Card>
+            <p className="text-lg font-semibold text-slate">{money(totals.available)} available across grants</p>
+            <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
+              <div><dt className="text-slate-3">Spent</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate">{money(totals.spent)}</dd></div>
+              <div><dt className="text-slate-3">Remaining</dt><dd className="mt-0.5 font-semibold tabular-nums text-slate">{money(totals.remaining)}</dd></div>
+            </dl>
+          </Card>
+          <Card title="Categories" padded={false}>
+            <ul className="p-2">
+              {categories.map((c, i) => (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    aria-label={`Show breakdown for ${c.name}`}
+                    onClick={() => setBreakdownId(c.id)}
+                    className="flex w-full items-start gap-2 rounded px-2 py-1.5 text-left hover:bg-canvas"
+                  >
+                    <span aria-hidden className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: categoryColor(i) }} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-medium text-slate">{c.name}</span>
+                      <span className="block text-xs tabular-nums text-slate-2">{money(c.spent)} of {money(c.available)} spent · {pct(c.available ? c.spent / c.available : 0)}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </Card>
+          <Stat label="Past spending deadline" value={money(totals.pastDeadline)} sub="Left when a grant's period ended; not counted as available" />
+          <Stat label="Overspent" value={money(totals.overspent)} sub="Charged beyond a line's approved budget" />
         </div>
       </div>
+
+      <UrgentGrants className="mb-6" />
 
       <Card padded={false} className="overflow-hidden">
         <table className="w-full table-fixed text-sm">
@@ -155,6 +255,8 @@ export default function Financials() {
         <p>Spent includes unconfirmed suggestions, as Reports do.</p>
         {leftOut.length > 0 && <p>Not counted: {leftOut.map((l) => `${l.grant.name} (${LEFT_OUT_REASON[l.reason]})`).join('; ')}.</p>}
       </section>
+
+      {breakdown && <CategoryBreakdown category={breakdown} colorIndex={breakdownIndex} urgency={urgency} onClose={() => setBreakdownId(null)} />}
     </>
   )
 }
