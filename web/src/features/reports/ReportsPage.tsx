@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { CheckCircle2, FileBarChart2, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Button, Card, EmptyState, PageHeader, Pill, Select } from '@/components/ui'
+import { Button, Card, EmptyState, Pill, Select } from '@/components/ui'
 import { fmtDate } from '@grantit/shared/format'
 import { fundingState, markReportSubmitted, reviewQueue, type DueReport } from '@grantit/shared/funds'
 import { can } from '@grantit/shared/permissions'
@@ -35,8 +35,6 @@ export default function Reports() {
 
   return (
     <>
-      <PageHeader eyebrow="Manage funds" title="Reports" subtitle="Each funder's report in its own period, starting with what's due." />
-
       <Card title="Due next" padded={false} className="mb-6">
         {due.length ? (
           <ul className="divide-y divide-line-2">

@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SpentRemainingPie } from '@/components/SpentRemainingPie'
-import { Card, PageHeader, Stat } from '@/components/ui'
+import { Card, Stat } from '@/components/ui'
 import { UrgencyPill, UrgentGrants, useUrgency } from '@/features/funds/UrgencyPill'
 import { financialsOverview, type CategoryGrantRow, type Money3 } from '@grantit/shared/financials'
 import { fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
@@ -53,8 +53,6 @@ export default function Financials() {
 
   return (
     <>
-      <PageHeader eyebrow="Manage funds" title="Financials" subtitle="Grant money by spending category, across every grant that can still be charged. Receipts and splits are entered in Spending." />
-
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <Card title={`${money(totals.available)} available across grants`}>
           <SpentRemainingPie spent={totals.spent} remaining={totals.remaining} />

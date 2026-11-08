@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, CalendarClock, Check, CircleHelp, ListChecks
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
-import { Button, Card, EmptyState, PageHeader, Pill } from '@/components/ui'
+import { Button, Card, EmptyState, Pill } from '@/components/ui'
 import { dateWithRelative, daysUntil, fmtDate, money, todayISO } from '@grantit/shared/format'
 import { assumedPeriod, checkRequirements, CLASH_DAYS, deadlineClashes, medianAward, recommendOpportunities, type Recommendation } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
@@ -177,12 +177,11 @@ export default function Opportunities() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Find & apply"
-        title="Opportunities"
-        subtitle="Find funding that fits your organization."
-        actions={canAdd && <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>}
-      />
+      {canAdd && (
+        <div className="mb-4 flex justify-end">
+          <Button icon={<Plus size={16} />} onClick={() => setNewOpen(true)}>Add a prospect</Button>
+        </div>
+      )}
 
       <Card
         className="mb-6"

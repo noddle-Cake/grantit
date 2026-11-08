@@ -3,7 +3,7 @@ import { CalendarX2, CheckCheck, Lock, Search, Upload } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { ImportModal } from './ImportModal'
-import { Button, Card, PageHeader, Pill, Segmented, Select, StatusPill } from '@/components/ui'
+import { Button, Card, Pill, Segmented, Select, StatusPill } from '@/components/ui'
 import { canConfirm, hasMixedCoding, lineCoding, PICK_PROGRAM } from '@grantit/shared/auto-assign'
 import { allocationCategoryName, computeFinancials, effectiveDate, sumDollars, toCents } from '@grantit/shared/finance'
 import { fmtDate, moneyExact } from '@grantit/shared/format'
@@ -89,13 +89,6 @@ export default function Transactions() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Manage funds"
-        title="Spending"
-        subtitle="Code each expense to a category and program. Grantit suggests the grant, spending what expires soonest first."
-        actions={can(me.role, 'finance:import') && <Button icon={<Upload size={16} />} onClick={() => setImportOpen(true)}>Import</Button>}
-      />
-
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Segmented<View>
           label="Transaction view"
@@ -119,11 +112,14 @@ export default function Transactions() {
             {fmtDate(from)} – {fmtDate(to)} · <button type="button" className="text-link hover:underline" onClick={clearPeriod}>Clear</button>
           </span>
         )}
-        {canReview && suggested.length > 0 && (
-          <Button className="ml-auto" icon={<CheckCheck size={15} />} onClick={() => confirm(suggested)}>
-            Confirm {suggested.length} suggestion{suggested.length === 1 ? '' : 's'}
-          </Button>
-        )}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {can(me.role, 'finance:import') && <Button icon={<Upload size={16} />} onClick={() => setImportOpen(true)}>Import</Button>}
+          {canReview && suggested.length > 0 && (
+            <Button icon={<CheckCheck size={15} />} onClick={() => confirm(suggested)}>
+              Confirm {suggested.length} suggestion{suggested.length === 1 ? '' : 's'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {selected.size > 0 && canReview && (

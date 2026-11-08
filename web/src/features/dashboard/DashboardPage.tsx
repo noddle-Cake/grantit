@@ -1,11 +1,11 @@
 import clsx from 'clsx'
 import { ArrowRight, BookOpenCheck, CircleDollarSign, Compass, FileWarning, Receipt, Settings2, Sparkles } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
 import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
-import { Card, PageHeader, Pill } from '@/components/ui'
+import { Card, Pill } from '@/components/ui'
 import { applicationNextStep, isInProgress, regenerable } from '@grantit/shared/applications'
 import { isOpenAward, needsSetup } from '@grantit/shared/setup'
 import { ActionCards } from '@/features/funds/ActionCards'
@@ -16,11 +16,6 @@ import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import { nextStepHref } from '@/features/apply/nextStep'
-
-function greeting(now: Date) {
-  const h = now.getHours()
-  return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'
-}
 
 function WorkspaceCard({ icon, title, to, cta, children }: { icon: ReactNode; title: string; to: string; cta: string; children: ReactNode }) {
   return (
@@ -48,7 +43,6 @@ const Figure = ({ label, value, sub }: { label: string; value: ReactNode; sub?: 
 /** Home: both workspaces at a glance, plus what needs attention and what's coming up. */
 export default function Dashboard() {
   const { state, me, opportunities, dismissedOpportunities } = useStore()
-  const [now] = useState(() => new Date())
 
   // Find & apply
   const pipeline = state.grants.filter((g) => ['prospect', 'drafting', 'submitted'].includes(g.stage))
@@ -93,12 +87,6 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader
-        eyebrow={now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-        title={`${greeting(now)}, ${me.name.split(' ')[0]}`}
-        subtitle="Finding new funding and managing what you've won, side by side."
-      />
-
       <div className="grid gap-5 lg:grid-cols-2">
         <WorkspaceCard icon={<Compass size={16} />} title="Find & apply" to="/apply" cta="Go to opportunities">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

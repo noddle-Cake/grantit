@@ -14,6 +14,7 @@ const Calendar = lazy(() => import('@/features/calendar/CalendarPage'))
 const Opportunities = lazy(() => import('@/features/apply/OpportunitiesPage'))
 const Applications = lazy(() => import('@/features/apply/ApplicationsPage'))
 const Funds = lazy(() => import('@/features/funds/FundsPage'))
+const Financials = lazy(() => import('@/features/financials/FinancialsPage'))
 const GrantRecord = lazy(() => import('@/features/grants/GrantRecordPage'))
 const KnowledgeBase = lazy(() => import('@/features/knowledge/KnowledgeBasePage'))
 const Transactions = lazy(() => import('@/features/transactions/TransactionsPage'))
@@ -76,6 +77,7 @@ export default function App() {
 
               {/* Manage funds */}
               <Route path="funds" element={<Page el={<Funds />} />} />
+              <Route path="funds/financials" element={<Page el={<Financials />} />} />
               <Route path="funds/spending" element={<Page el={<Transactions />} />} />
               <Route path="funds/reports" element={<Page el={<Reports />} />} />
 
