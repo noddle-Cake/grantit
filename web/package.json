@@ -20,6 +20,8 @@
     "samples:award-letter": "node scripts/make-award-letter.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "@google/genai": "^3.0.0",
     "@grantit/shared": "*",
     "clsx": "^2.1.1",
     "lucide-react": "^1.70.0",
