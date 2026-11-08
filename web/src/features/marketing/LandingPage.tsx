@@ -10,10 +10,7 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-40 border-b border-line-2 bg-surface/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-4 px-4 sm:px-6">
-        {/* The logo mark is white-on-navy, so sit it on a small navy chip for light backgrounds. */}
-        <div className="flex items-center rounded-lg bg-obsidian px-2 py-1">
-          <Logo />
-        </div>
+        <Logo className="h-7" />
         <nav aria-label="Marketing" className="ml-auto hidden items-center gap-6 text-sm text-slate-2 md:flex">
           <a href="#features" className="hover:text-slate">Features</a>
           <a href="#how" className="hover:text-slate">How it works</a>
@@ -176,9 +173,7 @@ function Footer() {
   return (
     <footer className="border-t border-line-2 bg-surface">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-slate-3 sm:flex-row sm:px-6">
-        <div className="flex items-center rounded-lg bg-obsidian px-2 py-1">
-          <Logo />
-        </div>
+        <Logo />
         <p>Grant management for small nonprofits.</p>
         <p>© {year} Grantit</p>
       </div>

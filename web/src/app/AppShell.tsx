@@ -62,7 +62,9 @@ function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { colla
         )}
       >
         <div className="mb-6 flex items-center justify-between gap-3 px-4">
-          <Logo collapsed={collapsed} />
+          <div className="flex items-center px-1">
+            <Logo collapsed={collapsed} onDark />
+          </div>
           {mobile && <button type="button" onClick={onCloseMobile} aria-label="Close navigation" className="flex h-8 w-8 items-center justify-center rounded text-white hover:bg-white/10"><X size={18} /></button>}
         </div>
         <div className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-2.5">

@@ -217,3 +217,9 @@ body {
   to { transform: none; opacity: 1; }
 }
 .animate-pop-in { animation: pop-in 160ms ease-out; }
+
+/* Show only the wordmark for the current appearance. */
+:root[data-theme='dark'] .theme-light-only,
+:root:not([data-theme='dark']) .theme-dark-only {
+  display: none;
+}
