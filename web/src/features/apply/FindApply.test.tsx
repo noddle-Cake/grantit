@@ -190,6 +190,36 @@ describe('Find & apply workflow', () => {
     expect(screen.queryByRole('list', { name: 'Needed now' })).toBeNull()
   })
 
+  it('approves several facts at once', async () => {
+    const user = userEvent.setup()
+    renderPage('/apply/knowledge?status=all')
+    const unapproved = seedState.facts.filter((f) => f.status !== 'approved')
+    expect(unapproved.length).toBeGreaterThan(1)
+    const approve = screen.getByRole('button', { name: 'Approve selected' }) as HTMLButtonElement
+    expect(approve.disabled).toBe(true)
+    await user.click(screen.getByRole('checkbox', { name: `Select ${unapproved[0].title}` }))
+    expect(screen.getByRole('button', { name: 'Approve 1 fact' })).toBeTruthy()
+    await user.click(screen.getByRole('checkbox', { name: 'Select all you can approve' }))
+    await user.click(screen.getByRole('button', { name: `Approve ${unapproved.length} facts` }))
+    expect(screen.getByRole('button', { name: /^Needs approval 0/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /^Draft 0/ })).toBeTruthy()
+    expect(screen.queryByRole('checkbox')).toBeNull()
+  })
+
+  it('shows what each fact is worth and flags finance facts over a year old', () => {
+    const old = seedState.facts.find((f) => f.category === 'finance' && f.status === 'approved')!
+    saveState({ facts: seedState.facts.map((f) => (f.id === old.id ? { ...f, updatedAt: '2024-01-15' } : f)) })
+    renderPage('/apply/knowledge?status=all')
+    const list = screen.getByRole('list', { name: 'Facts' })
+    const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const row = (title: string) => within(list).getByRole('button', { name: new RegExp(`^${escape(title)}`) }).closest('li')!
+    const parents = seedState.facts.find((f) => f.id === 'f-parents')!
+    expect(row(parents.title).textContent).toMatch(/Unblocks 1 application · Strengthens \d+ match/)
+    expect(screen.getAllByText(/Used in \d+ answers?/).length).toBeGreaterThan(0)
+    expect(within(row(old.title)).getByText('Over a year old')).toBeTruthy()
+    expect(screen.getAllByText('Over a year old')).toHaveLength(1)
+  })
+
   it('offers to add a fact for a gap nothing covers, with the topic filled in', async () => {
     const user = userEvent.setup()
     const facts = seedState.facts.filter((f) => !f.tags.includes('sustainability'))
