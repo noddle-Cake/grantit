@@ -8,6 +8,7 @@
     "./types": "./src/types.ts",
     "./finance": "./src/finance.ts",
     "./setup": "./src/setup.ts",
+    "./funds": "./src/funds.ts",
     "./import": "./src/import.ts",
     "./award-letter": "./src/award-letter.ts",
     "./drafting": "./src/drafting.ts",

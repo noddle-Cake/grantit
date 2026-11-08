@@ -1,133 +1,108 @@
 import clsx from 'clsx'
-import { CheckCircle2, Circle, Download, FileBarChart2 } from 'lucide-react'
+import { CheckCircle2, FileBarChart2, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { stageMeta } from '@/lib/labels'
-import { MonthlySpendChart } from '@/components/MonthlySpendChart'
-import { DeadlineTimeline } from '@/components/DeadlineTimeline'
-import { collectDeadlines } from '@grantit/shared/deadlines'
-import { Button, Card, EmptyState, Meter, PageHeader, Pill, Segmented, Select, StatusPill } from '@/components/ui'
-import { checkApplication } from '@grantit/shared/drafting'
-import { computeFinancials, periodOptions } from '@grantit/shared/finance'
-import { fmtDate, money, pct } from '@grantit/shared/format'
-import { downloadFile, expenditureReportCsv } from '@/lib/report'
+import { Button, Card, EmptyState, PageHeader, Pill, Select } from '@/components/ui'
+import { fmtDate } from '@grantit/shared/format'
+import { fundingState, markReportSubmitted, reviewQueue, type DueReport } from '@grantit/shared/funds'
+import { can } from '@grantit/shared/permissions'
+import { useFunds } from '@/features/funds/useFunds'
 import { useStore } from '@/store'
+import { GrantReport } from './GrantReport'
 
+const dueLabel = (days: number) => (days < 0 ? `${-days} day${days === -1 ? '' : 's'} overdue` : days === 0 ? 'Due today' : `${days} day${days === 1 ? '' : 's'} left`)
+
+/** Reports start from what's due: pick an obligation and the right grant and period are already set. */
 export default function Reports() {
-  const { state, flags } = useStore()
-  const reportable = state.grants.filter((g) => g.categories.length && ['awarded', 'reporting', 'closed'].includes(g.stage))
-  const [grantId, setGrantId] = useState(reportable[0]?.id ?? '')
-  const [pIdx, setPIdx] = useState(0)
-  const grant = state.grants.find((g) => g.id === grantId)
+  const { state, flags, me, updateGrant, notify } = useStore()
+  const { due, today } = useFunds()
+  const reportable = state.grants.filter((g) => g.categories.length && fundingState(g, today) && fundingState(g, today) !== 'needs-setup')
+  const [picked, setPicked] = useState<{ grantId: string; deadlineId?: string }>(() => (due[0] ? { grantId: due[0].grant.id, deadlineId: due[0].deadline.id } : { grantId: reportable[0]?.id ?? '' }))
+  const grant = state.grants.find((g) => g.id === picked.grantId)
+  if (!grant) return <EmptyState icon={<FileBarChart2 />} title="No reportable grants yet">Confirm an awarded grant's budget to start reporting on it.</EmptyState>
 
-  if (!grant) return <EmptyState icon={<FileBarChart2 />} title="No reportable grants yet" />
+  // The obligation in focus: the one picked from Due next, or this grant's next open report.
+  const current: DueReport | undefined = due.find((d) => d.grant.id === grant.id && (picked.deadlineId ? d.deadline.id === picked.deadlineId : true))
+  const toReview = reviewQueue(state.grants, state.transactions, flags, today, grant.id)
+  const canSubmit = can(me.role, 'finance:review') || can(me.role, 'grant:configure')
 
-  const options = periodOptions(grant, state.org.fiscalYearStartMonth)
-  const period = options[pIdx] ?? options[0]
-  const f = computeFinancials(grant, state.transactions, period)
-  const grantFlags = state.transactions.filter((t) => t.allocations.some((a) => a.grantId === grant.id) && flags.get(t.id)?.some((x) => x.grantId === grant.id))
-  const unreviewed = state.transactions.filter((t) => t.allocations.some((a) => a.grantId === grant.id) && !t.reviewed)
-
-  // Workflow tracker (P1): status of application, narrative, financial checks, report.
-  const appCheck = checkApplication(grant.questions, state.facts)
-  const steps = [
-    { label: 'Application', done: grant.questions.length === 0 || appCheck.ready || ['awarded', 'reporting', 'closed'].includes(grant.stage) },
-    { label: 'Transactions reviewed', done: unreviewed.length === 0 },
-    { label: 'Compliance checks', done: grantFlags.length === 0 },
-    { label: 'Report submitted', done: grant.deadlines.filter((d) => d.kind === 'report').every((d) => d.done) },
-  ]
+  function submit(d: DueReport) {
+    const patch = markReportSubmitted(d.grant, d.deadline.id, today)
+    updateGrant(d.grant.id, patch)
+    notify(patch.stage === 'closed' ? `${d.deadline.label} submitted. ${d.grant.name} is now closed.` : `${d.deadline.label} marked submitted`)
+    setPicked({ grantId: d.grant.id })
+  }
 
   return (
     <>
-      <PageHeader
-        eyebrow="Manage funds"
-        title="Reports"
-        subtitle="Grant-specific expenditure reports in each funder's reporting period."
-        actions={
-          <Button icon={<Download size={16} />} onClick={() => downloadFile(`${grant.name.replace(/\W+/g, '-')}-expenditures.csv`, expenditureReportCsv(grant, state.transactions, period))}>
-            Export CSV
-          </Button>
-        }
-      />
+      <PageHeader eyebrow="Manage funds" title="Reports" subtitle="Each funder's report in its own period, starting with what's due." />
 
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Select aria-label="Report grant" value={grantId} onChange={(e) => { setGrantId(e.target.value); setPIdx(0) }} className="!h-9 !w-72 !bg-surface">
-          {reportable.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </Select>
-        <Segmented<string>
-          label="Reporting period"
-          value={String(pIdx)}
-          onChange={(v) => setPIdx(Number(v))}
-          options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}
-        />
-        <span className="text-sm text-slate-2">{fmtDate(period.start)} – {fmtDate(period.end)}</span>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          {/* Report document preview */}
-          <Card padded={false}>
-            <div className={clsx('h-2 rounded-t-lg', `cover-${grant.cover}`)} />
-            <div className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <div className="text-xs font-medium uppercase tracking-wide text-slate-3">Expenditure report</div>
-                  <h2 className="mt-1 text-xl font-semibold text-slate">{grant.name}</h2>
-                  <div className="text-sm text-slate-2">{grant.funder} · {state.org.name}</div>
-                </div>
-                <Pill tone={stageMeta(grant.stage).tone} dot>{stageMeta(grant.stage).label}</Pill>
-              </div>
-
-              <div className="mt-6 grid grid-cols-3 gap-4 border-y border-line-2 py-4">
-                <div><div className="text-xs text-slate-3">Approved budget</div><div className="text-lg font-semibold tabular-nums">{money(f.budget)}</div></div>
-                <div><div className="text-xs text-slate-3">Expended</div><div className="text-lg font-semibold tabular-nums">{money(f.spent)} <span className="text-sm font-normal text-slate-3">{pct(f.ratio)}</span></div></div>
-                <div><div className="text-xs text-slate-3">Balance</div><div className={clsx('text-lg font-semibold tabular-nums', f.remaining < 0 && 'text-bad')}>{money(f.remaining)}</div></div>
-              </div>
-
-              <h3 className="mb-3 mt-6 text-sm font-semibold text-slate">Expenditure by category</h3>
-              <div className="space-y-3">
-                {f.categories.map((c) => (
-                  <div key={c.id} className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-sm sm:grid-cols-[160px_1fr_200px]">
-                    <span className="text-slate">{c.name}</span>
-                    <span className="text-right tabular-nums text-slate sm:order-last">{money(c.spent)} <span className="text-slate-3">/ {money(c.budget)}</span></span>
-                    <div className="col-span-2 flex items-center sm:col-span-1"><Meter value={c.spent} max={c.budget} /></div>
-                  </div>
-                ))}
-                {f.unauthorized.map((u) => (
-                  <div key={u.category} className="flex justify-between rounded-lg bg-bad-soft px-3 py-2 text-sm">
-                    <span className="text-bad">{u.category} — not an approved category</span>
-                    <span className="tabular-nums text-bad">{money(u.spent)}</span>
-                  </div>
-                ))}
-              </div>
-
-              <h3 className="mb-2 mt-8 text-sm font-semibold text-slate">Monthly expenditure</h3>
-              <MonthlySpendChart data={f.byMonth} height={200} />
-            </div>
-          </Card>
-        </div>
-
-        <div className="space-y-5">
-          <Card title="Reporting checklist">
-            <ol className="space-y-3">
-              {steps.map((s) => (
-                <li key={s.label} className="flex items-center gap-3 text-sm">
-                  {s.done ? <CheckCircle2 size={18} className="text-good" /> : <Circle size={18} className="text-line" />}
-                  <span className={s.done ? 'text-slate' : 'text-slate-2'}>{s.label}</span>
+      <Card title="Due next" padded={false} className="mb-6">
+        {due.length ? (
+          <ul className="divide-y divide-line-2">
+            {due.map((d) => {
+              const active = d.grant.id === grant.id && d.deadline.id === current?.deadline.id
+              return (
+                <li key={`${d.grant.id}-${d.deadline.id}`}>
+                  <button
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setPicked({ grantId: d.grant.id, deadlineId: d.deadline.id })}
+                    className={clsx('grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 px-5 py-3 text-left hover:bg-canvas sm:grid-cols-[minmax(0,2fr)_minmax(0,2fr)_auto]', active && 'bg-link-soft/60')}
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium text-slate">{d.grant.name}</span>
+                      <span className="block truncate text-xs text-slate-3">{d.deadline.label} · due {fmtDate(d.deadline.date)}</span>
+                    </span>
+                    <span className="hidden text-xs text-slate-2 sm:block">Covers {fmtDate(d.period.start)} – {fmtDate(d.period.end)}</span>
+                    <Pill tone={d.daysLeft < 0 ? 'bad' : d.daysLeft <= 30 ? 'warn' : 'neutral'}>{dueLabel(d.daysLeft)}</Pill>
+                  </button>
                 </li>
-              ))}
-            </ol>
-            {(grantFlags.length > 0 || unreviewed.length > 0) && (
-              <div className="mt-4 space-y-2 border-t border-line-2 pt-4">
-                {grantFlags.length > 0 && <Link to={`/funds/spending?view=flagged&grant=${grant.id}`} className="block"><StatusPill tone="bad">{grantFlags.length} flagged transactions</StatusPill></Link>}
-                {unreviewed.length > 0 && <Link to={`/funds/spending?view=unreviewed&grant=${grant.id}`} className="block"><StatusPill tone="warn">{unreviewed.length} awaiting review</StatusPill></Link>}
-              </div>
-            )}
-          </Card>
-          <Card title="Reporting obligations">
-            <DeadlineTimeline items={collectDeadlines(state.grants, { includeDone: true }).filter((x) => x.deadline.kind === 'report')} />
-          </Card>
-        </div>
+              )
+            })}
+          </ul>
+        ) : (
+          <p className="px-5 py-6 text-sm text-slate-3">No reports due. Add report deadlines on each grant's Setup tab.</p>
+        )}
+      </Card>
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <Card padded={false}>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line-2 px-5 py-4">
+            <div className="min-w-0">
+              <div className="text-xs font-medium uppercase tracking-wide text-slate-3">Expenditure report{current ? ` · ${current.deadline.label}` : ''}</div>
+              <h2 className="mt-0.5 text-lg font-semibold text-slate">{grant.name}</h2>
+              <div className="text-sm text-slate-2">{grant.funder} · {state.org.name}</div>
+            </div>
+            <Select aria-label="Report grant" value={grant.id} onChange={(e) => setPicked({ grantId: e.target.value })} className="!h-9 !w-64 !bg-surface">
+              {reportable.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </Select>
+          </div>
+          <div className="p-5">
+            <GrantReport key={grant.id} grant={grant} period={current?.period} />
+          </div>
+        </Card>
+
+        <Card title="Before submitting">
+          {toReview.count ? (
+            <Link to={`/funds/spending?grant=${grant.id}`} className="block rounded-lg bg-warn-soft px-3 py-2.5 text-sm font-medium text-slate hover:underline">
+              {toReview.count} item{toReview.count === 1 ? '' : 's'} to review before submitting →
+            </Link>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-slate-2"><CheckCircle2 size={16} className="text-good" /> Nothing left to review for this grant.</p>
+          )}
+          {current ? (
+            <div className="mt-4 border-t border-line-2 pt-4">
+              <div className="text-sm text-slate">{current.deadline.label}</div>
+              <div className="text-xs text-slate-3">Due {fmtDate(current.deadline.date)} · {dueLabel(current.daysLeft)}</div>
+              {canSubmit && (
+                <Button className="mt-3" size="sm" icon={<Send size={14} />} onClick={() => submit(current)}>Mark submitted</Button>
+              )}
+            </div>
+          ) : (
+            <p className="mt-4 border-t border-line-2 pt-4 text-sm text-slate-3">No open report deadline for this grant.</p>
+          )}
+        </Card>
       </div>
     </>
   )

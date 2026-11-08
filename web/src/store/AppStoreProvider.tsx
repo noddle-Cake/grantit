@@ -131,7 +131,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         transactions: s.transactions.map((t) => {
           if (!ids.includes(t.id) || (value && t.allocations.length)) return t
           const { notGrantFunded: _n, ...rest } = t
-          return value ? { ...rest, notGrantFunded: true } : rest
+          // Deciding a cost is unrestricted is a review decision, so it also counts as reviewed.
+          return value ? { ...rest, notGrantFunded: true, reviewed: true } : rest
+        }),
+      })),
+    setServiceDate: (txId, serviceDate) =>
+      setState((s) => ({
+        ...s,
+        transactions: s.transactions.map((t) => {
+          if (t.id !== txId || (t.serviceDate ?? t.date) === (serviceDate || t.date)) return t
+          const { serviceDate: _d, ...rest } = t
+          return serviceDate && serviceDate !== t.date ? { ...rest, serviceDate, reviewed: false } : { ...rest, reviewed: false }
         }),
       })),
     markReviewed: (ids, reviewed = true) =>
