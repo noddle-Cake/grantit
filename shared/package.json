@@ -15,6 +15,7 @@
     "./drafting": "./src/drafting.ts",
     "./permissions": "./src/permissions.ts",
     "./deadlines": "./src/deadlines.ts",
+    "./calendar": "./src/calendar.ts",
     "./format": "./src/format.ts",
     "./seed": "./src/seed.ts",
     "./workspaces": "./src/workspaces.ts",

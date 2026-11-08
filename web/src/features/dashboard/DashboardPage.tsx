@@ -161,7 +161,7 @@ export default function Dashboard() {
             <p className="px-5 py-6 text-center text-sm text-slate-3">You're all caught up.</p>
           )}
         </Card>
-        <Card title="Upcoming">
+        <Card title="Upcoming" action={<Link to="/calendar" className="text-sm font-medium text-link hover:underline">Open calendar</Link>}>
           <DeadlineTimeline items={collectDeadlines(state.grants).slice(0, 6)} />
         </Card>
       </div>

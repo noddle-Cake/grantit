@@ -10,6 +10,7 @@ const Landing = lazy(() => import('@/features/marketing/LandingPage'))
 
 // Each page is its own chunk, so heavy dependencies (charts, CSV parsing) load only where used.
 const Dashboard = lazy(() => import('@/features/dashboard/DashboardPage'))
+const Calendar = lazy(() => import('@/features/calendar/CalendarPage'))
 const Opportunities = lazy(() => import('@/features/apply/OpportunitiesPage'))
 const Applications = lazy(() => import('@/features/apply/ApplicationsPage'))
 const Funds = lazy(() => import('@/features/funds/FundsPage'))
@@ -65,6 +66,7 @@ export default function App() {
             {/* The workspace, inside the app shell. */}
             <Route element={<Workspace />}>
               <Route index element={<Page el={<Dashboard />} />} />
+              <Route path="calendar" element={<Page el={<Calendar />} />} />
 
               {/* Find & apply */}
               <Route path="apply" element={<Page el={<Opportunities />} />} />
