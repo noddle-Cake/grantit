@@ -17,7 +17,7 @@ function TopBar() {
           <a href="#roles" className="hover:text-slate">Who it's for</a>
         </nav>
         <div className="ml-auto flex items-center gap-2 md:ml-0">
-          <Link to="/">
+          <Link to="/" className="hidden sm:block">
             <Button variant="ghost" size="sm">Open Grantit</Button>
           </Link>
           <Link to="/">
