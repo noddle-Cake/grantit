@@ -63,6 +63,7 @@ export default function KnowledgeBase() {
         {coverage.map((c) => (
           <button
             key={c.id}
+            aria-pressed={cat === c.id}
             onClick={() => setCat(cat === c.id ? 'all' : c.id)}
             className={clsx(
               'rounded-lg border bg-surface px-3 py-2.5 text-left transition',
@@ -83,9 +84,10 @@ export default function KnowledgeBase() {
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <div className="relative">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search facts" className="h-9 w-60 rounded-[3px] border border-line bg-surface pl-9 pr-3 text-sm focus:border-link focus:outline-none" />
+              <input aria-label="Search facts" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search facts" className="h-9 w-60 rounded-[3px] border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link" />
             </div>
             <Segmented<StatusFilter>
+              label="Fact status"
               value={status}
               onChange={setStatus}
               options={[
@@ -129,7 +131,7 @@ export default function KnowledgeBase() {
                         {f.status === 'draft' && !canApproveFact(me.role, f.category) && can(me.role, 'fact:edit') && (
                           <Button size="sm" variant="ghost" onClick={() => { setFactStatus(f.id, 'pending'); notify('Submitted for approval') }}>Submit</Button>
                         )}
-                        <button onClick={() => setOpen(f)} className="flex items-center gap-1 text-xs text-slate-3 opacity-0 transition group-hover:opacity-100 hover:text-link"><PenLine size={12} /> Edit</button>
+                        <button onClick={() => setOpen(f)} className="flex items-center gap-1 text-xs text-slate-3 opacity-100 transition hover:text-link"><PenLine size={12} /> Edit</button>
                       </div>
                     </li>
                   )

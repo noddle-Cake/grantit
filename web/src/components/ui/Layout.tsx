@@ -7,7 +7,7 @@ export function Card({ className, children, title, action, padded = true }: { cl
   return (
     <section className={clsx('rounded-lg border border-line-2 bg-surface', className)}>
       {(title || action) && (
-        <header className="flex items-center justify-between gap-3 border-b border-line-2 px-5 py-3.5">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-2 px-5 py-3.5">
           <h3 className="text-[0.9375rem] font-semibold text-slate">{title}</h3>
           {action}
         </header>

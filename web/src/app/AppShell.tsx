@@ -1,6 +1,6 @@
 import clsx from 'clsx'
-import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
@@ -9,7 +9,7 @@ import { workspaceOf } from '@grantit/shared/workspaces'
 import { WORKSPACES } from '@/lib/labels'
 import { useStore } from '@/store'
 import { Logo } from '@/components/Logo'
-import { Avatar } from '@/components/ui'
+import { Avatar, Dialog } from '@/components/ui'
 
 // Two workspaces: finding and applying for funding, and managing money that was awarded.
 const NAV: { heading?: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
@@ -33,7 +33,7 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
   { items: [{ to: '/team', label: 'Team & roles', icon: Users }] },
 ]
 
-function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed: boolean; onToggle: () => void; mobileOpen: boolean; onCloseMobile: () => void }) {
+function Sidebar({ collapsed, onToggle, onCloseMobile, mobile = false }: { collapsed: boolean; onToggle: () => void; onCloseMobile: () => void; mobile?: boolean }) {
   const { state, flags, opportunities, dismissedOpportunities } = useStore()
   const { pathname } = useLocation()
   const pendingFacts = state.facts.filter((f) => f.status === 'pending').length
@@ -51,16 +51,17 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
 
   return (
     <>
-      {mobileOpen && <div className="fixed inset-0 z-30 bg-obsidian/50 lg:hidden" onClick={onCloseMobile} />}
       <nav
+        aria-label="Main navigation"
         className={clsx(
-          'fixed inset-y-0 left-0 z-40 flex flex-col bg-obsidian py-4 transition-[width,transform] duration-200 lg:static lg:translate-x-0',
+          'h-full shrink-0 flex-col bg-obsidian py-4 transition-[width] duration-200',
+          mobile ? 'flex max-w-full' : 'hidden lg:flex',
           collapsed ? 'w-[68px]' : 'w-60',
-          mobileOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
-        <div className="mb-6 px-4">
+        <div className="mb-6 flex items-center justify-between gap-3 px-4">
           <Logo collapsed={collapsed} />
+          {mobile && <button type="button" onClick={onCloseMobile} aria-label="Close navigation" className="flex h-8 w-8 items-center justify-center rounded text-white hover:bg-white/10"><X size={18} /></button>}
         </div>
         <div className="scrollbar-thin flex-1 space-y-4 overflow-y-auto px-2.5">
           {NAV.map((group, gi) => (
@@ -110,6 +111,7 @@ function Sidebar({ collapsed, onToggle, mobileOpen, onCloseMobile }: { collapsed
         <div className="px-2.5">
           <NavLink
             to="/settings"
+            onClick={onCloseMobile}
             aria-label={collapsed ? 'Settings' : undefined}
             className={({ isActive }) => clsx('flex items-center gap-3 rounded-md px-3 py-2.5 text-[0.875rem]', isActive ? 'bg-white/12 text-white' : 'text-rail-text hover:bg-white/6 hover:text-white')}
           >
@@ -130,6 +132,8 @@ function UserMenu() {
   const { state, me, setCurrentUser, notify } = useStore()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const trigger = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
   useEffect(() => {
     const h = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false)
     document.addEventListener('mousedown', h)
@@ -137,8 +141,8 @@ function UserMenu() {
   }, [])
 
   return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-canvas-2">
+    <div className="relative" ref={ref} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false) }} onKeyDown={(e) => { if (e.key === 'Escape') { setOpen(false); trigger.current?.focus() } }}>
+      <button ref={trigger} aria-label={`Switch user, current user ${me.name}`} aria-expanded={open} aria-controls={open ? menuId : undefined} onClick={() => setOpen((o) => !o)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2 hover:bg-canvas-2">
         <Avatar initials={me.initials} size={30} />
         <div className="hidden text-left leading-tight sm:block">
           <div className="text-[0.8125rem] font-medium text-slate">{me.name}</div>
@@ -147,14 +151,16 @@ function UserMenu() {
         <ChevronDown size={14} className="text-slate-3" />
       </button>
       {open && (
-        <div className="animate-pop-in absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-line-2 bg-surface shadow-xl">
+        <div id={menuId} role="group" aria-label="Switch user (demo)" className="animate-pop-in absolute right-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl border border-line-2 bg-surface shadow-xl">
           <div className="border-b border-line-2 px-4 py-3 text-xs font-medium uppercase tracking-wide text-slate-3">Switch user (demo)</div>
           {state.users.map((u) => (
             <button
               key={u.id}
+              aria-pressed={u.id === me.id}
               onClick={() => {
                 setCurrentUser(u.id)
                 setOpen(false)
+                trigger.current?.focus()
                 notify(`Now viewing as ${u.name} · ${ROLE_LABEL[u.role]}`, 'info')
               }}
               className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-canvas"
@@ -177,8 +183,10 @@ function UserMenu() {
 function GlobalSearch() {
   const { state } = useStore()
   const nav = useNavigate()
+  const resultsId = useId()
   const [q, setQ] = useState('')
   const [focus, setFocus] = useState(false)
+  const [active, setActive] = useState(-1)
   const term = q.trim().toLowerCase()
   const results = term
     ? [
@@ -186,28 +194,57 @@ function GlobalSearch() {
         ...state.facts.filter((f) => (f.title + f.content).toLowerCase().includes(term)).map((f) => ({ kind: 'Fact', label: f.title, sub: f.content, to: `/apply/knowledge?fact=${f.id}` })),
       ].slice(0, 7)
     : []
+  const expanded = focus && results.length > 0
+  const choose = (to: string) => {
+    setQ('')
+    setFocus(false)
+    setActive(-1)
+    nav(to)
+  }
 
   return (
-    <div className="relative w-full max-w-md">
+    <div className="relative w-full min-w-0 max-w-md">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
       <input
+        role="combobox"
+        aria-label="Search grants, funders, and facts"
+        aria-autocomplete="list"
+        aria-expanded={expanded}
+        aria-controls={expanded ? resultsId : undefined}
+        aria-activedescendant={expanded && results[active] ? `${resultsId}-${active}` : undefined}
         value={q}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => { setQ(e.target.value); setActive(-1); setFocus(true) }}
         onFocus={() => setFocus(true)}
-        onBlur={() => setTimeout(() => setFocus(false), 150)}
+        onBlur={() => { setFocus(false); setActive(-1) }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setFocus(false); setActive(-1) }
+          if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && results.length) {
+            e.preventDefault()
+            setFocus(true)
+            setActive((a) => e.key === 'ArrowDown' ? (a + 1) % results.length : (a <= 0 ? results.length : a) - 1)
+          }
+          if (e.key === 'Enter' && expanded && results[active]) {
+            e.preventDefault()
+            choose(results[active].to)
+          }
+        }}
         placeholder="Search grants, funders, facts…"
-        className="h-9 w-full rounded-full border border-line-2 bg-canvas pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link focus:bg-surface focus:outline-none"
+        className="h-9 w-full rounded-full border border-control-line bg-canvas pl-9 pr-3 text-sm placeholder:text-slate-3 focus:border-link focus:bg-surface"
       />
-      {focus && results.length > 0 && (
-        <div className="absolute left-0 right-0 z-50 mt-2 overflow-hidden rounded-xl border border-line-2 bg-surface shadow-xl">
-          {results.map((r) => (
+      <span role="status" className="sr-only">{focus && term ? `${results.length} results${results.length ? '. Use the up and down arrow keys to choose a result.' : '. Try a different search.'}` : ''}</span>
+      {expanded && (
+        <div id={resultsId} role="listbox" aria-label="Search results" className="absolute left-0 right-0 z-50 mt-2 max-h-[60dvh] overflow-y-auto rounded-xl border border-line-2 bg-surface shadow-xl">
+          {results.map((r, i) => (
             <button
+              type="button"
               key={r.to}
-              onMouseDown={() => {
-                nav(r.to)
-                setQ('')
-              }}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-canvas"
+              id={`${resultsId}-${i}`}
+              role="option"
+              aria-selected={active === i}
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => choose(r.to)}
+              className={clsx('flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-canvas', active === i && 'bg-canvas-2')}
             >
               <span className="w-10 shrink-0 text-[0.6875rem] font-medium uppercase text-slate-3">{r.kind}</span>
               <span className="min-w-0">
@@ -218,6 +255,7 @@ function GlobalSearch() {
           ))}
         </div>
       )}
+      {focus && term && !results.length && <div className="absolute left-0 right-0 z-50 mt-2 rounded-xl border border-line-2 bg-surface p-4 text-sm text-slate-2 shadow-xl">No results. Try another grant, funder, or fact.</div>}
     </div>
   )
 }
@@ -227,15 +265,16 @@ function Toasts() {
   const icon = { success: CheckCircle2, info: Info, error: AlertOctagon }
   return (
     // A polite live region so screen readers announce confirmations without interrupting.
-    <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+    <div role="status" aria-live="polite" className="pointer-events-none fixed bottom-5 left-1/2 z-[60] flex max-h-[40dvh] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col items-center gap-2 overflow-y-auto">
       {toasts.map((t) => {
         const I = icon[t.tone ?? 'success']
         return (
-          <div key={t.id} className="animate-pop-in flex items-center gap-2 rounded-full bg-obsidian px-4 py-2.5 text-sm text-white shadow-lg">
+          <div key={t.id} className="animate-pop-in flex max-w-full shrink-0 items-center gap-2 rounded-xl bg-obsidian px-4 py-2.5 text-sm text-white shadow-lg">
             {/* The toast is always dark, so these tints read in both appearances. */}
             <I size={16} aria-hidden="true" className={t.tone === 'error' ? 'text-[#ff8f96]' : t.tone === 'info' ? 'text-[#7fd3e6]' : 'text-[#5fe0c8]'} />
-            {t.message}
+            <span className="min-w-0 break-words">{t.message}</span>
             {t.action && (
+              <>
               <button
                 onClick={() => {
                   t.action!.run()
@@ -245,6 +284,8 @@ function Toasts() {
               >
                 {t.action.label}
               </button>
+              <button onClick={() => dismissToast(t.id)} aria-label={`Dismiss notification: ${t.message}`} className="pointer-events-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-full hover:bg-white/10 focus-visible:outline-white"><X size={14} /></button>
+              </>
             )}
           </div>
         )
@@ -258,16 +299,30 @@ export default function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { state } = useStore()
   const loc = useLocation()
+  const previousPath = useRef(loc.pathname)
   useEffect(() => {
-    document.querySelector('main')?.scrollTo(0, 0)
+    const main = document.querySelector('main')
+    main?.scrollTo(0, 0)
+    if (previousPath.current !== loc.pathname) main?.focus()
+    previousPath.current = loc.pathname
   }, [loc.pathname])
+  useEffect(() => {
+    const wide = window.matchMedia('(min-width: 64rem)')
+    const closeOnDesktop = () => { if (wide.matches) setMobileOpen(false) }
+    wide.addEventListener('change', closeOnDesktop)
+    return () => wide.removeEventListener('change', closeOnDesktop)
+  }, [])
 
   return (
     <div className="flex h-full">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
+      <a href="#main-content" className="fixed left-4 top-2 z-[70] -translate-y-24 rounded bg-surface px-4 py-3 text-link shadow focus:translate-y-0">Skip to content</a>
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} onCloseMobile={() => setMobileOpen(false)} />
+      <Dialog open={mobileOpen} onClose={() => setMobileOpen(false)} label="Navigation" className="justify-start p-0">
+        <Sidebar mobile collapsed={false} onToggle={() => {}} onCloseMobile={() => setMobileOpen(false)} />
+      </Dialog>
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line-2 bg-surface px-4 lg:px-6">
-          <button className="rounded p-1.5 text-slate-2 hover:bg-canvas-2 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation">
+          <button className="rounded p-1.5 text-slate-2 hover:bg-canvas-2 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen}>
             <Menu size={20} />
           </button>
           <GlobalSearch />
@@ -276,7 +331,7 @@ export default function AppShell() {
             <UserMenu />
           </div>
         </header>
-        <main className="scrollbar-thin flex-1 overflow-y-auto">
+        <main id="main-content" tabIndex={-1} className="scrollbar-thin flex-1 overflow-y-auto">
           <div className="mx-auto max-w-[1360px] px-4 py-6 lg:px-8">
             <Outlet />
           </div>

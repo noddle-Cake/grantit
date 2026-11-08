@@ -230,11 +230,12 @@ export function SetupTab({ grant }: { grant: Grant }) {
       >
         <div className="space-y-2">
           {draft.questions.map((q, i) => (
-            <div key={q.id} className="flex gap-2 rounded-lg border border-line-2 p-3">
+            <div key={q.id} className="flex flex-wrap gap-2 rounded-lg border border-line-2 p-3">
               <span className="mt-2 w-5 text-center text-xs font-semibold text-slate-3">{i + 1}</span>
               <Textarea
                 rows={2}
-                className="flex-1"
+                className="min-w-40 flex-1"
+                aria-label={`Question ${i + 1} prompt`}
                 placeholder="Question prompt"
                 value={q.prompt}
                 onChange={(e) => set({ questions: draft.questions.map((x) => (x.id === q.id ? { ...x, prompt: e.target.value } : x)) })}
@@ -274,10 +275,10 @@ export function SetupTab({ grant }: { grant: Grant }) {
             return (
               <div key={c.id} className="border-b border-line-2 p-2 last:border-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Input className={clsx('min-w-40 flex-1', issue && 'border-bad')} placeholder="Category name" aria-label="Category name" value={c.name} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }, 'categories')} />
-                  <div className="relative w-36">
+                  <Input className={clsx('min-w-40 flex-1', issue && 'border-bad')} placeholder="Category name" aria-label="Budget category name" value={c.name} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, name: e.target.value } : x)) }, 'categories')} />
+                  <div className="relative w-28 @sm:w-36">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-3">$</span>
-                    <Input type="number" min={0} step="0.01" aria-label={`${c.name || 'Category'} budget`} className="pl-6 text-right" value={c.budget} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, budget: Number(e.target.value) } : x)) }, 'categories')} />
+                    <Input type="number" min={0} step="0.01" aria-label="Category budget" className="pl-6 text-right" value={c.budget} onChange={(e) => set({ categories: draft.categories.map((x) => (x.id === c.id ? { ...x, budget: Number(e.target.value) } : x)) }, 'categories')} />
                   </div>
                   {editable && (
                     <button
@@ -316,13 +317,13 @@ export function SetupTab({ grant }: { grant: Grant }) {
         <div className="space-y-2">
           {draft.deadlines.map((d) => (
             <div key={d.id} className={clsx('flex flex-wrap items-center gap-2 rounded-lg border border-line-2 p-2', d.done && 'opacity-60')}>
-              <Input className="min-w-40 flex-1" placeholder="Label" value={d.label} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} />
-              <Select className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
+              <Input aria-label="Deadline label" className="min-w-40 flex-1" placeholder="Label" value={d.label} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} />
+              <Select aria-label="Deadline type" className="w-36" value={d.kind} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, kind: e.target.value as typeof d.kind } : x)) })}>
                 <option value="application">Application</option>
                 <option value="report">Report</option>
                 <option value="other">Other</option>
               </Select>
-              <Input type="date" className="w-40" value={d.date} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, date: e.target.value } : x)) })} />
+              <Input aria-label="Deadline date" type="date" className="w-40" value={d.date} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, date: e.target.value } : x)) })} />
               <label className="flex items-center gap-1.5 px-2 text-xs text-slate-2">
                 <input type="checkbox" checked={!!d.done} onChange={(e) => set({ deadlines: draft.deadlines.map((x) => (x.id === d.id ? { ...x, done: e.target.checked } : x)) })} /> Done
               </label>
@@ -333,15 +334,15 @@ export function SetupTab({ grant }: { grant: Grant }) {
       </Block>
 
       <Block title="Funder rules & restrictions" desc="One rule per line. Shown beside the record for everyone working on this grant.">
-        <Textarea rows={4} value={draft.rules.join('\n')} onChange={(e) => set({ rules: e.target.value.split('\n') })} placeholder="e.g. Indirect costs capped at 10%" />
+        <Textarea aria-label="Funder rules and restrictions" rows={4} value={draft.rules.join('\n')} onChange={(e) => set({ rules: e.target.value.split('\n') })} placeholder="e.g. Indirect costs capped at 10%" />
       </Block>
 
       {grant.setupConfirmedAt && funded && (
         <p className="flex items-center gap-1.5 text-xs text-slate-3"><CheckCircle2 size={13} className="text-good" /> Setup confirmed {fmtDate(grant.setupConfirmedAt)}. Edits are checked against the same rules.</p>
       )}
 
-      {editable && (
-        <div className={clsx('sticky bottom-0 -mx-5 -mb-5 flex flex-wrap items-center gap-2 border-t border-line-2 bg-surface/95 px-5 py-3 backdrop-blur transition', dirty || unconfirmed ? 'opacity-100' : 'pointer-events-none opacity-0')}>
+      {editable && (dirty || unconfirmed) && (
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap items-center gap-2 border-t border-line-2 bg-surface/95 px-5 py-3 backdrop-blur">
           <span className="min-w-0 flex-1 text-sm text-slate-2">
             {blockers.length ? <span className="text-bad">{blockers[0]}{blockers.length > 1 && ` (+${blockers.length - 1} more)`}</span> : unconfirmed ? 'Ready to confirm.' : 'You have unsaved changes'}
           </span>

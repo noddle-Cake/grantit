@@ -52,6 +52,7 @@ export function BudgetTab({ grant }: { grant: Grant }) {
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-slate-3">Reporting period</span>
         <Segmented<string>
+          label="Reporting period"
           value={String(idx)}
           onChange={(v) => setIdx(Number(v))}
           options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}
@@ -75,7 +76,7 @@ export function BudgetTab({ grant }: { grant: Grant }) {
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Approved budget" value={money(f.budget)} />
         <Stat label="Actual spending" value={money(f.spent)} sub={pct(f.ratio)} />
         <Stat label="Remaining" value={<span className={f.remaining < 0 ? 'text-bad' : ''}>{money(f.remaining)}</span>} />

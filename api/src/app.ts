@@ -2,8 +2,17 @@ import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import type { Db } from './db/client.ts'
 import { organizations } from './db/schema.ts'
-import { errorResponse, handleError, organizationScope, type AppEnv } from './http.ts'
+import { errorResponse, handleError, organizationScope, sessionUser, type AppEnv } from './http.ts'
+import { authRoutes } from './routes/auth.ts'
+import { documentRoutes } from './routes/documents.ts'
+import { factRoutes } from './routes/facts.ts'
 import { grantRoutes } from './routes/grants.ts'
+import { opportunityRoutes } from './routes/opportunities.ts'
+import { organizationRoutes } from './routes/organization.ts'
+import { organizationCreateRoutes } from './routes/organizations.ts'
+import { transactionImportRoutes } from './routes/transaction-imports.ts'
+import { transactionRoutes } from './routes/transactions.ts'
+import { userRoutes } from './routes/users.ts'
 
 export interface AppOptions {
   db: Db
@@ -23,14 +32,26 @@ export function createApp({ db, defaultOrganizationId }: AppOptions) {
     c.set('db', db)
     await next()
   })
-  app.use(
-    organizationScope({
-      defaultOrganizationId,
-      exists: async (id) => Boolean(await db.query.organizations.findFirst({ where: eq(organizations.id, id), columns: { id: true } })),
-    }),
-  )
+  // Sign-in and creating an organization are outside the organization scope.
+  app.route('/auth', authRoutes)
+  app.route('/organizations', organizationCreateRoutes)
+  const scope = organizationScope({
+    defaultOrganizationId,
+    exists: async (id) => Boolean(await db.query.organizations.findFirst({ where: eq(organizations.id, id), columns: { id: true } })),
+    session: (token) => sessionUser(db, token),
+  })
+  for (const path of ['/organization/*', '/users/*', '/documents/*', '/opportunities/*', '/grants/*', '/facts/*', '/transactions/*', '/transaction-imports/*']) {
+    app.use(path, scope)
+  }
 
+  app.route('/organization', organizationRoutes)
+  app.route('/users', userRoutes)
+  app.route('/documents', documentRoutes)
+  app.route('/opportunities', opportunityRoutes)
   app.route('/grants', grantRoutes)
+  app.route('/facts', factRoutes)
+  app.route('/transactions', transactionRoutes)
+  app.route('/transaction-imports', transactionImportRoutes)
 
   return app
 }

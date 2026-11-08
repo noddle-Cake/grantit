@@ -1,6 +1,6 @@
 import { KeyRound, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Card, Field, Input, PageHeader, Select } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, PageHeader, Select } from '@/components/ui'
 import { fiscalYearFor } from '@grantit/shared/finance'
 import { fmtDate, todayISO } from '@grantit/shared/format'
 import { clearAiSettings, DEFAULT_AI_MODEL, readAiSettings, writeAiSettings } from '@/lib/ai-settings'
@@ -10,6 +10,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocal
 
 export default function Settings() {
   const { state, setFiscalYearStart, resetDemo, notify } = useStore()
+  const [resetOpen, setResetOpen] = useState(false)
   const fy = fiscalYearFor(todayISO(), state.org.fiscalYearStartMonth)
   const [ai, setAi] = useState(readAiSettings)
   const [showKey, setShowKey] = useState(false)
@@ -52,11 +53,21 @@ export default function Settings() {
         </Card>
         <Card title="Demo data">
           <p className="text-sm text-slate-2">Data is stored in this browser. Reset to restore the sample organization, grants, and ledger.</p>
-          <Button variant="danger" className="mt-4" icon={<RotateCcw size={15} />} onClick={() => { resetDemo(); notify('Demo data restored', 'info') }}>
+          <Button variant="danger" className="mt-4" icon={<RotateCcw size={15} />} onClick={() => setResetOpen(true)}>
             Reset demo data
           </Button>
         </Card>
       </div>
+      <Modal open={resetOpen} onClose={() => setResetOpen(false)} label="Reset demo data" width={440}>
+        <div className="space-y-4 p-6">
+          <h2 className="text-lg font-semibold">Reset demo data?</h2>
+          <p className="text-sm text-slate-2">This replaces the facts, grants, spending, and settings saved in this browser with the sample data. Your changes cannot be recovered.</p>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="secondary" onClick={() => setResetOpen(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => { resetDemo(); setResetOpen(false); notify('Demo data restored', 'info') }}>Reset demo data</Button>
+          </div>
+        </div>
+      </Modal>
     </>
   )
 }

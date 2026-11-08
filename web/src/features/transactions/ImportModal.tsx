@@ -92,15 +92,15 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
               onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
               onDragLeave={() => setDrag(false)}
               onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) void loadFile(f) }}
-              onClick={() => input.current?.click()}
-              className={clsx('flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition', drag ? 'border-link bg-link-soft' : 'border-line hover:border-slate-3 hover:bg-canvas')}
+              className={clsx('flex flex-col items-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition', drag ? 'border-link bg-link-soft' : 'border-line hover:border-slate-3 hover:bg-canvas')}
             >
               <UploadCloud size={28} className="text-slate-3" />
-              <div className="mt-2 font-medium text-slate">Drop a CSV file or click to browse</div>
+              <button type="button" onClick={() => input.current?.click()} className="mt-2 rounded px-3 py-2 font-medium text-link hover:underline">Choose a CSV file</button>
+              <div className="text-sm text-slate-2">Or drop it here</div>
               <div className="mt-1 text-xs text-slate-3">Grantit template or a QuickBooks transaction export (Date, Name, Memo/Description, Account, Amount). Extra columns are ignored.</div>
-              <input ref={input} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void loadFile(f) }} />
+              <input ref={input} type="file" accept=".csv,text/csv" aria-label="Choose CSV file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void loadFile(f) }} />
             </div>
-            {readError && <p className="text-sm text-bad">{readError}</p>}
+            {readError && <p role="alert" className="text-sm text-bad">{readError}</p>}
             <div className="grid gap-3 sm:grid-cols-3">
               <button onClick={() => downloadFile('grantit-transactions-template.csv', TEMPLATE)} className="flex items-center gap-3 rounded-xl border border-line-2 p-3 text-left hover:bg-canvas">
                 <Download size={18} className="text-slate-2" />
@@ -163,7 +163,7 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
               </table>
             </div>
             {preview.errors.length > 0 && (
-              <ul className="space-y-0.5 text-xs text-bad">
+              <ul role="alert" className="space-y-0.5 text-xs text-bad">
                 {preview.errors.slice(0, 4).map((e) => <li key={e}>{e}: skipped</li>)}
                 {preview.errors.length > 4 && <li>…and {preview.errors.length - 4} more</li>}
               </ul>

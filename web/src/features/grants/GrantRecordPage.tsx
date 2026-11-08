@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { ArrowLeft, BookOpenText, CalendarRange, ChevronDown, CircleDollarSign, Scale, Split, User } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { ApplicationTab } from './tabs/ApplicationTab'
 import { BudgetTab } from './tabs/BudgetTab'
@@ -19,14 +19,15 @@ type Tab = 'overview' | 'application' | 'budget' | 'setup'
 
 function Section({ title, children, defaultOpen = true, count }: { title: string; children: ReactNode; defaultOpen?: boolean; count?: number }) {
   const [open, setOpen] = useState(defaultOpen)
+  const contentId = useId()
   return (
     <div className="border-t border-line-2">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-slate hover:bg-canvas">
+      <button aria-expanded={open} aria-controls={contentId} onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-slate hover:bg-canvas">
         <ChevronDown size={16} className={clsx('text-slate-3 transition-transform', !open && '-rotate-90')} />
         {title}
         {count !== undefined && <span className="font-normal text-slate-3">({count})</span>}
       </button>
-      {open && <div className="px-5 pb-4">{children}</div>}
+      <div id={contentId} hidden={!open} className="px-5 pb-4">{children}</div>
     </div>
   )
 }
@@ -53,7 +54,8 @@ export default function GrantRecord() {
   const workspace = workspaceFor(grant.stage)
   const funded = workspace.home === '/funds'
   const defaultTab: Tab = funded ? (grant.categories.length ? 'budget' : 'overview') : grant.questions.length ? 'application' : 'overview'
-  const tab = (params.get('tab') as Tab) ?? defaultTab
+  const requestedTab = params.get('tab')
+  const tab: Tab = ['overview', 'application', 'budget', 'setup'].includes(requestedTab ?? '') ? requestedTab as Tab : defaultTab
 
   const owner = state.users.find((u) => u.id === grant.ownerId)
   const check = checkApplication(grant.questions, state.facts)
@@ -76,12 +78,13 @@ export default function GrantRecord() {
             <div className="mt-3 flex items-center gap-2">
               {canConfigure ? (
                 <select
+                  aria-label="Grant stage"
                   value={grant.stage}
                   onChange={(e) => {
                     updateGrant(grant.id, { stage: e.target.value as GrantStage })
                     notify(`Stage set to ${stageMeta(e.target.value as GrantStage).label}`)
                   }}
-                  className="h-8 rounded-full border border-line bg-surface px-3 text-[0.8125rem] font-medium text-slate focus:outline-none"
+                  className="h-8 rounded-full border border-control-line bg-surface px-3 text-[0.8125rem] font-medium text-slate"
                 >
                   {STAGES.map((s) => (
                     <option key={s.id} value={s.id}>{s.label}</option>
@@ -113,6 +116,8 @@ export default function GrantRecord() {
         <div className="min-w-0">
           <div className="rounded-t-lg border border-b-0 border-line-2 bg-surface px-2">
             <Tabs<Tab>
+              id="grant-record"
+              label="Grant details"
               value={tab}
               onChange={(t) => setParams({ tab: t })}
               tabs={(() => {
@@ -132,12 +137,14 @@ export default function GrantRecord() {
               })()}
             />
           </div>
-          <div className="rounded-b-lg border border-line-2 bg-surface p-5">
-            {tab === 'overview' && <OverviewTab grant={grant} />}
-            {tab === 'application' && <ApplicationTab grant={grant} />}
-            {tab === 'budget' && <BudgetTab grant={grant} />}
-            {tab === 'setup' && <SetupTab grant={grant} />}
-          </div>
+          {(['overview', 'application', 'budget', 'setup'] as const).map((panel) => (
+            <div key={panel} id={`grant-record-${panel}-panel`} role="tabpanel" aria-labelledby={`grant-record-${panel}-tab`} hidden={tab !== panel} tabIndex={0} className="rounded-b-lg border border-line-2 bg-surface p-5">
+              {tab === panel && panel === 'overview' && <OverviewTab grant={grant} />}
+              {tab === panel && panel === 'application' && <ApplicationTab grant={grant} />}
+              {tab === panel && panel === 'budget' && <BudgetTab grant={grant} />}
+              {tab === panel && panel === 'setup' && <SetupTab grant={grant} />}
+            </div>
+          ))}
         </div>
 
         {/* ── Right: associations ── */}

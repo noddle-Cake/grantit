@@ -51,10 +51,11 @@ export default function Reports() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-3">
-        <Select value={grantId} onChange={(e) => { setGrantId(e.target.value); setPIdx(0) }} className="!h-9 !w-72 !bg-surface">
+        <Select aria-label="Report grant" value={grantId} onChange={(e) => { setGrantId(e.target.value); setPIdx(0) }} className="!h-9 !w-72 !bg-surface">
           {reportable.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
         </Select>
         <Segmented<string>
+          label="Reporting period"
           value={String(pIdx)}
           onChange={(v) => setPIdx(Number(v))}
           options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}

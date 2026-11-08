@@ -105,14 +105,22 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 - Filters are query parameters named after the field: `/grants?stage=awarded`,
   `/transactions?grantId=g-anchor&reviewed=false`.
 
-## Organizations and (later) auth
+## Organizations and auth
 
 - Every request acts for one organization, and handlers read it from `c.get('organizationId')`. Every query
   is filtered by it. The organization ID is never taken from a request body.
-- Until sign-in exists (#9), the organization comes from the `X-Organization-Id` header, falling back to
-  `DEFAULT_ORGANIZATION_ID` (the demo organization in local development). Sign-in will replace the
-  `organizationScope` middleware and take the organization from the session, with no route changes.
+- **Sessions:** `POST /auth/sign-in { userId }` returns a 30-day bearer token. `Authorization: Bearer
+  <token>` scopes the request to that user's organization and user (`/auth/me`, `/auth/sign-out`). This is
+  the credential-less MVP of #9: the demo's simulated roles mean anyone can sign in as anyone.
+- Without a session, the organization comes from the `X-Organization-Id` header, falling back to
+  `DEFAULT_ORGANIZATION_ID` (the demo organization in local development), and attribution falls back to
+  `X-User-Id` or the org's first user. Real credentials will tighten `/auth/sign-in` only; routes don't change.
 - Another organization's record returns `404`, not `403`, so the API never confirms it exists.
+- **Role enforcement** (#11): when a session is present, writes check the shared matrix
+  (`shared/src/permissions.ts`): grant writes need `grant:configure`, answer edits `application:draft`
+  (or `application:approve` to approve), fact edits `fact:edit` with `canApproveFact` gating approvals,
+  transaction writes `finance:review`/`finance:import`, and org settings + invites are director-only.
+  Header-mode requests (no session) stay permissive until the UI signs in everywhere.
 
 ## Tests
 
@@ -121,16 +129,34 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 - Cover the success response, at least one validation failure, `404` for a missing record, and organization
   isolation.
 
-## Planned endpoints (Phase 2)
+## Endpoints
 
-| Endpoint | Owner | Issue |
+| Endpoint | Status | Issue |
 |---|---|---|
 | `GET /grants`, `GET /grants/:grantId` | done (reference) | #78 |
-| `PATCH /grants/:grantId`, `POST /grants` | Chris | #4 |
-| `GET/POST /facts`, `PATCH/DELETE /facts/:factId` | Chris | #4 |
-| `PATCH /grants/:grantId/questions/:questionId` | Chris | #4 |
-| `POST /grants/:grantId/questions/:questionId/drafts` | Chris | #14 |
-| `GET/POST /transactions`, `PATCH /transactions/:transactionId` | Sam | #79 |
-| `PUT /transactions/:transactionId/allocations` | Sam | #79 |
-| `GET /grants/:grantId/financials?start=&end=` | Sam | #79 |
-| `POST /transaction-imports` (CSV) | Sam | #6 |
+| `PATCH /grants/:grantId`, `POST /grants` | done | #4 |
+| `GET/POST /facts`, `PATCH/DELETE /facts/:factId` | done | #4 |
+| `PATCH /grants/:grantId/questions/:questionId` | done | #4 |
+| `POST /grants/:grantId/questions/:questionId/drafts` | done | #14 |
+| `GET/POST /transactions`, `PATCH /transactions/:transactionId` | done | #79 |
+| `PUT /transactions/:transactionId/allocations` | done | #79 |
+| `GET /grants/:grantId/financials?start=&end=` | done | #79 |
+| `POST /transaction-imports` (CSV) | done | #6 |
+| `GET/PATCH /organization` | done | #80 |
+| `GET /users`, `GET /documents` | done | #80 |
+| `GET /opportunities`, `POST /opportunities/:opportunityId/grants` | done | #8 |
+| `GET /grants/:grantId/check` | done | #14 |
+| `POST /auth/sign-in`, `GET /auth/me`, `POST /auth/sign-out` | done (no credentials yet) | #9 |
+| `POST /organizations`, `POST /users` (invite) | done | #10 |
+| `GET /transactions/:transactionId/audit-events` | done | #13 |
+
+Notes on the built endpoints:
+
+- `PATCH /grants/:grantId` patches scalar fields; a provided `categories`, `questions` or `deadlines` array
+  replaces that whole sub-collection. Child ids default to `c1`, `q1`, `d1`… within the grant.
+- `POST …/drafts` returns `201` with `{ data: { question, draft } }`: the saved question plus the
+  `DraftResult` (text, citations, missing, blockedBy) from the shared `draftAnswer` engine.
+- `POST /transaction-imports` takes `{ csv }` (same columns as the web import) and returns `201` with
+  `{ data: Transaction[], errors: string[] }` — invalid rows are skipped and reported as `Row N: …`.
+- Until sign-in exists (#9), writes that need a user (fact `updatedBy`/`approvedBy`, a new grant's
+  `ownerId`) take `X-User-Id`, falling back to the organization's first user.

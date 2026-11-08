@@ -70,6 +70,20 @@ export const users = pgTable(
   (t) => [index().on(t.organizationId)],
 )
 
+// Bearer-token sessions until real credentials exist: POST /auth/sign-in { userId } issues one.
+export const sessions = pgTable(
+  'sessions',
+  {
+    id: text().primaryKey(), // the bearer token itself
+    userId: text()
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.userId)],
+)
+
 export const facts = pgTable(
   'facts',
   {
@@ -205,6 +219,26 @@ export const transactions = pgTable(
     createdAt: createdAt(),
   },
   (t) => [index().on(t.organizationId, t.date)],
+)
+
+// Expenditure audit trail (P2): who changed what on transactions and allocations.
+export const AUDIT_ACTIONS = ['transaction.created', 'transaction.updated', 'allocations.replaced', 'transactions.imported'] as const
+export const auditActionEnum = pgEnum('audit_action', AUDIT_ACTIONS)
+
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: text().primaryKey(),
+    organizationId: organizationId(),
+    transactionId: text()
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    action: auditActionEnum().notNull(),
+    actorId: text().references(() => users.id),
+    detail: text().notNull().default(''), // e.g. the fields changed or rows imported
+    createdAt: createdAt(),
+  },
+  (t) => [index().on(t.organizationId, t.transactionId)],
 )
 
 export const allocations = pgTable(
