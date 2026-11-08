@@ -40,6 +40,19 @@ export function relativeDay(iso: string): string {
   return fmtDate(iso)
 }
 
+/** "Dec 18, 2026 · In 40 days", or just the date when the relative label would only repeat it. */
+export function dateWithRelative(iso: string): string {
+  const date = fmtDate(iso)
+  const rel = relativeDay(iso)
+  return rel === date ? date : `${date} · ${rel}`
+}
+
+/** The relative label for use mid-sentence: "Due in 5 days", "Due today", "Due Jan 29, 2027". */
+export function relativePhrase(iso: string): string {
+  const rel = relativeDay(iso)
+  return /^(Today|Tomorrow|Yesterday|In )/.test(rel) ? rel[0].toLowerCase() + rel.slice(1) : rel
+}
+
 export function wordCount(text: string): number {
   const t = text.trim()
   return t ? t.split(/\s+/).length : 0

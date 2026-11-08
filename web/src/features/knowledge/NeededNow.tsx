@@ -3,7 +3,7 @@ import { ArrowRight, Check, CircleAlert } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { factCategoryLabel } from '@/lib/labels'
 import { Avatar, Button, Card } from '@/components/ui'
-import { daysUntil, fmtDate, relativeDay, todayISO } from '@grantit/shared/format'
+import { daysUntil, fmtDate, relativePhrase, todayISO } from '@grantit/shared/format'
 import { neededNow, type Need, type NeedRef } from '@grantit/shared/needs'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can, canApproveFact } from '@grantit/shared/permissions'
@@ -77,12 +77,12 @@ export function NeededNow({ onAdd, onOpen }: { onAdd: (hint: string) => void; on
           const key = need.kind === 'approve' ? need.fact.id : need.kind === 'add' ? need.topic : need.category
           return (
             <li key={`${need.kind}:${key}`} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 basis-60">
                 <p className="text-sm text-slate">
                   {need.kind === 'approve' ? (
                     <>
                       Approve{' '}
-                      <button type="button" onClick={() => onOpen(state.facts.find((f) => f.id === need.fact.id)!)} className="font-medium text-link hover:underline">
+                      <button type="button" onClick={() => onOpen(state.facts.find((f) => f.id === need.fact.id)!)} className="text-left font-medium text-link hover:underline">
                         {need.fact.title}
                       </button>
                     </>
@@ -96,7 +96,7 @@ export function NeededNow({ onAdd, onOpen }: { onAdd: (hint: string) => void; on
                   <Blocks need={need} />
                   {need.due && (
                     <span title={fmtDate(need.due)} className={clsx(daysUntil(need.due) <= 14 && 'font-medium text-brand-dark')}>
-                      {' · '}Due {relativeDay(need.due)}
+                      {' · '}Due {relativePhrase(need.due)}
                     </span>
                   )}
                 </p>

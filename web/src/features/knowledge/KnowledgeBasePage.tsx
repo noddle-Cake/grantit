@@ -153,7 +153,7 @@ export default function KnowledgeBase() {
                   <li key={f.id} className="group flex gap-3 px-5 py-4 hover:bg-canvas">
                     {approvable.length > 1 &&
                       (canApprove ? (
-                        <label className="-ml-1 flex w-6 shrink-0 justify-center pt-0.5">
+                        <label className="-ml-1 flex w-6 shrink-0 items-start justify-center self-start pt-1">
                           <input type="checkbox" aria-label={`Select ${f.title}`} checked={selected.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
                         </label>
                       ) : (
