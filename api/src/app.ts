@@ -9,6 +9,7 @@ import { factRoutes } from './routes/facts.ts'
 import { grantRoutes } from './routes/grants.ts'
 import { opportunityRoutes } from './routes/opportunities.ts'
 import { organizationRoutes } from './routes/organization.ts'
+import { organizationCreateRoutes } from './routes/organizations.ts'
 import { transactionImportRoutes } from './routes/transaction-imports.ts'
 import { transactionRoutes } from './routes/transactions.ts'
 import { userRoutes } from './routes/users.ts'
@@ -31,8 +32,9 @@ export function createApp({ db, defaultOrganizationId }: AppOptions) {
     c.set('db', db)
     await next()
   })
-  // Sign-in is outside the organization scope: the session picks the organization.
+  // Sign-in and creating an organization are outside the organization scope.
   app.route('/auth', authRoutes)
+  app.route('/organizations', organizationCreateRoutes)
   const scope = organizationScope({
     defaultOrganizationId,
     exists: async (id) => Boolean(await db.query.organizations.findFirst({ where: eq(organizations.id, id), columns: { id: true } })),

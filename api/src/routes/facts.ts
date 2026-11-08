@@ -5,7 +5,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { compact } from '../db/organization-data.ts'
 import { facts } from '../db/schema.ts'
-import { actorId, decodeCursor, notFound, pageQuery, toPage, validate, type AppEnv, type Page } from '../http.ts'
+import { actorId, decodeCursor, notFound, pageQuery, requireAction, requireApproveFact, toPage, validate, type AppEnv, type Page } from '../http.ts'
 
 // Knowledge base facts (docs/api.md). Facts are organization-owned, so a missing or foreign id is 404.
 
@@ -63,6 +63,8 @@ export const factRoutes = new Hono<AppEnv>()
   /** POST /api/facts → 201 { data: Fact }. updatedBy/approvedBy come from X-User-Id (or the org's first user). */
   .post('/', validate('json', createBody), async (c) => {
     const input = c.req.valid('json')
+    await requireAction(c, 'fact:edit')
+    if (input.status === 'approved') await requireApproveFact(c, input.category)
     const actor = await actorId(c)
     const [row] = await c
       .get('db')
@@ -75,6 +77,14 @@ export const factRoutes = new Hono<AppEnv>()
   .patch('/:factId', validate('json', patchBody), async (c) => {
     const factId = c.req.param('factId')
     const input = c.req.valid('json')
+    await requireAction(c, 'fact:edit')
+    if (input.status === 'approved') {
+      const category =
+        input.category ??
+        (await c.get('db').query.facts.findFirst({ where: and(eq(facts.id, factId), eq(facts.organizationId, c.get('organizationId'))), columns: { category: true } }))?.category
+      if (!category) throw notFound('Fact', factId)
+      await requireApproveFact(c, category)
+    }
     const actor = await actorId(c)
     const [row] = await c
       .get('db')

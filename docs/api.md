@@ -116,6 +116,11 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
   `DEFAULT_ORGANIZATION_ID` (the demo organization in local development), and attribution falls back to
   `X-User-Id` or the org's first user. Real credentials will tighten `/auth/sign-in` only; routes don't change.
 - Another organization's record returns `404`, not `403`, so the API never confirms it exists.
+- **Role enforcement** (#11): when a session is present, writes check the shared matrix
+  (`shared/src/permissions.ts`): grant writes need `grant:configure`, answer edits `application:draft`
+  (or `application:approve` to approve), fact edits `fact:edit` with `canApproveFact` gating approvals,
+  transaction writes `finance:review`/`finance:import`, and org settings + invites are director-only.
+  Header-mode requests (no session) stay permissive until the UI signs in everywhere.
 
 ## Tests
 
@@ -142,6 +147,7 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 | `GET /opportunities`, `POST /opportunities/:opportunityId/grants` | done | #8 |
 | `GET /grants/:grantId/check` | done | #14 |
 | `POST /auth/sign-in`, `GET /auth/me`, `POST /auth/sign-out` | done (no credentials yet) | #9 |
+| `POST /organizations`, `POST /users` (invite) | done | #10 |
 
 Notes on the built endpoints:
 

@@ -73,6 +73,23 @@ describe.skipIf(!hasTestDb)('organization, users and documents API', () => {
     expect(docs.data).toEqual([])
   })
 
+  it('POST /organizations creates an org with a director who can sign in', async () => {
+    const res = await send('POST', '/organizations', {
+      name: 'New Nonprofit', ein: '22-2222222', fiscalYearStartMonth: 7,
+      director: { name: 'Dana Reed', title: 'Executive Director', initials: 'DR' },
+    })
+    expect(res.status).toBe(201)
+    const { data } = (await res.json()) as { data: { organization: Organization; user: User } }
+    expect(data.organization.name).toBe('New Nonprofit')
+    expect(data.user).toMatchObject({ name: 'Dana Reed', role: 'director' })
+    // Their session scopes to the new, empty organization.
+    const signIn = await send('POST', '/auth/sign-in', { userId: data.user.id })
+    const { data: s } = (await signIn.json()) as { data: { token: string; organizationId: string } }
+    expect(s.organizationId).toBe(data.organization.id)
+    const facts = (await (await app.request('/api/facts', { headers: { Authorization: `Bearer ${s.token}` } })).json()) as Page<unknown>
+    expect(facts.data).toEqual([])
+  })
+
   it('answers errors in the standard shape', async () => {
     const res = await get('/users?limit=0')
     expect(((await res.json()) as ErrorBody).error.code).toBe('validation_failed')

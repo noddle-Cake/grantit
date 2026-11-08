@@ -5,7 +5,7 @@ import Papa from 'papaparse'
 import { z } from 'zod'
 import { loadTransactions } from '../db/organization-data.ts'
 import { allocations, grants, transactions } from '../db/schema.ts'
-import { validate, type AppEnv } from '../http.ts'
+import { requireAction, validate, type AppEnv } from '../http.ts'
 
 // Server-side CSV transaction import (docs/api.md). Same column rules as the web import modal:
 // date, vendor, description, account, amount, and optional grant (matched by name) + category.
@@ -24,6 +24,7 @@ export const transactionImportRoutes = new Hono<AppEnv>()
    * `errors` as `Row N: …` (N is the CSV line number, header = row 1).
    */
   .post('/', validate('json', importBody), async (c) => {
+    await requireAction(c, 'finance:import')
     const { csv } = c.req.valid('json')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
