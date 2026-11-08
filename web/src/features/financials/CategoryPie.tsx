@@ -1,4 +1,4 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
+import { Pie, PieChart, ResponsiveContainer, Sector, Tooltip, type PieSectorShapeProps } from 'recharts'
 import type { CategoryRow } from '@grantit/shared/financials'
 import { money, pct } from '@grantit/shared/format'
 
@@ -9,10 +9,8 @@ export const categoryColor = (index: number) => `var(--color-cat-${(index % CATE
 interface Segment {
   categoryId: string
   name: string
-  part: 'spent' | 'remaining'
   value: number
   color: string
-  fillOpacity: number
   spent: number
   available: number
   remaining: number
@@ -35,18 +33,27 @@ function Tip({ active, payload }: { active?: boolean; payload?: { payload: Segme
 }
 
 /**
- * One slice per category, sized by the money it makes available. Each slice is two adjacent
- * segments in one hue: the full-color part is what has been spent, the pale part is what remains.
+ * A category's slice, shaded from the center out: the full-color core covers the share of the slice's area that has
+ * been spent (radius ∝ √share), the pale rim is what remains.
  */
+function ShadedSlice(props: PieSectorShapeProps) {
+  const s = props.payload as Segment
+  const geometry = { cx: props.cx, cy: props.cy, innerRadius: 0, startAngle: props.startAngle, endAngle: props.endAngle }
+  const share = s.available > 0 ? Math.min(1, Math.max(0, (s.available - s.remaining) / s.available)) : 0
+  return (
+    <g>
+      <Sector {...geometry} outerRadius={props.outerRadius} fill={s.color} fillOpacity={0.3} />
+      {share > 0 && <Sector {...geometry} outerRadius={props.outerRadius * Math.sqrt(share)} fill={s.color} />}
+      <Sector {...geometry} outerRadius={props.outerRadius} fill="none" stroke="var(--color-surface)" strokeWidth={2} />
+    </g>
+  )
+}
+
+/** One slice per category, sized by the money it makes available and shaded for what has been spent. */
 export function CategoryPie({ categories, onSelect }: { categories: CategoryRow[]; onSelect: (categoryId: string) => void }) {
-  const segments: Segment[] = categories.flatMap((c, i) => {
-    if (c.available <= 0) return []
-    const base = { categoryId: c.id, name: c.name, color: categoryColor(i), spent: c.spent, available: c.available, remaining: c.remaining, overspent: c.overspent }
-    const parts: Segment[] = []
-    if (c.available - c.remaining > 0) parts.push({ ...base, part: 'spent' as const, value: c.available - c.remaining, fillOpacity: 1 })
-    if (c.remaining > 0) parts.push({ ...base, part: 'remaining' as const, value: c.remaining, fillOpacity: 0.3 })
-    return parts
-  })
+  const segments: Segment[] = categories.flatMap((c, i) =>
+    c.available > 0 ? [{ categoryId: c.id, name: c.name, value: c.available, color: categoryColor(i), spent: c.spent, available: c.available, remaining: c.remaining, overspent: c.overspent }] : [],
+  )
   return (
     <div className="h-[min(70vh,34rem)] w-full">
       <ResponsiveContainer width="100%" height="100%">
@@ -58,17 +65,14 @@ export function CategoryPie({ categories, onSelect }: { categories: CategoryRow[
             startAngle={90}
             endAngle={-270}
             outerRadius="100%"
-            stroke="var(--color-surface)"
-            strokeWidth={2}
             isAnimationActive={false}
             className="cursor-pointer"
+            shape={ShadedSlice}
             onClick={(data) => {
               const seg = (data.payload ?? data) as Segment
               if (seg.categoryId) onSelect(seg.categoryId)
             }}
-          >
-            {segments.map((s) => <Cell key={`${s.categoryId}-${s.part}`} fill={s.color} fillOpacity={s.fillOpacity} />)}
-          </Pie>
+          />
           <Tooltip content={<Tip />} />
         </PieChart>
       </ResponsiveContainer>
