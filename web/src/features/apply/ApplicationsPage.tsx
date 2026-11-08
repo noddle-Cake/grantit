@@ -12,8 +12,11 @@ import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import type { Grant } from '@grantit/shared/types'
 import { useStore } from '@/store'
 import { nextStepHref, whoActs } from './nextStep'
+import { BudgetCell, FinanceFactsBar } from './BudgetView'
 
 type Filter = 'active' | 'submitted' | 'declined'
+/** What each row details: writing progress, or the money side (Finance's default). */
+type View = 'progress' | 'budget'
 /** A narrower view of in-progress applications, chosen from the summary tiles. */
 type Focus = 'at-risk' | 'to-approve' | null
 const ORDER = { drafting: 0, prospect: 1, submitted: 2, declined: 3 } as Record<string, number>
@@ -44,6 +47,7 @@ export default function Applications() {
   const [focus, setFocus] = useState<Focus>(null)
   const [query, setQuery] = useState('')
   const [mine, setMine] = useState(false)
+  const [view, setView] = useState<View>(() => (me.role === 'finance' ? 'budget' : 'progress'))
   const [newOpen, setNewOpen] = useState(false)
   const today = todayISO()
   const pipeline = state.grants
@@ -106,11 +110,18 @@ export default function Applications() {
             >
               Mine
             </button>
+            <Segmented<View>
+              label="Row details"
+              value={view}
+              onChange={setView}
+              options={[{ id: 'progress', label: 'Progress' }, { id: 'budget', label: 'Budget' }]}
+            />
             <div className="relative w-full sm:ml-auto sm:w-64">
               <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
               <input aria-label="Search applications" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search applications" className="h-9 w-full rounded-lg border border-control-line bg-surface pl-9 pr-3 text-sm placeholder:text-slate-3" />
             </div>
           </div>
+          {view === 'budget' && <FinanceFactsBar />}
           <Card padded={false}>
             {grants.length ? (
               <ul className="divide-y divide-line-2">
@@ -143,7 +154,7 @@ export default function Applications() {
                           </p>
                         )}
                       </div>
-                      <div>
+                      {view === 'budget' ? <BudgetCell grant={g} /> : <div>
                         <p className={clsx('text-xs', next.ready ? 'font-medium text-good' : 'text-slate-2')}>{next.text}</p>
                         {actor && (
                           <p className="mt-1 flex items-center gap-1.5 text-xs">
@@ -165,7 +176,7 @@ export default function Applications() {
                             <p className="mt-1 text-xs tabular-nums text-slate-3">{readyCount} of {g.questions.length} answers ready</p>
                           </div>
                         )}
-                      </div>
+                      </div>}
                       <Link to={nextStepHref(g, next)} aria-label={`${inactive ? 'View' : 'Continue'} application: ${g.name}`} className="inline-flex items-center gap-1.5 justify-self-start rounded-lg py-1.5 text-sm font-medium text-link hover:underline">
                         {inactive ? 'View application' : 'Continue'} <ArrowRight size={14} />
                       </Link>

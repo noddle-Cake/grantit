@@ -163,9 +163,20 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
 
 This workspace focuses on discovering funding and preparing applications:
 
-- **Opportunities** shows recommendations, funding ranges, deadlines, funder requirements, the listing's
-  source and focus areas. Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage.
-  Supporting facts sit behind “Why this matches.” The application pipeline lives on Applications.
+- **Opportunities** shows recommendations, funding ranges, deadlines, the listing's source and focus areas.
+  Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage. Each card has a
+  **go / no-go** panel (`shared/src/opportunities.ts`): every funder requirement with the approved fact
+  that relates to it, or "no related fact found, check before applying" (`checkRequirements` matches key
+  words and suggests; it never rules a requirement met); applications in progress due within 7 days of the
+  deadline; the top amount against the median award won; and the assumed funding period. Supporting facts
+  sit behind “Why this matches.” Only people who add prospects can dismiss a match, since dismissals apply
+  to the whole browser rather than one person. The application pipeline lives on Applications.
+- **Finance view.** Applications has a Progress / Budget switch for row details; Finance opens on Budget.
+  Budget rows show the funding period ("to confirm" for prospects), the drafted budget against the request,
+  and the funder's money rules (`moneyRules`: indirect costs, match, fiscal year, limits). A Finance facts
+  line shows how many finance facts are approved, waiting, or over a year old, linking to Knowledge base
+  filtered to finance (`?category=finance`). Finance staff approve finance-category facts; program staff
+  approve program-side facts; the director approves everything.
 - **Applications** opens with four summary tiles (`pipelineSummary`): In progress (count and amount
   requested), At risk, Answers to approve, and Submitted (amount awaiting decisions). Each tile is a toggle
   that filters the list; Mine applies to the tiles too. Rows show the next step, who takes it ("Your turn" or "Waiting on <name>"), the owner, and

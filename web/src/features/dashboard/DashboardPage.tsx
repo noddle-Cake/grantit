@@ -13,7 +13,7 @@ import { useFunds } from '@/features/funds/useFunds'
 import { NeedsSetupPill } from '@/features/grants/NeedsSetupPill'
 import { money, moneyCompact, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
-import { can } from '@grantit/shared/permissions'
+import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import { nextStepHref } from '@/features/apply/nextStep'
 
@@ -61,7 +61,8 @@ export default function Dashboard() {
   // Manage funds: the same action counts as the Funded grants page (shared/src/funds.ts).
   const { queue } = useFunds()
   const unconfigured = state.grants.filter((g) => isOpenAward(g) && needsSetup(g))
-  const pendingFacts = state.facts.filter((f) => f.status === 'pending')
+  // Only the facts this person may approve (program staff and finance each approve their own categories).
+  const pendingFacts = state.facts.filter((f) => f.status === 'pending' && canApproveFact(me.role, f.category))
   const drafting = state.grants.filter((g) => g.stage === 'drafting')
 
   const todos = [

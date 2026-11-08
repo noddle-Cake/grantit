@@ -80,7 +80,7 @@ Every funder can impose different requirements, and the application must support
 | Priority | Requirement | Status |
 |---|---|---|
 | P0 | Allow the director to configure grants, draft applications, and approve information. | ✅ |
-| P0 | Allow financial staff to review transactions, categories, and spending compliance. | ✅ |
+| P0 | Allow financial staff to review transactions, categories, and spending compliance. | ✅ also approve finance facts and see a budget view of applications |
 | P1 | Allow program staff to contribute and approve program information. | ✅ |
 | P1 | Track the status of applications, narrative drafts, financial checks, and reports. | ✅ |
 | P2 | Support role-based permissions and multi-user approval workflows. | 🟡 roles simulated, no auth |

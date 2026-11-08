@@ -1,3 +1,5 @@
+import { isInProgress, nextApplicationDeadline } from './applications.ts'
+import { parseDate } from './format.ts'
 import type { Fact, Grant } from './types.ts'
 
 /**
@@ -71,8 +73,8 @@ export function recommendOpportunities(
 }
 
 /** The prospect grant created when staff add an opportunity to their pipeline. */
-export function grantFromOpportunity(o: Opportunity, ownerId: string, cover: number): Omit<Grant, 'id'> {
-  // The funding period is unknown until award; assume the 12 months after the first of the month following the deadline.
+/** The funding period is unknown until award; assume the 12 months from the first of the month after the deadline. */
+export function assumedPeriod(o: Pick<Opportunity, 'deadline'>): { start: string; end: string } {
   const [y, m] = o.deadline.split('-').map(Number)
   const startY = m === 12 ? y + 1 : y
   const startM = m === 12 ? 1 : m + 1
@@ -80,6 +82,11 @@ export function grantFromOpportunity(o: Opportunity, ownerId: string, cover: num
   const endM = startM === 1 ? 12 : startM - 1
   const endY = startM === 1 ? startY : startY + 1
   const lastDay = new Date(endY, endM, 0).getDate()
+  return { start: `${startY}-${pad(startM)}-01`, end: `${endY}-${pad(endM)}-${pad(lastDay)}` }
+}
+
+export function grantFromOpportunity(o: Opportunity, ownerId: string, cover: number): Omit<Grant, 'id'> {
+  const period = assumedPeriod(o)
   return {
     name: o.program,
     funder: o.funder,
@@ -87,12 +94,67 @@ export function grantFromOpportunity(o: Opportunity, ownerId: string, cover: num
     stage: 'prospect',
     cover,
     ownerId,
-    periodStart: `${startY}-${pad(startM)}-01`,
-    periodEnd: `${endY}-${pad(endM)}-${pad(lastDay)}`,
+    periodStart: period.start,
+    periodEnd: period.end,
     deadlines: [{ id: 'd-application', label: 'Application due', date: o.deadline, kind: 'application' }],
     rules: o.eligibility,
     categories: [],
     questions: [],
     allowSplit: false,
   }
+}
+
+// ─── Go / no-go ──────────────────────────────────────────────────────────────
+
+export interface RequirementCheck {
+  requirement: string
+  /** An approved fact that likely shows the requirement is met; absent when none was found. */
+  evidence?: Pick<Fact, 'id' | 'title'>
+}
+
+const REQ_STOP = new Set('with that this from have least their your than under over into must will required organizations'.split(' '))
+const words = (s: string) => (s.toLowerCase().match(/[a-z]{4,}/g) ?? []).filter((w) => !REQ_STOP.has(w))
+const stem = (w: string) => w.slice(0, 5)
+
+/**
+ * For each of the funder's requirements, the approved fact that best matches its key words (at least half of
+ * them, compared by their first five letters). A suggestion for a person to confirm, never a ruling: an
+ * unmatched requirement means "not found in your facts", not "not met".
+ */
+export function checkRequirements(o: Pick<Opportunity, 'eligibility'>, facts: Fact[]): RequirementCheck[] {
+  const approved = facts
+    .filter((f) => f.status === 'approved')
+    .map((f) => ({ f, stems: new Set([...words(`${f.title} ${f.content}`), ...f.tags.flatMap((t) => t.split('-'))].map(stem)) }))
+  return o.eligibility.map((requirement) => {
+    const need = [...new Set(words(requirement).map(stem))]
+    let best: { f: Fact; hits: number } | undefined
+    for (const { f, stems } of approved) {
+      const hits = need.filter((w) => stems.has(w)).length
+      if (hits && hits * 2 >= need.length && hits > (best?.hits ?? 0)) best = { f, hits }
+    }
+    return { requirement, evidence: best && { id: best.f.id, title: best.f.title } }
+  })
+}
+
+export const CLASH_DAYS = 7
+
+/** Applications in progress due within {@link CLASH_DAYS} days of the opportunity's deadline, soonest first. */
+export function deadlineClashes(
+  o: Pick<Opportunity, 'deadline'>,
+  grants: Pick<Grant, 'id' | 'name' | 'stage' | 'deadlines'>[],
+): { id: string; name: string; due: string }[] {
+  const at = parseDate(o.deadline).getTime()
+  return grants
+    .filter(isInProgress)
+    .map((g) => ({ id: g.id, name: g.name, due: nextApplicationDeadline(g)?.date }))
+    .filter((g): g is { id: string; name: string; due: string } => !!g.due && Math.abs(parseDate(g.due).getTime() - at) <= CLASH_DAYS * 86_400_000)
+    .sort((a, b) => a.due.localeCompare(b.due))
+}
+
+/** Median amount of grants the organization has won (awarded, reporting or closed); undefined if none. */
+export function medianAward(grants: Pick<Grant, 'stage' | 'amount'>[]): number | undefined {
+  const won = grants.filter((g) => g.stage === 'awarded' || g.stage === 'reporting' || g.stage === 'closed').map((g) => g.amount).sort((a, b) => a - b)
+  if (!won.length) return undefined
+  const mid = Math.floor(won.length / 2)
+  return won.length % 2 ? won[mid] : (won[mid - 1] + won[mid]) / 2
 }

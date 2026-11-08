@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline, pipelineSummary, regenerable } from './applications.ts'
+import { answerReady, applicationNextStep, budgetStatus, byApplicationDeadline, isAtRisk, moneyRules, nextApplicationDeadline, pipelineSummary, regenerable } from './applications.ts'
 import { newlyCovered } from './drafting.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
@@ -105,5 +105,18 @@ describe('byApplicationDeadline', () => {
     const soon = { deadlines: [due('2026-11-20')] }
     const none = { deadlines: [] }
     expect([later, none, soon].sort(byApplicationDeadline)).toEqual([soon, later, none])
+  })
+})
+
+describe('finance view', () => {
+  it('keeps the funder rules that bear on money', () => {
+    const rules = ['Funder year runs July 1 – June 30.', 'Indirect costs are not allowed.', 'Answers over the word limit are not read.', 'A 25% cash match is required.', 'Report quarterly.']
+    expect(moneyRules(rules)).toEqual(['Funder year runs July 1 – June 30.', 'Indirect costs are not allowed.', 'A 25% cash match is required.'])
+  })
+
+  it('checks the drafted budget against the request', () => {
+    expect(budgetStatus({ amount: 100, categories: [] })).toEqual({ total: 0, categories: 0, matchesRequest: false })
+    expect(budgetStatus({ amount: 100, categories: [{ id: 'a', name: 'A', budget: 60 }, { id: 'b', name: 'B', budget: 40 }] })).toEqual({ total: 100, categories: 2, matchesRequest: true })
+    expect(budgetStatus({ amount: 100, categories: [{ id: 'a', name: 'A', budget: 60 }] }).matchesRequest).toBe(false)
   })
 })
