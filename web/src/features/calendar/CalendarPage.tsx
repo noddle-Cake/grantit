@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { addDays, addMonths, calendarEvents, eventsByDay, monthGrid, sortEvents, toICS, type CalendarEventKind } from '@grantit/shared/calendar'
 import { daysUntil, fmtDate, parseDate, relativeDay, todayISO } from '@grantit/shared/format'
-import { Button, Card, DateTile, Modal, PageHeader, Segmented } from '@/components/ui'
+import { Button, Card, DateTile, Modal, Segmented } from '@/components/ui'
 import { externalEvents, providerById, readConnections, writeConnections, type CalendarConnection, type CalendarProviderId } from '@/lib/calendar-connections'
 import { useStore } from '@/store'
 import { ConnectedCalendars } from './ConnectedCalendars'
@@ -98,16 +98,10 @@ export default function CalendarPage() {
 
   return (
     <>
-      <PageHeader
-        title="Calendar"
-        subtitle="Application deadlines, reports and award periods in one place, synced to the calendars your team already uses."
-        actions={
-          <>
-            <Segmented label="Calendar view" value={view} onChange={setView} options={[{ id: 'month', label: 'Month' }, { id: 'agenda', label: 'Agenda' }]} />
-            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportICS}>Export .ics</Button>
-          </>
-        }
-      />
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
+        <Segmented label="Calendar view" value={view} onChange={setView} options={[{ id: 'month', label: 'Month' }, { id: 'agenda', label: 'Agenda' }]} />
+        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportICS}>Export .ics</Button>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">

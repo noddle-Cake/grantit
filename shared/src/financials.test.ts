@@ -12,8 +12,7 @@ const category = (name: string) => o.categories.find((c) => c.name === name)!
 
 describe('financialsOverview', () => {
   it('totals every grant that can still be charged', () => {
-    expect(o.totals.available).toBe(330_000)
-    expect(o.totals.remaining).toBe(o.totals.available - o.totals.spent)
+    expect(o.totals).toEqual({ available: 312_800, spent: 202_790, remaining: 110_010, pastDeadline: 17_200, overspent: 0 })
   })
 
   it('matches Funded grants, grant by grant', () => {
@@ -54,6 +53,21 @@ describe('financialsOverview', () => {
     expect(sumDollars([o.totals.spent, -without.totals.spent])).toBe(1500)
     expect(sumDollars([before.ledger, -without.reconciliation.ledger])).toBe(1500)
     expect(category('Training').spent).toBe(12_300)
+  })
+
+  it('moves money left after a grant has ended out of what’s available', () => {
+    const row = category('Program activities').grants.find((r) => r.grant.id === 'g-counseling')!
+    expect(row).toMatchObject({ available: 6_200, spent: 6_200, remaining: 0, pastDeadline: 4_800 })
+  })
+
+  it('reports an overage separately, without netting it against another grant’s balance', () => {
+    const over = grants.map((g) => (g.id === 'g-mentor-expansion' ? g : g.id === 'g-anchor' ? { ...g, categories: g.categories.map((c) => (c.id === 'c2' ? { ...c, budget: 11_000 } : c)) } : g))
+    const training = financialsOverview(over, txs, orgCategories, TODAY).categories.find((c) => c.name === 'Training')!
+    expect(training).toMatchObject({ available: 19_000, spent: 12_300, remaining: 7_700, overspent: 1_000 })
+  })
+
+  it('always balances: available + overspent = spent + remaining', () => {
+    for (const c of [...o.categories, { ...o.totals, name: 'total' }]) expect(sumDollars([c.available, c.overspent])).toBe(sumDollars([c.spent, c.remaining]))
   })
 
   it('puts budget lines with no category in their own row rather than dropping them', () => {

@@ -3,9 +3,9 @@ import { ChevronRight } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SpentRemainingPie } from '@/components/SpentRemainingPie'
-import { Card, PageHeader } from '@/components/ui'
+import { Card, Stat } from '@/components/ui'
 import { UrgencyPill, UrgentGrants, useUrgency } from '@/features/funds/UrgencyPill'
-import { financialsOverview, type CategoryGrantRow } from '@grantit/shared/financials'
+import { financialsOverview, type CategoryGrantRow, type Money3 } from '@grantit/shared/financials'
 import { fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
 import type { GrantUrgency } from '@grantit/shared/urgency'
 import { useStore } from '@/store'
@@ -27,6 +27,17 @@ function Deadline({ row, urgency }: { row: CategoryGrantRow; urgency?: GrantUrge
   )
 }
 
+/** Remaining, with anything lapsed or overspent called out beneath it. */
+function Remaining({ m }: { m: Money3 }) {
+  return (
+    <>
+      {money(m.remaining)}
+      {m.pastDeadline > 0 && <div className="text-xs text-bad">+{money(m.pastDeadline)} past deadline</div>}
+      {m.overspent > 0 && <div className="text-xs font-medium text-bad">{money(m.overspent)} over</div>}
+    </>
+  )
+}
+
 /** Grant money by spending category. Read-only: receipts and splits are entered in Spending. */
 export default function Financials() {
   const { state } = useStore()
@@ -42,13 +53,17 @@ export default function Financials() {
 
   return (
     <>
-      <PageHeader eyebrow="Manage funds" title="Financials" subtitle="Grant money by spending category, across every grant that can still be charged. Receipts and splits are entered in Spending." />
-
       <div className="mb-6 grid gap-6 lg:grid-cols-2">
         <Card title={`${money(totals.available)} available across grants`}>
           <SpentRemainingPie spent={totals.spent} remaining={totals.remaining} />
         </Card>
-        <UrgentGrants className="self-start" />
+        <div className="space-y-3">
+          <UrgentGrants />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Stat label="Past spending deadline" value={money(totals.pastDeadline)} sub="Left when a grant's period ended; not counted as available" />
+            <Stat label="Overspent" value={money(totals.overspent)} sub="Charged beyond a line's approved budget" />
+          </div>
+        </div>
       </div>
 
       <Card padded={false} className="overflow-hidden">
@@ -78,7 +93,7 @@ export default function Financials() {
                     </td>
                     <td className="px-4 py-3 text-right tabular-nums text-slate-2">{money(c.available)}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{money(c.spent)}</td>
-                    <td className={clsx('px-4 py-3 text-right tabular-nums', c.remaining < 0 && 'font-medium text-bad')}>{money(c.remaining)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums"><Remaining m={c} /></td>
                     <td className="px-4 py-3 text-xs">{urgent > 0 ? <span className="font-medium text-bad">{urgent} urgent</span> : <span className="text-slate-3">None</span>}</td>
                   </tr>
                   {expanded && (
@@ -104,7 +119,7 @@ export default function Financials() {
                                 </td>
                                 <td className="py-1.5 text-right tabular-nums text-slate-2">{money(row.available)}</td>
                                 <td className="py-1.5 text-right tabular-nums">{money(row.spent)}</td>
-                                <td className={clsx('py-1.5 text-right tabular-nums', row.remaining < 0 && 'font-medium text-bad')}>{money(row.remaining)}</td>
+                                <td className="py-1.5 text-right tabular-nums"><Remaining m={row} /></td>
                                 <td className="py-1.5 pl-4"><Deadline row={row} urgency={urgency.get(row.grant.id)} /></td>
                                 <td className="py-1.5"><UrgencyPill urgency={urgency.get(row.grant.id)} /></td>
                               </tr>
@@ -123,7 +138,7 @@ export default function Financials() {
               <td className="px-5 py-3">Total</td>
               <td className="px-4 py-3 text-right tabular-nums">{money(totals.available)}</td>
               <td className="px-4 py-3 text-right tabular-nums">{money(totals.spent)}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{money(totals.remaining)}</td>
+              <td className="px-4 py-3 text-right tabular-nums"><Remaining m={totals} /></td>
               <td />
             </tr>
           </tfoot>
