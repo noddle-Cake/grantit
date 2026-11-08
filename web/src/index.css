@@ -54,6 +54,14 @@
   --color-viz-2: #eb6834;
   --color-viz-warn: #eda100;
   --color-viz-track: #e5ebf1;
+  --color-cat-1: #2a78d6;
+  --color-cat-2: #eb6834;
+  --color-cat-3: #00a38a;
+  --color-cat-4: #7c5cdb;
+  --color-cat-5: #e0a100;
+  --color-cat-6: #d6457a;
+  --color-cat-7: #5b8c2a;
+  --color-cat-8: #4f6c8c;
   --color-avatar-1: #bf4219;
   --color-avatar-2: #00745f;
   --color-avatar-3: #1f63b8;
@@ -97,6 +105,14 @@
   --color-viz-2: #d95926;
   --color-viz-warn: #f0b84a;
   --color-viz-track: #263848;
+  --color-cat-1: #5c9ded;
+  --color-cat-2: #f58a5c;
+  --color-cat-3: #2fc4a8;
+  --color-cat-4: #a68cf0;
+  --color-cat-5: #f0b84a;
+  --color-cat-6: #ee7ba4;
+  --color-cat-7: #8ab84f;
+  --color-cat-8: #7d97b3;
 }
 
 /* Increase Contrast: stronger secondary text and borders (HIG: Accessibility, Color). */
