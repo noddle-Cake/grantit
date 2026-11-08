@@ -1,9 +1,10 @@
-import { KeyRound, RotateCcw } from 'lucide-react'
+import { KeyRound, Monitor, Moon, RotateCcw, Sun } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Card, Field, Input, Modal, PageHeader, Select } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, PageHeader, Segmented, Select } from '@/components/ui'
 import { fiscalYearFor } from '@grantit/shared/finance'
 import { fmtDate, todayISO } from '@grantit/shared/format'
 import { clearAiSettings, DEFAULT_AI_MODEL, readAiSettings, writeAiSettings } from '@/lib/ai-settings'
+import { type Appearance, readAppearance, writeAppearance } from '@/lib/appearance'
 import { useStore } from '@/store'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' }))
@@ -14,6 +15,7 @@ export default function Settings() {
   const fy = fiscalYearFor(todayISO(), state.org.fiscalYearStartMonth)
   const [ai, setAi] = useState(readAiSettings)
   const [showKey, setShowKey] = useState(false)
+  const [appearance, setAppearance] = useState(readAppearance)
   return (
     <>
       <PageHeader title="Settings" />
@@ -29,6 +31,21 @@ export default function Settings() {
             </Field>
           </div>
           <p className="mt-4 text-xs text-slate-3">Each grant keeps its own funding period; the fiscal year is used for organization-wide views.</p>
+        </Card>
+        <Card title="Appearance">
+          <p className="text-sm text-slate-2">Use light or dark, or follow this device. Saved in this browser; Reset doesn't change it.</p>
+          <div className="mt-4">
+            <Segmented<Appearance>
+              label="Appearance"
+              value={appearance}
+              onChange={(v) => { writeAppearance(v); setAppearance(v) }}
+              options={[
+                { id: 'system', label: <><Monitor size={14} aria-hidden />System</> },
+                { id: 'light', label: <><Sun size={14} aria-hidden />Light</> },
+                { id: 'dark', label: <><Moon size={14} aria-hidden />Dark</> },
+              ]}
+            />
+          </div>
         </Card>
         <Card title="AI award-letter reading">
           <p className="text-sm text-slate-2">

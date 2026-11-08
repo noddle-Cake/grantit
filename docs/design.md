@@ -36,8 +36,10 @@ with touch targets, and at 200% browser zoom. The DOM tests cover behavior; they
 
 *HIG: [Dark Mode](https://developer.apple.com/design/human-interface-guidelines/dark-mode)*
 
-- **Follow the system appearance**, with no in-app light/dark switch. `prefers-color-scheme: dark` swaps the
-  token values, and `<meta name="color-scheme">` lets native controls and scrollbars follow.
+- **Follow the system appearance by default.** Settings > Appearance offers System, Light and Dark, stored
+  in this browser only. The choice resolves to `<html data-theme="light|dark">` before first paint (an inline
+  script in `index.html`), and `:root[data-theme='dark']` swaps the token values. `color-scheme` follows
+  `data-theme` so native controls and scrollbars match.
 - **Dark values aren't inversions.** Backgrounds get dimmer, and text and status colors get brighter. Each
   pair is checked separately.
 - **`prefers-contrast: more`** promotes tertiary text to secondary and darkens borders.
