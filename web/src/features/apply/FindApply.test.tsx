@@ -312,7 +312,7 @@ describe('Find & apply workflow', () => {
     draftedBeforeApproval('draft')
     renderPage(`/grants/${drafting.id}?tab=application`)
     const question = document.getElementById('q-q5')!
-    expect(within(question).getByText(/No approved facts cover: sustainability \/ funding plan/)).toBeTruthy()
+    expect(within(question).getByText(/No approved PDF or fact covers: sustainability \/ funding plan/)).toBeTruthy()
     expect(within(question).queryByText(/New approved facts/)).toBeNull()
   })
 

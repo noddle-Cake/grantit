@@ -1,7 +1,7 @@
 import { createContext, useContext } from 'react'
 import type { Opportunity } from '@grantit/shared/opportunities'
 import type { Coding } from '@grantit/shared/auto-assign'
-import type { Allocation, AppState, Fact, Grant, Question, Transaction, TxFlag, User } from '@grantit/shared/types'
+import type { Allocation, AppState, Fact, Grant, Question, SourceDoc, Transaction, TxFlag, User } from '@grantit/shared/types'
 
 export interface ToastAction {
   label: string
@@ -31,6 +31,15 @@ export interface Store {
   deleteFact: (id: string) => void
   /** Put back a deleted fact exactly as it was (Undo). */
   restoreFact: (fact: Fact) => void
+  // knowledge-base PDFs (the files themselves live in IndexedDB, see lib/doc-store)
+  addSourceDoc: (doc: Omit<SourceDoc, 'uploadedAt' | 'uploadedBy' | 'approvedBy' | 'approvedAt'>) => void
+  /** Approve, submit or revoke: approval records who and when. */
+  setSourceDocStatus: (id: string, status: SourceDoc['status']) => void
+  deleteSourceDoc: (id: string) => void
+  /** Put back a deleted document exactly as it was (Undo). */
+  restoreSourceDoc: (doc: SourceDoc) => void
+  /** Record a reviewer's verdict on a PDF citation (null clears it). */
+  checkCitation: (grantId: string, qid: string, citationId: string, ok: boolean | null) => void
   // grants
   createGrant: (g: Omit<Grant, 'id'>) => string
   updateGrant: (id: string, patch: Partial<Grant>) => void

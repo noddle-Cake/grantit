@@ -1,6 +1,6 @@
 import { autoAssign, categoryForAccount } from './auto-assign.ts'
 import { allocationFor } from './finance.ts'
-import type { Allocation, AppState, Fact, Grant, OrgCategory, Program, Transaction } from './types.ts'
+import type { Allocation, AppState, Fact, Grant, OrgCategory, Program, SourceDoc, Transaction } from './types.ts'
 
 // Demo data for Tidepath Family Alliance, a made-up Miami-Dade nonprofit that helps kids and their families
 // through mentoring, family counseling, and safety and mental health workshops in schools. Every person,
@@ -17,6 +17,39 @@ import type { Allocation, AppState, Fact, Grant, OrgCategory, Program, Transacti
 // - Family Counseling Access has a refund (a negative amount) that reduces Family Support spending.
 // - Family Wellness Partnership was just awarded and still needs setup: upload its sample award letter
 //   (web/public/samples) on the Setup tab to fill in the budget.
+
+// Knowledge-base PDFs (web/public/samples, made by web/scripts/make-knowledge-samples.mjs). They agree with the facts
+// below and add what no fact covers yet, such as the sustainability plan, so drafts quote them.
+const sourceDocs: SourceDoc[] = [
+  {
+    id: 'doc-evaluation-2026',
+    name: '2025–26 Program Evaluation',
+    fileName: 'tidepath-program-evaluation-2025-26.pdf',
+    kind: 'evaluation',
+    pages: 3,
+    size: 7181,
+    status: 'approved',
+    uploadedAt: '2026-06-20',
+    uploadedBy: 'u-luis',
+    approvedBy: 'u-claudette',
+    approvedAt: '2026-06-21',
+    sampleUrl: 'samples/tidepath-program-evaluation-2025-26.pdf',
+  },
+  {
+    id: 'doc-strategic-plan',
+    name: 'Strategic Plan 2025–2028',
+    fileName: 'tidepath-strategic-plan-2025-2028.pdf',
+    kind: 'plan',
+    pages: 2,
+    size: 5162,
+    status: 'approved',
+    uploadedAt: '2026-02-11',
+    uploadedBy: 'u-claudette',
+    approvedBy: 'u-claudette',
+    approvedAt: '2026-02-11',
+    sampleUrl: 'samples/tidepath-strategic-plan-2025-2028.pdf',
+  },
+]
 
 const facts: Fact[] = [
   {
@@ -648,6 +681,7 @@ export const seedState: AppState = {
   ],
   currentUserId: 'u-claudette',
   facts,
+  sourceDocs,
   documents: [
     { id: 'p1', name: 'Anchor Mentors – application', kind: 'application', funder: 'Biscayne Youth Fund', year: 2025, outcome: 'awarded' },
     { id: 'p2', name: 'Family Counseling Access – application', kind: 'application', funder: 'South Florida Family Futures Council', year: 2025, outcome: 'awarded' },
