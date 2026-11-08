@@ -8,6 +8,7 @@ import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
 import { FactDrawer } from './FactDrawer'
+import { NeededNow } from './NeededNow'
 
 type StatusFilter = 'all' | FactStatus
 
@@ -51,7 +52,6 @@ export default function KnowledgeBase() {
     [state.facts, cat, status, q, me.role],
   )
   const counts = (s: FactStatus) => state.facts.filter((f) => f.status === s).length
-  const gaps = FACT_CATEGORIES.filter((c) => !state.facts.some((f) => f.category === c.id && f.status === 'approved'))
 
   return (
     <>
@@ -61,6 +61,8 @@ export default function KnowledgeBase() {
         subtitle="The single source of truth for applications. Only approved facts are used in drafts."
         actions={can(me.role, 'fact:edit') && <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>}
       />
+
+      <NeededNow onAdd={(h) => { setHint(h); setOpen('new') }} onOpen={setOpen} />
 
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -125,17 +127,6 @@ export default function KnowledgeBase() {
           )}
         </Card>
       </div>
-
-      {gaps.length > 0 && <details className="mt-4 rounded-lg border border-line-2 bg-surface px-5 py-3">
-        <summary className="cursor-pointer text-sm font-medium text-slate">Review {gaps.length} information gap{gaps.length === 1 ? '' : 's'}</summary>
-        <p className="mt-2 text-xs text-slate-2">These categories have no approved facts for drafts.</p>
-        <ul className="mt-3 space-y-2">
-          {gaps.map((g) => <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-slate-2">{g.label}</span>
-            {can(me.role, 'fact:edit') && <button onClick={() => { setHint(g.label.toLowerCase()); setOpen('new') }} className="text-xs font-medium text-link hover:underline">Add fact</button>}
-          </li>)}
-        </ul>
-      </details>}
 
       {open && <FactDrawer key={open === 'new' ? 'new' : open.id} fact={open} hint={hint} onClose={close} />}
     </>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline } from './applications.ts'
+import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline } from './applications.ts'
 import type { Deadline, Fact, Grant, Question } from './types.ts'
 
 const TODAY = '2026-11-08'
@@ -20,7 +20,17 @@ describe('applicationNextStep', () => {
     expect(applicationNextStep(app({ questions: [] }), facts).text).toBe("Add the funder's questions")
     expect(applicationNextStep(app({ questions: [q({ wordLimit: 1 })] }), facts).text).toBe('1 over word limit')
     expect(applicationNextStep(app({ questions: [q({ answer: '' })] }), facts).text).toBe('1 unanswered')
-    expect(applicationNextStep(app({ questions: [q({ status: 'draft' }), q({ id: 'q2', status: 'draft' })] }), facts).text).toBe('2 answers awaiting approval')
+    expect(applicationNextStep(app({ questions: [q({ status: 'draft' }), q({ id: 'q2', status: 'draft' })] }), facts).text).toBe('2 answers to approve')
+  })
+
+  it('says who acts next and which question to open', () => {
+    expect(applicationNextStep(app({ questions: [] }), facts)).toMatchObject({ actor: 'configurer', questionId: undefined })
+    const questions = [q({ id: 'done' }), q({ id: 'blank', answer: '' }), q({ id: 'long', wordLimit: 1, status: 'draft' })]
+    expect(applicationNextStep(app({ questions }), facts)).toMatchObject({ actor: 'owner', questionId: 'long' })
+    expect(applicationNextStep(app({ questions: questions.slice(0, 2) }), facts)).toMatchObject({ actor: 'owner', questionId: 'blank' })
+    expect(applicationNextStep(app({ questions: [q({ id: 'a' }), q({ id: 'b', status: 'draft' })] }), facts)).toMatchObject({ actor: 'approver', questionId: 'b' })
+    expect(applicationNextStep(app(), facts).actor).toBeUndefined()
+    expect(applicationNextStep(app({ stage: 'submitted' }), facts).actor).toBeUndefined()
   })
 
   it('is ready only for in-progress applications that pass every check', () => {
@@ -41,6 +51,15 @@ describe('isAtRisk', () => {
     expect(isAtRisk(app({ questions: notReady, deadlines: [due('2026-11-23')] }), facts, TODAY)).toBe(false)
     expect(isAtRisk(app({ questions: notReady, deadlines: [] }), facts, TODAY)).toBe(false)
     expect(isAtRisk(app({ stage: 'submitted', questions: notReady, deadlines: [due('2026-11-10')] }), facts, TODAY)).toBe(false)
+  })
+})
+
+describe('answerReady', () => {
+  it('needs an approved answer within its limit and free of unsupported figures', () => {
+    expect(answerReady(q(), facts)).toBe(true)
+    expect(answerReady(q({ status: 'draft' }), facts)).toBe(false)
+    expect(answerReady(q({ wordLimit: 1 }), facts)).toBe(false)
+    expect(answerReady(q({ answer: 'We served 400 families.' }), facts)).toBe(false)
   })
 })
 
