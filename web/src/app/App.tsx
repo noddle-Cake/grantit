@@ -17,7 +17,6 @@ const Funds = lazy(() => import('@/features/funds/FundsPage'))
 const GrantRecord = lazy(() => import('@/features/grants/GrantRecordPage'))
 const KnowledgeBase = lazy(() => import('@/features/knowledge/KnowledgeBasePage'))
 const Transactions = lazy(() => import('@/features/transactions/TransactionsPage'))
-const Financials = lazy(() => import('@/features/financials/FinancialsPage'))
 const Reports = lazy(() => import('@/features/reports/ReportsPage'))
 const Team = lazy(() => import('@/features/team/TeamPage'))
 const Settings = lazy(() => import('@/features/settings/SettingsPage'))
@@ -78,7 +77,6 @@ export default function App() {
               {/* Manage funds */}
               <Route path="funds" element={<Page el={<Funds />} />} />
               <Route path="funds/spending" element={<Page el={<Transactions />} />} />
-              <Route path="funds/financials" element={<Page el={<Financials />} />} />
               <Route path="funds/reports" element={<Page el={<Reports />} />} />
 
               {/* A grant's record page serves both workspaces */}
