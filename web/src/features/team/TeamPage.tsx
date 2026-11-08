@@ -1,5 +1,5 @@
 import { Check, Minus } from 'lucide-react'
-import { Avatar, Card, PageHeader, Pill } from '@/components/ui'
+import { Avatar, Card, Pill } from '@/components/ui'
 import { can, ROLE_LABEL, ROLE_SUMMARY, type Action } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Role } from '@grantit/shared/types'
@@ -19,7 +19,7 @@ export default function Team() {
   const { state, me } = useStore()
   return (
     <>
-      <PageHeader title="Team & roles" subtitle="Who can do what. Use the account menu (top right) to preview each role." />
+      <p className="mb-4 text-sm text-slate-2">Who can do what. Use the account menu (top right) to preview each role.</p>
       <div className="grid gap-4 md:grid-cols-3">
         {state.users.map((u) => (
           <Card key={u.id}>

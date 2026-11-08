@@ -1,7 +1,7 @@
 import { KeyRound, Monitor, Moon, Plus, RotateCcw, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Field, Input, Modal, PageHeader, Segmented, Select } from '@/components/ui'
+import { Button, Card, Field, Input, Modal, Segmented, Select } from '@/components/ui'
 import { fiscalYearFor } from '@grantit/shared/finance'
 import { fmtDate, todayISO } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
@@ -38,7 +38,6 @@ export default function Settings() {
   const canEditCategories = can(me.role, 'finance:review')
   return (
     <>
-      <PageHeader title="Settings" />
       <div className="max-w-2xl space-y-6">
         <Card title="Organization">
           <div className="grid gap-4 sm:grid-cols-2">
@@ -85,7 +84,8 @@ export default function Settings() {
         <Card title="AI drafting and award letters">
           <p className="text-sm text-slate-2">
             Your AI provider and API key now live under <a className="text-link hover:underline" href="/connectors">Connectors</a>. Add a
-            Claude, OpenAI or Gemini key there to draft application answers from your approved facts and read award letter PDFs.
+            Claude, OpenAI or Gemini key there to draft application answers from your approved PDFs and facts and read award letter PDFs.
+
           </p>
           <div className="mt-4">
             <Button variant="secondary" icon={<KeyRound size={15} />} onClick={() => navigate('/connectors')}>Open Connectors</Button>

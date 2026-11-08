@@ -111,3 +111,21 @@ describe('loadState', () => {
     expect(loadState(store({ [STORAGE_KEY]: '[]' }), seedState, today).source).toBe('seed')
   })
 })
+
+describe('knowledge-base PDFs', () => {
+  it('gives data saved before PDFs existed the demo PDFs, and keeps saved ones', () => {
+    const { sourceDocs: _d, ...before } = seedState
+    const read = (v: unknown) => (key: string) => (key === STORAGE_KEY ? JSON.stringify(v) : null)
+    expect(loadState(read(before), seedState, '2026-11-08').state.sourceDocs).toEqual(seedState.sourceDocs)
+    expect(loadState(read({ ...seedState, sourceDocs: [] }), seedState, '2026-11-08').state.sourceDocs).toEqual([])
+  })
+
+  it.each([V3_STORAGE_KEY, V2_STORAGE_KEY])('adds PDFs while preserving the spending migration from %s', (key) => {
+    const { sourceDocs: _d, ...before } = v3Snapshot([])
+    const loaded = loadState((k) => k === key ? JSON.stringify(before) : null, seedState, today)
+    expect(loaded.state.sourceDocs).toEqual(seedState.sourceDocs)
+    expect(loaded.state.orgCategories).toEqual(seedState.orgCategories)
+    expect(loaded.state.programs).toEqual(seedState.programs)
+    expect(loaded.source).toBe(key === V3_STORAGE_KEY ? 'v3-migrated' : 'v2-migrated')
+  })
+})

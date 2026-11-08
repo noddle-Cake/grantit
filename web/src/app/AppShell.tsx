@@ -314,6 +314,18 @@ export default function AppShell({ children }: { children?: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { state } = useStore()
   const loc = useLocation()
+  // The header names the page you're on; grant records name the grant.
+  const isGrantRecord = matchPath('/grants/:id', loc.pathname)
+  const pageTitle = useMemo(() => {
+    if (isGrantRecord) return state.grants.find((g) => g.id === isGrantRecord.params.id)?.name ?? 'Grant'
+    for (const group of NAV)
+      for (const item of group.items)
+        if (matchPath({ path: item.to, end: item.end ?? false }, loc.pathname)) return item.label
+    if (matchPath('/settings', loc.pathname)) return 'Settings'
+    return ''
+  }, [loc.pathname, state.grants, isGrantRecord])
+  // Grant record pages already render their own h1, so the label is a span there.
+  const TitleTag = isGrantRecord ? 'span' : 'h1'
   const previousPath = useRef(loc.pathname)
   useEffect(() => {
     const main = document.querySelector('main')
@@ -340,7 +352,10 @@ export default function AppShell({ children }: { children?: ReactNode }) {
           <button className="rounded p-1.5 text-slate-2 hover:bg-canvas-2 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen}>
             <Menu size={20} />
           </button>
-          <GlobalSearch />
+          {pageTitle && <TitleTag className="min-w-0 shrink-0 truncate text-[0.9375rem] font-semibold text-slate">{pageTitle}</TitleTag>}
+          <div className="flex min-w-0 flex-1 justify-center px-2">
+            <GlobalSearch />
+          </div>
           <div className="ml-auto flex items-center gap-3">
             <span className="hidden text-[0.8125rem] text-slate-3 md:inline">{state.org.name}</span>
             <UserMenu />

@@ -2,15 +2,17 @@ import { BookOpenText, Check, FileText, PenLine, Plus, Search } from 'lucide-rea
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FACT_CATEGORIES, FACT_STATUS, factCategoryLabel } from '@/lib/labels'
-import { Avatar, Button, Card, EmptyState, PageHeader, Pill, Segmented } from '@/components/ui'
+import { Avatar, Button, Card, EmptyState, Pill, Segmented } from '@/components/ui'
 import { byImpact, factImpact, impactOf, isStale, type FactImpact } from '@grantit/shared/fact-impact'
 import { relativeDay, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
-import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
+import type { Fact, FactCategory, FactStatus, SourceDoc } from '@grantit/shared/types'
+import { DocumentsPanel } from './DocumentsPanel'
 import { FactDrawer } from './FactDrawer'
 import { NeededNow } from './NeededNow'
+import { PdfViewer } from './PdfViewer'
 
 type StatusFilter = 'all' | FactStatus
 
@@ -48,8 +50,12 @@ export default function KnowledgeBase() {
   const [open, setOpen] = useState<Fact | 'new' | null>(null)
   const [hint, setHint] = useState<string>()
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
+  const [viewing, setViewing] = useState<{ doc: SourceDoc; page: number } | null>(null)
 
   useEffect(() => {
+    const did = params.get('doc')
+    const doc = did && state.sourceDocs.find((d) => d.id === did)
+    if (doc) setViewing({ doc, page: Math.max(1, Number(params.get('page')) || 1) })
     const fid = params.get('fact')
     if (fid) setOpen(state.facts.find((f) => f.id === fid) ?? null)
     if (params.get('new')) {
@@ -64,6 +70,10 @@ export default function KnowledgeBase() {
     setOpen(null)
     setHint(undefined)
     if (params.has('fact') || params.has('new')) setParams({})
+  }
+  const closeViewer = () => {
+    setViewing(null)
+    if (params.has('doc')) setParams({})
   }
 
   const impact = useMemo(() => {
@@ -101,16 +111,18 @@ export default function KnowledgeBase() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Find & apply"
-        title="Knowledge base"
-        subtitle="The single source of truth for applications. Only approved facts are used in drafts."
-        actions={can(me.role, 'fact:edit') && <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>}
-      />
+      {can(me.role, 'fact:edit') && (
+        <div className="mb-4 flex justify-end">
+          <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>
+        </div>
+      )}
 
       <NeededNow onAdd={(h) => { setHint(h); setOpen('new') }} onOpen={setOpen} />
 
+      <DocumentsPanel onView={(doc) => setViewing({ doc, page: 1 })} />
+
       <div>
+        <h2 className="mb-3 text-[0.9375rem] font-semibold text-slate">Facts</h2>
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <div className="relative w-full sm:w-60">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-3" />
@@ -196,6 +208,7 @@ export default function KnowledgeBase() {
       </div>
 
       {open && <FactDrawer key={open === 'new' ? 'new' : open.id} fact={open} hint={hint} onClose={close} />}
+      {viewing && <PdfViewer doc={viewing.doc} page={viewing.page} onClose={closeViewer} />}
     </>
   )
 }
