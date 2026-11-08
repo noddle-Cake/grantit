@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Compass, Download, FileBarChart2, FileText, Flag, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { addDays, addMonths, calendarEvents, eventsByDay, monthGrid, sortEvents, toICS, type CalendarEventKind } from '@grantit/shared/calendar'
 import { daysUntil, fmtDate, parseDate, relativeDay, todayISO } from '@grantit/shared/format'
 import { Button, Card, DateTile, PageHeader, Segmented } from '@/components/ui'
@@ -74,6 +74,13 @@ export default function CalendarPage() {
     setSelected(iso)
     setCursor(addMonths(iso, 0))
   }
+
+  // Deep links like /calendar?date=2026-03-15 (e.g. from the dashboard's Upcoming list) select that day.
+  const [searchParams] = useSearchParams()
+  const dateParam = searchParams.get('date')
+  useEffect(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) goTo(dateParam)
+  }, [dateParam])
 
   const exportICS = () => {
     const events = grantEvents.filter((e) => !hidden.has(e.kind))

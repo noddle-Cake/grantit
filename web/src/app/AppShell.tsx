@@ -32,8 +32,8 @@ const NAV: { heading?: string; items: { to: string; label: string; icon: typeof 
     heading: WORKSPACES.funds.label,
     items: [
       { to: '/funds', label: 'Funded grants', icon: HandCoins, end: true },
-      { to: '/funds/spending', label: 'Spending', icon: Receipt },
       { to: '/funds/financials', label: 'Financials', icon: PieChart },
+      { to: '/funds/spending', label: 'Spending', icon: Receipt },
       { to: '/funds/reports', label: 'Reports', icon: FileBarChart2 },
     ],
   },
