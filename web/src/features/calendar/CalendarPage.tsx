@@ -1,10 +1,10 @@
 import clsx from 'clsx'
 import { CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Compass, Download, FileBarChart2, FileText, Flag, type LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { addDays, addMonths, calendarEvents, eventsByDay, monthGrid, sortEvents, toICS, type CalendarEventKind } from '@grantit/shared/calendar'
 import { daysUntil, fmtDate, parseDate, relativeDay, todayISO } from '@grantit/shared/format'
-import { Button, Card, DateTile, Segmented } from '@/components/ui'
+import { Button, Card, DateTile, Modal, PageHeader, Segmented } from '@/components/ui'
 import { externalEvents, providerById, readConnections, writeConnections, type CalendarConnection, type CalendarProviderId } from '@/lib/calendar-connections'
 import { useStore } from '@/store'
 import { ConnectedCalendars } from './ConnectedCalendars'
@@ -44,6 +44,7 @@ export default function CalendarPage() {
   const today = todayISO()
   const [view, setView] = useState<'month' | 'agenda'>('month')
   const [selected, setSelected] = useState(today)
+  const [openDay, setOpenDay] = useState<string | null>(null)
   const [cursor, setCursor] = useState(() => addMonths(today, 0))
   const [hidden, setHidden] = useState<Set<ItemKind>>(new Set())
   const [connections, setConnections] = useState<CalendarConnection[]>(readConnections)
@@ -75,6 +76,16 @@ export default function CalendarPage() {
     setCursor(addMonths(iso, 0))
   }
 
+  // Deep links like /calendar?date=2026-03-15 (e.g. from the dashboard's Upcoming list) select that day.
+  const [searchParams] = useSearchParams()
+  const dateParam = searchParams.get('date')
+  useEffect(() => {
+    if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      goTo(dateParam)
+      setOpenDay(dateParam)
+    }
+  }, [dateParam])
+
   const exportICS = () => {
     const events = grantEvents.filter((e) => !hidden.has(e.kind))
     const blob = new Blob([toICS(events, { calendarName: `${state.org.name} grant deadlines` })], { type: 'text/calendar;charset=utf-8' })
@@ -87,10 +98,16 @@ export default function CalendarPage() {
 
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-3">
-        <Segmented label="Calendar view" value={view} onChange={setView} options={[{ id: 'month', label: 'Month' }, { id: 'agenda', label: 'Agenda' }]} />
-        <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportICS}>Export .ics</Button>
-      </div>
+      <PageHeader
+        title="Calendar"
+        subtitle="Application deadlines, reports and award periods in one place, synced to the calendars your team already uses."
+        actions={
+          <>
+            <Segmented label="Calendar view" value={view} onChange={setView} options={[{ id: 'month', label: 'Month' }, { id: 'agenda', label: 'Agenda' }]} />
+            <Button variant="secondary" size="sm" icon={<Download size={14} />} onClick={exportICS}>Export .ics</Button>
+          </>
+        }
+      />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_340px]">
         <div className="min-w-0 space-y-4">
@@ -103,7 +120,7 @@ export default function CalendarPage() {
                 <button type="button" aria-label="Previous month" onClick={() => goTo(addMonths(cursor, -1))} className="flex h-8 w-8 items-center justify-center rounded text-slate-2 hover:bg-canvas-2 pointer-coarse:h-11 pointer-coarse:w-11"><ChevronLeft size={18} /></button>
                 <button type="button" aria-label="Next month" onClick={() => goTo(addMonths(cursor, 1))} className="flex h-8 w-8 items-center justify-center rounded text-slate-2 hover:bg-canvas-2 pointer-coarse:h-11 pointer-coarse:w-11"><ChevronRight size={18} /></button>
               </header>
-              <MonthGrid year={cursorDate.getFullYear()} month={cursorDate.getMonth()} today={today} selected={selected} byDay={byDay} onSelect={setSelected} onNavigate={goTo} />
+              <MonthGrid year={cursorDate.getFullYear()} month={cursorDate.getMonth()} today={today} selected={selected} byDay={byDay} onSelect={setSelected} onNavigate={goTo} onOpenDay={setOpenDay} />
             </section>
           ) : (
             <Agenda items={items} today={today} />
@@ -115,7 +132,33 @@ export default function CalendarPage() {
           <ConnectedCalendars connections={connections} onChange={saveConnections} onExport={exportICS} />
         </div>
       </div>
+
+      <DayPopup date={openDay} items={openDay ? byDay.get(openDay) ?? [] : []} onClose={() => setOpenDay(null)} />
     </>
+  )
+}
+
+/** Pop-up listing everything on the clicked day. */
+function DayPopup({ date, items, onClose }: { date: string | null; items: Item[]; onClose: () => void }) {
+  const label = date ? fmtDate(date, { weekday: 'long', month: 'long', day: 'numeric' }) : 'Day'
+  return (
+    <Modal open={date !== null} onClose={onClose} label={label} width={420}>
+      {date && (
+        <>
+          <header className="flex items-baseline justify-between gap-3 border-b border-line-2 px-5 py-4">
+            <h2 className="text-base font-semibold text-slate">{label}</h2>
+            <span className="text-xs text-slate-3">{relativeDay(date)}</span>
+          </header>
+          <div className="px-5 py-3">
+            {items.length ? (
+              <ul className="-my-2.5 divide-y divide-line-2">{items.map((i) => <ItemRow key={i.id} item={i} />)}</ul>
+            ) : (
+              <p className="py-3 text-sm text-slate-3">Nothing on this day.</p>
+            )}
+          </div>
+        </>
+      )}
+    </Modal>
   )
 }
 
@@ -163,8 +206,8 @@ function Chip({ item }: { item: Item }) {
   )
 }
 
-function MonthGrid({ year, month, today, selected, byDay, onSelect, onNavigate }: {
-  year: number; month: number; today: string; selected: string; byDay: Map<string, Item[]>; onSelect: (iso: string) => void; onNavigate: (iso: string) => void
+function MonthGrid({ year, month, today, selected, byDay, onSelect, onNavigate, onOpenDay }: {
+  year: number; month: number; today: string; selected: string; byDay: Map<string, Item[]>; onSelect: (iso: string) => void; onNavigate: (iso: string) => void; onOpenDay: (iso: string) => void
 }) {
   const weeks = useMemo(() => monthGrid(year, month), [year, month])
   const grid = useRef<HTMLTableElement>(null)
@@ -224,7 +267,7 @@ function MonthGrid({ year, month, today, selected, byDay, onSelect, onNavigate }
                   key={day}
                   role="gridcell"
                   aria-selected={isSelected}
-                  onClick={() => (inMonth ? onSelect(day) : onNavigate(day))}
+                  onClick={() => (inMonth ? (onSelect(day), onOpenDay(day)) : onNavigate(day))}
                   className={clsx(
                     'h-16 cursor-pointer border-b border-r border-line-2 p-1 align-top last:border-r-0 sm:h-28 sm:p-1.5',
                     !inMonth && 'bg-canvas',
@@ -238,7 +281,7 @@ function MonthGrid({ year, month, today, selected, byDay, onSelect, onNavigate }
                       tabIndex={day === focusDay ? 0 : -1}
                       aria-label={label}
                       aria-current={isToday ? 'date' : undefined}
-                      onClick={(e) => { e.stopPropagation(); if (inMonth) onSelect(day); else onNavigate(day) }}
+                      onClick={(e) => { e.stopPropagation(); if (inMonth) { onSelect(day); onOpenDay(day) } else onNavigate(day) }}
                       className={clsx(
                         'flex h-7 w-7 items-center justify-center rounded-full text-[0.8125rem] tabular-nums',
                         isToday ? 'bg-accent font-semibold text-white' : inMonth ? 'text-slate hover:bg-canvas-2' : 'text-slate-3 hover:bg-canvas-2',
@@ -257,7 +300,7 @@ function MonthGrid({ year, month, today, selected, byDay, onSelect, onNavigate }
                   <div className={clsx('mt-1 hidden space-y-0.5 sm:block', !inMonth && 'opacity-70')}>
                     {events.slice(0, MAX_CHIPS).map((e) => <Chip key={e.id} item={e} />)}
                     {events.length > MAX_CHIPS && (
-                      <button type="button" tabIndex={-1} onClick={(ev) => { ev.stopPropagation(); onSelect(day) }} className="px-1.5 text-[0.6875rem] font-medium text-link hover:underline">
+                      <button type="button" tabIndex={-1} onClick={(ev) => { ev.stopPropagation(); onSelect(day); onOpenDay(day) }} className="px-1.5 text-[0.6875rem] font-medium text-link hover:underline">
                         +{events.length - MAX_CHIPS} more
                       </button>
                     )}

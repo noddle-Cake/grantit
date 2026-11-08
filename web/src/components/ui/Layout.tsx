@@ -17,6 +17,19 @@ export function Card({ className, children, title, action, padded = true }: { cl
   )
 }
 
+export function PageHeader({ title, subtitle, actions, eyebrow }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-4 pb-5">
+      <div className="min-w-0">
+        {eyebrow && <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-3">{eyebrow}</div>}
+        <h1 className="text-2xl font-semibold text-slate">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-slate-2">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+    </div>
+  )
+}
+
 export function EmptyState({ icon, title, children, action }: { icon: ReactNode; title: string; children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center px-6 py-12 text-center">
