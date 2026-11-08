@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
 import { Button, Card, EmptyState, PageHeader, Pill } from '@/components/ui'
-import { daysUntil, fmtDate, money, relativeDay, todayISO } from '@grantit/shared/format'
+import { dateWithRelative, daysUntil, fmtDate, money, todayISO } from '@grantit/shared/format'
 import { assumedPeriod, checkRequirements, CLASH_DAYS, deadlineClashes, medianAward, recommendOpportunities, type Recommendation } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
@@ -34,9 +34,9 @@ function GoNoGo({ rec, median }: { rec: Recommendation; median?: number }) {
     <section aria-label={`Go / no-go: ${o.program}`} className="mt-3 space-y-2 rounded-lg bg-canvas px-3 py-2.5 text-xs text-slate-2">
       {checks.length > 0 && (
         <div>
-          <div className="flex flex-wrap items-center gap-x-1.5 font-medium text-slate">
-            <ListChecks size={12} /> <span>Requirements</span>
-            <span className="font-normal text-slate-2">· {related} of {checks.length} with a related fact</span>
+          <div className="flex flex-wrap items-center gap-x-2 font-medium text-slate">
+            <span className="flex items-center gap-1.5"><ListChecks size={12} /> Requirements</span>
+            <span className="font-normal text-slate-2">{related} of {checks.length} with a related fact</span>
           </div>
           <ul className="mt-1 space-y-1">
             {checks.map((c) => (
@@ -93,7 +93,7 @@ function RecommendationCard({ rec, canAdd, median }: { rec: Recommendation; canA
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-2">
         <span className="tabular-nums">{money(o.amountMin)} – {money(o.amountMax)}</span>
         <span className={clsx('flex items-center gap-1', soon && 'font-medium text-brand-dark')}>
-          <CalendarClock size={12} /> Due {fmtDate(o.deadline)} · {relativeDay(o.deadline)}
+          <CalendarClock size={12} /> Due {dateWithRelative(o.deadline)}
         </span>
         <span className="text-slate-3">Source: {o.source}</span>
       </div>

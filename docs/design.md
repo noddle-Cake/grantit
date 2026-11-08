@@ -212,8 +212,18 @@ This workspace focuses on discovering funding and preparing applications:
 Refinement uses the existing tokens and controls, informed by
 [Better UI](https://www.ui-skills.com/skills/jakubkrehel/better-ui). Workflow tests cover discovery,
 status filtering, prospect creation, saving application details without changing award data, and revealing
-finance controls after award. Browser visual checks for this refinement remain outstanding because the
-browser access host was unavailable; the earlier checks below describe the earlier HIG pass only.
+finance controls after award.
+
+**Browser check, November 8, 2026** (Chrome, after PRs #103–#108). Applications (progress and budget views),
+Knowledge base and Opportunities were checked in a same-origin iframe at 320 CSS pixels and at 683 (a
+1366-pixel window at 200% zoom), in light and dark appearance, with a script confirming no horizontal
+overflow on any of them. The keyboard alone reached and toggled the summary tiles, the bulk-approve checkboxes
+and "Approve N facts" with a visible focus ring, and a `#q-<id>` link focused its question; no console
+errors. Fixes from the pass: separators no longer start a wrapped line (owner on Applications, requirement
+count on Opportunities); Needed now wraps its action below the text and left-aligns fact titles; bulk-approve
+checkboxes align with the fact title; dates 45+ days out no longer repeat ("Due Jan 29, 2027", via
+`dateWithRelative`); "Due in 37 days" reads in sentence case (`relativePhrase`). Not covered: VoiceOver, touch
+emulation, and browsers other than Chrome.
 
 ## Audit record: November 7, 2026
 

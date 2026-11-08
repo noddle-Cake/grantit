@@ -6,7 +6,7 @@ import { stageMeta } from '@/lib/labels'
 import { Avatar, Button, Card, EmptyState, Meter, PageHeader, Pill, Segmented } from '@/components/ui'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
 import { answerReady, applicationNextStep, byApplicationDeadline, isAtRisk, nextApplicationDeadline, pipelineSummary, regenerable } from '@grantit/shared/applications'
-import { daysUntil, fmtDate, money, relativeDay, todayISO } from '@grantit/shared/format'
+import { dateWithRelative, daysUntil, fmtDate, money, todayISO } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import type { Grant } from '@grantit/shared/types'
@@ -140,17 +140,17 @@ export default function Applications() {
                           <Link to={`/grants/${g.id}`} className="font-medium text-link hover:underline">{g.name}</Link>
                           <Pill tone={stageMeta(g.stage).tone} dot>{stageMeta(g.stage).label}</Pill>
                         </div>
-                        <p className="flex flex-wrap items-center gap-x-1.5 text-xs text-slate-2">
+                        <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-2">
                           <span>{g.funder} · {money(g.amount)} requested</span>
                           {owner && (
                             <span className="flex items-center gap-1.5">
-                              · <Avatar initials={owner.initials} size={16} /> <span><span className="sr-only">Owner: </span>{owner.name}</span>
+                              <Avatar initials={owner.initials} size={16} /> <span><span className="sr-only">Owner: </span>{owner.name}</span>
                             </span>
                           )}
                         </p>
                         {!inactive && due && (
                           <p title={fmtDate(due.date)} className={clsx('mt-2 flex items-center gap-1.5 text-xs', daysUntil(due.date) <= 14 ? 'font-medium text-brand-dark' : 'text-slate-2')}>
-                            <CalendarClock size={13} /> Due {fmtDate(due.date)} · {relativeDay(due.date)}
+                            <CalendarClock size={13} /> Due {dateWithRelative(due.date)}
                           </p>
                         )}
                       </div>
