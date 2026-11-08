@@ -148,6 +148,7 @@ Throw `ApiError` (or `notFound(what, id)`) from a handler; `app.onError` turns i
 | `GET /grants/:grantId/check` | done | #14 |
 | `POST /auth/sign-in`, `GET /auth/me`, `POST /auth/sign-out` | done (no credentials yet) | #9 |
 | `POST /organizations`, `POST /users` (invite) | done | #10 |
+| `GET /transactions/:transactionId/audit-events` | done | #13 |
 
 Notes on the built endpoints:
 

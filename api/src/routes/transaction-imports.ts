@@ -4,8 +4,8 @@ import { Hono } from 'hono'
 import Papa from 'papaparse'
 import { z } from 'zod'
 import { loadTransactions } from '../db/organization-data.ts'
-import { allocations, grants, transactions } from '../db/schema.ts'
-import { requireAction, validate, type AppEnv } from '../http.ts'
+import { allocations, auditEvents, grants, transactions } from '../db/schema.ts'
+import { actorId, requireAction, validate, type AppEnv } from '../http.ts'
 
 // Server-side CSV transaction import (docs/api.md). Same column rules as the web import modal:
 // date, vendor, description, account, amount, and optional grant (matched by name) + category.
@@ -65,10 +65,22 @@ export const transactionImportRoutes = new Hono<AppEnv>()
       })
     })
 
+    const actor = await actorId(c).catch(() => null)
     await db.transaction(async (tx) => {
       if (rows.length) await tx.insert(transactions).values(rows.map((r) => r.transaction))
       const allocs = rows.flatMap((r) => (r.allocation ? [r.allocation] : []))
       if (allocs.length) await tx.insert(allocations).values(allocs)
+      if (rows.length)
+        await tx.insert(auditEvents).values(
+          rows.map((r, i) => ({
+            id: crypto.randomUUID(),
+            organizationId,
+            transactionId: r.transaction.id,
+            action: 'transactions.imported' as const,
+            actorId: actor,
+            detail: `CSV row ${i + 2}: ${r.transaction.vendor} ${r.transaction.amount}`,
+          })),
+        )
     })
 
     const loaded = await loadTransactions(db, organizationId, rows.map((r) => r.transaction.id))

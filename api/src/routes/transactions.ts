@@ -4,8 +4,8 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { loadTransactions } from '../db/organization-data.ts'
 import type { Db } from '../db/client.ts'
-import { allocations, grants, transactions } from '../db/schema.ts'
-import { ApiError, decodeCursor, notFound, pageQuery, requireAction, toPage, validate, type AppEnv, type ErrorDetail, type Page } from '../http.ts'
+import { allocations, auditEvents, grants, transactions } from '../db/schema.ts'
+import { ApiError, actorId, decodeCursor, notFound, pageQuery, requireAction, toPage, validate, type AppEnv, type ErrorDetail, type Page } from '../http.ts'
 
 // Transactions and their grant allocations (docs/api.md). Compliance violations (unauthorized category,
 // over budget, outside period, split) are computed by shared computeFlags, not blocked at write time —
@@ -61,6 +61,12 @@ async function insertAllocations(db: Pick<Db, 'insert'>, transactionId: string, 
   await db.insert(allocations).values(allocs.map((a, position) => ({ ...a, transactionId, position })))
 }
 
+/** One audit_events row per write, best-effort attribution via the session / X-User-Id / first user. */
+async function audit(c: Parameters<typeof actorId>[0], action: (typeof auditEvents.$inferInsert)['action'], transactionId: string, detail = '') {
+  const actor = await actorId(c).catch(() => null)
+  await c.get('db').insert(auditEvents).values({ id: crypto.randomUUID(), organizationId: c.get('organizationId'), transactionId, action, actorId: actor, detail })
+}
+
 export const transactionRoutes = new Hono<AppEnv>()
   /** GET /api/transactions?grantId=&reviewed=&source=&limit=&cursor= → { data: Transaction[], nextCursor } ordered by id. */
   .get('/', validate('query', listQuery), async (c) => {
@@ -98,6 +104,7 @@ export const transactionRoutes = new Hono<AppEnv>()
       await tx.insert(transactions).values({ ...fields, id, organizationId })
       await insertAllocations(tx, id, allocs)
     })
+    await audit(c, 'transaction.created', id)
     const [txn] = await loadTransactions(db, organizationId, [id])
     return c.json({ data: txn }, 201)
   })
@@ -107,12 +114,14 @@ export const transactionRoutes = new Hono<AppEnv>()
     const transactionId = c.req.param('transactionId')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
+    const patch = c.req.valid('json')
     const [row] = await db
       .update(transactions)
-      .set(c.req.valid('json'))
+      .set(patch)
       .where(and(eq(transactions.id, transactionId), eq(transactions.organizationId, organizationId)))
       .returning({ id: transactions.id })
     if (!row) throw notFound('Transaction', transactionId)
+    await audit(c, 'transaction.updated', transactionId, `Changed: ${Object.keys(patch).join(', ')}`)
     const [txn] = await loadTransactions(db, organizationId, [transactionId])
     return c.json({ data: txn })
   })
@@ -134,6 +143,34 @@ export const transactionRoutes = new Hono<AppEnv>()
       await tx.delete(allocations).where(eq(allocations.transactionId, transactionId))
       await insertAllocations(tx, transactionId, allocs)
     })
+    await audit(c, 'allocations.replaced', transactionId, `${allocs.length} allocation${allocs.length === 1 ? '' : 's'}`)
     const [txn] = await loadTransactions(db, organizationId, [transactionId])
     return c.json({ data: txn })
+  })
+  /** GET /api/transactions/:transactionId/audit-events?limit=&cursor= → { data: AuditEvent[], nextCursor } ordered by id. */
+  .get('/:transactionId/audit-events', validate('query', pageQuery), async (c) => {
+    const transactionId = c.req.param('transactionId')
+    const { limit, cursor } = c.req.valid('query')
+    const db = c.get('db')
+    const organizationId = c.get('organizationId')
+    const [existing] = await db
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(and(eq(transactions.id, transactionId), eq(transactions.organizationId, organizationId)))
+    if (!existing) throw notFound('Transaction', transactionId)
+
+    const where: SQL[] = [eq(auditEvents.organizationId, organizationId), eq(auditEvents.transactionId, transactionId)]
+    if (cursor) where.push(gt(auditEvents.id, decodeCursor(cursor)))
+    const rows = await db
+      .select()
+      .from(auditEvents)
+      .where(and(...where))
+      .orderBy(asc(auditEvents.id))
+      .limit(limit + 1)
+    const page = toPage(rows, limit, (r) => r.id)
+    const body: Page<Omit<typeof auditEvents.$inferSelect, 'organizationId'>> = {
+      data: page.data.map(({ organizationId: _o, ...e }) => e),
+      nextCursor: page.nextCursor,
+    }
+    return c.json(body)
   })
