@@ -8,7 +8,7 @@ import { DateTile } from '@/components/ui'
 const KIND_ICON = { application: FileText, report: FileBarChart2, other: CalendarClock }
 
 /** Luma-inspired agenda: date tiles on a dotted rail, relative day labels. */
-export function DeadlineTimeline({ items, showGrant = true, empty = 'Nothing scheduled' }: { items: TimelineItem[]; showGrant?: boolean; empty?: string }) {
+export function DeadlineTimeline({ items, showGrant = true, empty = 'Nothing scheduled', deadlineTo }: { items: TimelineItem[]; showGrant?: boolean; empty?: string; deadlineTo?: (d: TimelineItem['deadline']) => string }) {
   if (!items.length) return <p className="py-6 text-center text-sm text-slate-3">{empty}</p>
   return (
     <ol className="relative">
@@ -27,7 +27,11 @@ export function DeadlineTimeline({ items, showGrant = true, empty = 'Nothing sch
               </div>
               <div className={clsx('flex items-center gap-1.5 text-sm font-medium text-slate', d.done && 'line-through opacity-60')}>
                 <Icon size={14} className="shrink-0 text-slate-3" />
-                <span className="truncate">{d.label}</span>
+                {deadlineTo ? (
+                  <Link to={deadlineTo(d)} className="truncate hover:text-link hover:underline">{d.label}</Link>
+                ) : (
+                  <span className="truncate">{d.label}</span>
+                )}
               </div>
               {showGrant && (
                 <Link to={`/grants/${g.id}`} className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-2 hover:text-link">
