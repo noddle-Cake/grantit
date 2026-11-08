@@ -21,6 +21,7 @@ const Financials = lazy(() => import('@/features/financials/FinancialsPage'))
 const Reports = lazy(() => import('@/features/reports/ReportsPage'))
 const Team = lazy(() => import('@/features/team/TeamPage'))
 const Settings = lazy(() => import('@/features/settings/SettingsPage'))
+const Connectors = lazy(() => import('@/features/connectors/ConnectorsPage'))
 
 function PageLoading() {
   return (
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="reports" element={<Moved to="/funds/reports" />} />
 
               <Route path="team" element={<Page el={<Team />} />} />
+              <Route path="connectors" element={<Page el={<Connectors />} />} />
               <Route path="settings" element={<Page el={<Settings />} />} />
               <Route path="*" element={<EmptyState icon={<Compass />} title="Page not found" />} />
             </Route>
