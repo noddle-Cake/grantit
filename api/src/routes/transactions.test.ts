@@ -112,6 +112,22 @@ describe.skipIf(!hasTestDb)('transactions API', () => {
       ])
     })
 
+    it('records an audit trail per transaction', async () => {
+      // t-u2 has: allocations.replaced (earlier test) — now add an update and read back the log.
+      await send('PATCH', '/transactions/t-u2', { reviewed: true })
+      const res = await get('/transactions/t-u2/audit-events')
+      expect(res.status).toBe(200)
+      const body = (await res.json()) as Page<{ action: string; actorId: string; detail: string }>
+      expect(body.data.map((e) => e.action).sort()).toEqual(['allocations.replaced', 'transaction.updated'])
+      const byAction = Object.fromEntries(body.data.map((e) => [e.action, e]))
+      expect(byAction['allocations.replaced']).toMatchObject({ actorId: 'u-claudette', detail: '2 allocations' })
+      expect(byAction['transaction.updated'].detail).toBe('Changed: reviewed')
+    })
+
+    it('404s audit reads for a foreign transaction', async () => {
+      expect((await get('/transactions/t-other/audit-events')).status).toBe(404)
+    })
+
     it('clears allocations with an empty array', async () => {
       const res = await send('PUT', '/transactions/t-u3/allocations', [])
       const { data: txn } = (await res.json()) as { data: Transaction }
