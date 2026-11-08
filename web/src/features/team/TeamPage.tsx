@@ -9,7 +9,7 @@ const ACTIONS: { id: Action; label: string }[] = [
   { id: 'application:draft', label: 'Draft & edit application answers' },
   { id: 'application:approve', label: 'Approve application answers' },
   { id: 'fact:edit', label: 'Add & edit organizational facts' },
-  { id: 'fact:approve', label: 'Approve facts (program staff: program facts only)' },
+  { id: 'fact:approve', label: 'Approve facts (program staff: program facts; finance: finance facts)' },
   { id: 'finance:import', label: 'Import transactions' },
   { id: 'finance:review', label: 'Review & reclassify transactions' },
 ]

@@ -12,6 +12,7 @@ import Opportunities from './OpportunitiesPage'
 import Applications from './ApplicationsPage'
 import Dashboard from '@/features/dashboard/DashboardPage'
 import { toISO } from '@grantit/shared/format'
+import { demoOpportunities } from '@grantit/shared/opportunities-demo'
 
 function renderPage(path: string) {
   return render(<AppStoreProvider><MemoryRouter initialEntries={[path]}><Routes>
@@ -309,5 +310,56 @@ describe('Find & apply workflow', () => {
     const question = document.getElementById('q-q5')!
     expect(within(question).getByText(/No approved facts cover: sustainability \/ funding plan/)).toBeTruthy()
     expect(within(question).queryByText(/New approved facts/)).toBeNull()
+  })
+
+  it('gives each recommendation a go / no-go panel: requirements, clashing deadlines, size and period', () => {
+    // Put the draft's deadline on the soonest open recommendation's, so the clash holds whatever today's date is.
+    const open = demoOpportunities.filter((o) => o.deadline >= toISO(new Date())).sort((a, b) => a.deadline.localeCompare(b.deadline))
+    saveState({ grants: seedState.grants.map((g) => (g.id === drafting.id ? { ...g, deadlines: [{ id: 'd', label: 'Application due', date: open[0].deadline, kind: 'application' as const }] } : g)) })
+    renderPage('/apply')
+    const panel = screen.getByRole('region', { name: `Go / no-go: ${open[0].program}` })
+    expect(within(panel).getByText('Requirements')).toBeTruthy()
+    expect(panel.textContent).toMatch(/\d of \d with a related fact/)
+    expect(panel.textContent).toMatch(new RegExp(`Within 7 days of [^·]*${drafting.name} \\(due `))
+    expect(panel.textContent).toMatch(/your median award is \$[\d,]+/)
+    expect(panel.textContent).toMatch(/If awarded: \w{3} \d{4} – \w{3} \d{4}/)
+  })
+
+  it('leaves dismissing matches to people who add prospects', () => {
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply')
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add to pipeline' })).toBeNull()
+  })
+
+  it('opens Applications on the budget view for finance: period, budget against request, money rules, and finance facts', async () => {
+    const user = userEvent.setup()
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply/applications')
+    expect(within(screen.getByRole('group', { name: 'Row details' })).getByRole('button', { name: 'Budget' }).getAttribute('aria-pressed')).toBe('true')
+    const row = screen.getByRole('link', { name: drafting.name }).closest('li')!
+    const total = drafting.categories.reduce((n, c) => n + c.budget, 0)
+    expect(row.textContent).toContain(`Budget $${total.toLocaleString('en-US')} in ${drafting.categories.length} categories`)
+    expect(within(row).getByRole('list', { name: 'Money rules' }).textContent).toContain('Indirect costs are not allowed.')
+    expect(screen.getByRole('status').textContent).toContain('Finance facts')
+    expect(screen.getByRole('link', { name: /Review finance facts/ }).getAttribute('href')).toBe('/apply/knowledge?status=all&category=finance')
+    await user.click(screen.getByRole('button', { name: 'Progress' }))
+    expect(screen.queryByRole('list', { name: 'Money rules' })).toBeNull()
+  })
+
+  it('keeps the progress view as the default for everyone else', () => {
+    renderPage('/apply/applications')
+    expect(within(screen.getByRole('group', { name: 'Row details' })).getByRole('button', { name: 'Progress' }).getAttribute('aria-pressed')).toBe('true')
+    expect(screen.queryByText('Finance facts')).toBeNull()
+  })
+
+  it('lets finance approve finance facts, filtered by a category link', () => {
+    saveState({ currentUserId: 'u-denise' })
+    renderPage('/apply/knowledge?status=all&category=finance')
+    expect((screen.getByRole('combobox', { name: 'Fact category' }) as HTMLSelectElement).value).toBe('finance')
+    const list = screen.getByRole('list', { name: 'Facts' })
+    const draft = seedState.facts.find((f) => f.category === 'finance' && f.status !== 'approved')!
+    const row = within(list).getByRole('button', { name: new RegExp(`^${draft.title}`) }).closest('li')!
+    expect(within(row).getByRole('button', { name: 'Approve' })).toBeTruthy()
   })
 })

@@ -38,7 +38,8 @@ function SelectAll({ checked, partial, onChange }: { checked: boolean; partial: 
 export default function KnowledgeBase() {
   const { state, me, opportunities, dismissedOpportunities, setFactStatus, notify } = useStore()
   const [params, setParams] = useSearchParams()
-  const [cat, setCat] = useState<FactCategory | 'all'>('all')
+  // ?category= deep links (e.g. "Review finance facts" on Applications); unknown values fall back to all.
+  const [cat, setCat] = useState<FactCategory | 'all'>(() => FACT_CATEGORIES.find((c) => c.id === params.get('category'))?.id ?? 'all')
   // Approvers land on their queue: open on "Needs approval" when something is waiting that they can approve.
   const [status, setStatus] = useState<StatusFilter>(
     () => (params.get('status') as StatusFilter) ?? (state.facts.some((f) => f.status === 'pending' && canApproveFact(me.role, f.category)) ? 'pending' : 'all'),
