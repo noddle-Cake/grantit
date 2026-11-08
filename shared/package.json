@@ -18,6 +18,7 @@
     "./workspaces": "./src/workspaces.ts",
     "./opportunities": "./src/opportunities.ts",
     "./applications": "./src/applications.ts",
+    "./needs": "./src/needs.ts",
     "./opportunities-demo": "./src/opportunities-demo.ts"
   },
   "scripts": {
