@@ -5,12 +5,13 @@ import { Link } from 'react-router-dom'
 import { stageMeta } from '@/lib/labels'
 import { Avatar, Button, Card, EmptyState, Meter, PageHeader, Pill, Segmented } from '@/components/ui'
 import { NewGrantModal } from '@/features/grants/NewGrantModal'
-import { applicationNextStep, byApplicationDeadline, nextApplicationDeadline } from '@grantit/shared/applications'
+import { answerReady, applicationNextStep, byApplicationDeadline, nextApplicationDeadline } from '@grantit/shared/applications'
 import { daysUntil, fmtDate, money, relativeDay } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
 import { APPLY_STAGES } from '@grantit/shared/workspaces'
 import type { Grant } from '@grantit/shared/types'
 import { useStore } from '@/store'
+import { nextStepHref, whoActs } from './nextStep'
 
 type Filter = 'active' | 'submitted' | 'declined'
 const ORDER = { drafting: 0, prospect: 1, submitted: 2, declined: 3 } as Record<string, number>
@@ -73,7 +74,8 @@ export default function Applications() {
               <ul className="divide-y divide-line-2">
                 {grants.map((g) => {
                   const next = applicationNextStep(g, state.facts)
-                  const approved = g.questions.filter((q) => q.status === 'approved').length
+                  const readyCount = g.questions.filter((q) => answerReady(q, state.facts)).length
+                  const actor = whoActs(next.actor, g, state.users, me)
                   const due = nextApplicationDeadline(g)
                   const owner = state.users.find((u) => u.id === g.ownerId)
                   const inactive = g.stage === 'submitted' || g.stage === 'declined'
@@ -100,14 +102,23 @@ export default function Applications() {
                       </div>
                       <div>
                         <p className={clsx('text-xs', next.ready ? 'font-medium text-good' : 'text-slate-2')}>{next.text}</p>
+                        {actor && (
+                          <p className="mt-1 flex items-center gap-1.5 text-xs">
+                            {actor.id === me.id ? (
+                              <span className="font-medium text-brand-dark">Your turn</span>
+                            ) : (
+                              <span className="flex items-center gap-1.5 text-slate-2"><Avatar initials={actor.initials} size={16} /> Waiting on {actor.name.split(' ')[0]}</span>
+                            )}
+                          </p>
+                        )}
                         {!inactive && g.questions.length > 0 && (
                           <div className="mt-2">
-                            <Meter value={approved} max={g.questions.length} height={4} />
-                            <p className="mt-1 text-xs tabular-nums text-slate-3">{approved} of {g.questions.length} answers approved</p>
+                            <Meter value={readyCount} max={g.questions.length} height={4} />
+                            <p className="mt-1 text-xs tabular-nums text-slate-3">{readyCount} of {g.questions.length} answers ready</p>
                           </div>
                         )}
                       </div>
-                      <Link to={`/grants/${g.id}?tab=${g.questions.length || inactive ? 'application' : 'setup'}`} aria-label={`${inactive ? 'View' : 'Continue'} application: ${g.name}`} className="inline-flex items-center gap-1.5 justify-self-start rounded-lg py-1.5 text-sm font-medium text-link hover:underline">
+                      <Link to={nextStepHref(g, next)} aria-label={`${inactive ? 'View' : 'Continue'} application: ${g.name}`} className="inline-flex items-center gap-1.5 justify-self-start rounded-lg py-1.5 text-sm font-medium text-link hover:underline">
                         {inactive ? 'View application' : 'Continue'} <ArrowRight size={14} />
                       </Link>
                     </li>

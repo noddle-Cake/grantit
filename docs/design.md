@@ -166,12 +166,22 @@ This workspace focuses on discovering funding and preparing applications:
 - **Opportunities** shows recommendations, funding ranges, deadlines, funder requirements, the listing's
   source and focus areas. Fit reads as "3 of 4 focus areas" (what the match measures), not a percentage.
   Supporting facts sit behind “Why this matches.” The application pipeline lives on Applications.
-- **Applications** shows the next step, owner and approved-answer progress, with separate views for work in
-  progress, submitted applications and declined applications, and a Mine filter. Rows sort by the soonest
-  application deadline regardless of stage. Rows wrap on narrow screens.
-- **Knowledge base** keeps fact search, category and approval filters, editing and approval. It opens on
-  Needs approval when the viewer can approve a waiting fact, listing what they can approve first. Information
-  gaps use a disclosure. Placeholder writing-style and document-upload panels are omitted until functional.
+- **Applications** shows the next step, who takes it ("Your turn" or "Waiting on <name>"), the owner, and
+  how many answers are ready (written, within limit, supported and approved), with separate views for work
+  in progress, submitted applications and declined applications, and a Mine filter. Rows sort by the
+  soonest application deadline regardless of stage. Continue opens the first question with the problem
+  (`#q-<id>`, which the application tab scrolls to and focuses). Rows wrap on narrow screens.
+- **Knowledge base** opens with **Needed now** (`shared/src/needs.ts`): what applications in progress and
+  recommended opportunities are waiting on, soonest deadline first. Gaps are computed live from each
+  unapproved question's prompt, so they clear as soon as a covering fact is approved. Each item offers the
+  action that clears it: Approve, Submit for approval, Add fact (topic filled in), or who it's waiting on.
+  Below it are fact search, category and approval filters, editing and approval. The list opens on Needs
+  approval when the viewer can approve a waiting fact, listing what they can approve first, then by impact.
+  Each fact shows its impact (`shared/src/fact-impact.ts`): "Unblocks 1 application · Strengthens 2 matches
+  · Used in 3 answers". When two or more listed facts can be approved, checkboxes and "Approve N facts"
+  approve them together, with Undo restoring each fact's previous status. Finance and organization facts not
+  updated in 12 months show "Over a year old". Placeholder writing-style and document-upload panels are
+  omitted until functional.
 - **Badges and to-dos point at action.** The Applications nav badge counts in-progress applications due
   within 14 days that aren't ready (`shared/src/applications.ts`); Opportunities has no badge. Home's
   to-dos use the same next step as the Applications list.

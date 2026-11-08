@@ -15,6 +15,7 @@ import { money, moneyCompact, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
+import { nextStepHref } from '@/features/apply/nextStep'
 
 function greeting(now: Date) {
   const h = now.getHours()
@@ -75,7 +76,7 @@ export default function Dashboard() {
       ? drafting.flatMap((g) => {
           // The same next step the Applications list shows, so the two never disagree.
           const next = applicationNextStep(g, state.facts)
-          return next.ready ? [] : [{ icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${next.text}`, to: `/grants/${g.id}?tab=${g.questions.length ? 'application' : 'setup'}` }]
+          return next.ready ? [] : [{ icon: FileWarning, tone: 'warn' as const, text: `${g.name}: ${next.text}`, to: nextStepHref(g, next) }]
         })
       : []),
   ].filter(Boolean) as { icon: typeof Receipt; tone: 'warn' | 'bad'; text: string; to: string }[]

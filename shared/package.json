@@ -19,6 +19,8 @@
     "./workspaces": "./src/workspaces.ts",
     "./opportunities": "./src/opportunities.ts",
     "./applications": "./src/applications.ts",
+    "./needs": "./src/needs.ts",
+    "./fact-impact": "./src/fact-impact.ts",
     "./opportunities-demo": "./src/opportunities-demo.ts"
   },
   "scripts": {

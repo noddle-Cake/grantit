@@ -1,18 +1,42 @@
 import { BookOpenText, Check, FileText, PenLine, Plus, Search } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { FACT_CATEGORIES, FACT_STATUS, factCategoryLabel } from '@/lib/labels'
 import { Avatar, Button, Card, EmptyState, PageHeader, Pill, Segmented } from '@/components/ui'
-import { relativeDay } from '@grantit/shared/format'
+import { byImpact, factImpact, impactOf, isStale, type FactImpact } from '@grantit/shared/fact-impact'
+import { relativeDay, todayISO } from '@grantit/shared/format'
+import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can, canApproveFact } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Fact, FactCategory, FactStatus } from '@grantit/shared/types'
 import { FactDrawer } from './FactDrawer'
+import { NeededNow } from './NeededNow'
 
 type StatusFilter = 'all' | FactStatus
 
+const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+
+/** "Unblocks 1 application · Strengthens 2 matches · Used in 3 answers", most decisive first. */
+function impactText(i: FactImpact, approved: boolean) {
+  return [
+    i.unblocks && `Unblocks ${count(i.unblocks, 'application')}`,
+    i.recommendations && `${approved ? 'Backs' : 'Strengthens'} ${count(i.recommendations, 'match', 'matches')}`,
+    i.answers && `Used in ${count(i.answers, 'answer')}`,
+  ].filter(Boolean).join(' · ')
+}
+
+function SelectAll({ checked, partial, onChange }: { checked: boolean; partial: boolean; onChange: (on: boolean) => void }) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => { if (ref.current) ref.current.indeterminate = partial }, [partial])
+  return (
+    <label className="flex items-center gap-2 text-sm text-slate">
+      <input ref={ref} type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /> Select all you can approve
+    </label>
+  )
+}
+
 export default function KnowledgeBase() {
-  const { state, me, setFactStatus, notify } = useStore()
+  const { state, me, opportunities, dismissedOpportunities, setFactStatus, notify } = useStore()
   const [params, setParams] = useSearchParams()
   const [cat, setCat] = useState<FactCategory | 'all'>('all')
   // Approvers land on their queue: open on "Needs approval" when something is waiting that they can approve.
@@ -22,6 +46,7 @@ export default function KnowledgeBase() {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<Fact | 'new' | null>(null)
   const [hint, setHint] = useState<string>()
+  const [selected, setSelected] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     const fid = params.get('fact')
@@ -40,18 +65,38 @@ export default function KnowledgeBase() {
     if (params.has('fact') || params.has('new')) setParams({})
   }
 
+  const impact = useMemo(() => {
+    const recs = recommendOpportunities(opportunities, state.facts, state.grants, { today: todayISO(), dismissed: dismissedOpportunities })
+    return factImpact(state.grants, state.facts, recs)
+  }, [opportunities, state.facts, state.grants, dismissedOpportunities])
+  const today = todayISO()
+
   const facts = useMemo(
     () =>
       state.facts
         .filter((f) => cat === 'all' || f.category === cat)
         .filter((f) => status === 'all' || f.status === status)
         .filter((f) => (f.title + f.content + f.tags.join(' ')).toLowerCase().includes(q.toLowerCase()))
-        // In the approval queue, list what this person can approve first (program staff approve program-side facts only).
-        .sort((a, b) => (status === 'pending' ? Number(canApproveFact(me.role, b.category)) - Number(canApproveFact(me.role, a.category)) : 0)),
-    [state.facts, cat, status, q, me.role],
+        // In the approval queue, list what this person can approve first (program staff approve program-side
+        // facts only), then what each approval is worth.
+        .sort((a, b) =>
+          status === 'pending'
+            ? Number(canApproveFact(me.role, b.category)) - Number(canApproveFact(me.role, a.category)) || byImpact(impactOf(impact, a.id), impactOf(impact, b.id))
+            : 0,
+        ),
+    [state.facts, cat, status, q, me.role, impact],
   )
+  const approvable = facts.filter((f) => f.status !== 'approved' && canApproveFact(me.role, f.category))
+  const chosen = approvable.filter((f) => selected.has(f.id))
+  const toggle = (id: string, on: boolean) => setSelected((s) => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
+
+  function approveChosen() {
+    const before = chosen.map((f) => ({ id: f.id, status: f.status }))
+    before.forEach((f) => setFactStatus(f.id, 'approved'))
+    setSelected(new Set())
+    notify(`Approved ${count(before.length, 'fact')}`, 'success', { label: 'Undo', run: () => before.forEach((f) => setFactStatus(f.id, f.status)) })
+  }
   const counts = (s: FactStatus) => state.facts.filter((f) => f.status === s).length
-  const gaps = FACT_CATEGORIES.filter((c) => !state.facts.some((f) => f.category === c.id && f.status === 'approved'))
 
   return (
     <>
@@ -61,6 +106,8 @@ export default function KnowledgeBase() {
         subtitle="The single source of truth for applications. Only approved facts are used in drafts."
         actions={can(me.role, 'fact:edit') && <Button icon={<Plus size={16} />} onClick={() => setOpen('new')}>Add fact</Button>}
       />
+
+      <NeededNow onAdd={(h) => { setHint(h); setOpen('new') }} onOpen={setOpen} />
 
       <div>
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -86,17 +133,37 @@ export default function KnowledgeBase() {
         </div>
 
         <Card padded={false}>
+          {approvable.length > 1 && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line-2 px-5 py-2.5">
+              <SelectAll checked={chosen.length === approvable.length} partial={chosen.length > 0 && chosen.length < approvable.length} onChange={(on) => setSelected(new Set(on ? approvable.map((f) => f.id) : []))} />
+              <span className="text-xs tabular-nums text-slate-3" aria-live="polite">{chosen.length} selected</span>
+              <Button size="sm" className="ml-auto" icon={<Check size={14} />} disabled={!chosen.length} onClick={approveChosen}>
+                Approve {chosen.length ? count(chosen.length, 'fact') : 'selected'}
+              </Button>
+            </div>
+          )}
           {facts.length ? (
-            <ul className="divide-y divide-line-2">
+            <ul aria-label="Facts" className="divide-y divide-line-2">
               {facts.map((f) => {
                 const author = state.users.find((u) => u.id === f.updatedBy)
+                const canApprove = f.status !== 'approved' && canApproveFact(me.role, f.category)
+                const effect = impactText(impactOf(impact, f.id), f.status === 'approved')
                 return (
-                  <li key={f.id} className="group flex gap-4 px-5 py-4 hover:bg-canvas">
+                  <li key={f.id} className="group flex gap-3 px-5 py-4 hover:bg-canvas">
+                    {approvable.length > 1 &&
+                      (canApprove ? (
+                        <label className="-ml-1 flex w-6 shrink-0 justify-center pt-0.5">
+                          <input type="checkbox" aria-label={`Select ${f.title}`} checked={selected.has(f.id)} onChange={(e) => toggle(f.id, e.target.checked)} />
+                        </label>
+                      ) : (
+                        <span aria-hidden className="-ml-1 w-6 shrink-0" />
+                      ))}
                     <button onClick={() => setOpen(f)} className="min-w-0 flex-1 text-left">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium text-link group-hover:underline">{f.title}</span>
                         <Pill>{factCategoryLabel(f.category)}</Pill>
                         <Pill tone={FACT_STATUS[f.status].tone} dot>{FACT_STATUS[f.status].label}</Pill>
+                        {isStale(f, today) && <span title="Finance and organization facts should be reviewed every 12 months"><Pill tone="warn">Over a year old</Pill></span>}
                       </div>
                       <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-slate-2">{f.content}</p>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-3">
@@ -104,6 +171,7 @@ export default function KnowledgeBase() {
                         <span>Updated {relativeDay(f.updatedAt)}</span>
                         {f.source && <span className="flex items-center gap-1"><FileText size={11} /> {f.source}</span>}
                       </div>
+                      {effect && <p className="mt-1 text-xs font-medium text-slate-2">{effect}</p>}
                     </button>
                     <div className="flex shrink-0 flex-col items-end gap-2">
                       {f.status !== 'approved' && canApproveFact(me.role, f.category) && (
@@ -125,17 +193,6 @@ export default function KnowledgeBase() {
           )}
         </Card>
       </div>
-
-      {gaps.length > 0 && <details className="mt-4 rounded-lg border border-line-2 bg-surface px-5 py-3">
-        <summary className="cursor-pointer text-sm font-medium text-slate">Review {gaps.length} information gap{gaps.length === 1 ? '' : 's'}</summary>
-        <p className="mt-2 text-xs text-slate-2">These categories have no approved facts for drafts.</p>
-        <ul className="mt-3 space-y-2">
-          {gaps.map((g) => <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className="text-slate-2">{g.label}</span>
-            {can(me.role, 'fact:edit') && <button onClick={() => { setHint(g.label.toLowerCase()); setOpen('new') }} className="text-xs font-medium text-link hover:underline">Add fact</button>}
-          </li>)}
-        </ul>
-      </details>}
 
       {open && <FactDrawer key={open === 'new' ? 'new' : open.id} fact={open} hint={hint} onClose={close} />}
     </>

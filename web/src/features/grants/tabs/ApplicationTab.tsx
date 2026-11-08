@@ -1,7 +1,7 @@
 import clsx from 'clsx'
 import { AlertOctagon, AlertTriangle, BookOpenCheck, Check, CheckCircle2, ClipboardCheck, Copy, Hourglass, Lock, Plus, RefreshCw, Sparkles, Undo2 } from 'lucide-react'
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { ANSWER_STATUS } from '@/lib/labels'
 import { Button, EmptyState, Pill, StatusPill } from '@/components/ui'
 import { checkApplication, draftAnswerAsync, findUnsupportedClaims } from '@grantit/shared/drafting'
@@ -49,7 +49,7 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
   const blockedFacts = blocked.map((id) => state.facts.find((f) => f.id === id)).filter((f) => f && f.status !== 'approved')
 
   return (
-    <article className={clsx('rounded-xl border bg-surface transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
+    <article id={`q-${q.id}`} tabIndex={-1} aria-label={`Question ${index + 1}`} className={clsx('scroll-mt-24 rounded-xl border bg-surface transition', q.status === 'approved' ? 'border-good/40' : 'border-line-2')}>
       <header className="flex flex-wrap items-start gap-3 px-5 pt-4">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-canvas-2 text-xs font-semibold text-slate-2">{index + 1}</span>
         <div className="min-w-0 flex-1">
@@ -212,6 +212,15 @@ function QuestionCard({ grant, q, index }: { grant: Grant; q: Question; index: n
 export function ApplicationTab({ grant }: { grant: Grant }) {
   const { state, me } = useStore()
   const check = checkApplication(grant.questions, state.facts)
+  const { hash } = useLocation()
+
+  // Links from Applications and Home land on the question that needs work (#q-<id>).
+  useEffect(() => {
+    if (!hash.startsWith('#q-')) return
+    const el = document.getElementById(hash.slice(1))
+    el?.scrollIntoView?.({ block: 'start' })
+    el?.focus({ preventScroll: true })
+  }, [hash])
 
   if (!grant.questions.length)
     return (

@@ -98,6 +98,23 @@ export function draftAnswer(q: Pick<Question, 'prompt' | 'wordLimit'>, facts: Fa
   }
 }
 
+export interface PromptGap {
+  /** The missing topic, worded as the drafter reports it (e.g. "sustainability / funding plan"). */
+  label: string
+  /** Facts that would cover it but aren't approved yet: approving one closes the gap. */
+  covering: Fact[]
+}
+
+/**
+ * Topics a question asks about that no approved fact covers: what `draftAnswer` would report as missing,
+ * computed live so a gap disappears as soon as a fact covering it is approved.
+ */
+export function gapsForPrompt(prompt: string, facts: Fact[]): PromptGap[] {
+  const approved = facts.filter((f) => f.status === 'approved')
+  const unapproved = facts.filter((f) => f.status !== 'approved')
+  return TOPICS.filter((t) => t.triggers.test(prompt) && !approved.some(t.match)).map((t) => ({ label: t.label, covering: unapproved.filter(t.match) }))
+}
+
 /** Simulated latency so the UI's loading states are exercised. */
 export function draftAnswerAsync(q: Pick<Question, 'prompt' | 'wordLimit'>, facts: Fact[]): Promise<DraftResult> {
   return new Promise((resolve) => setTimeout(() => resolve(draftAnswer(q, facts)), 700 + Math.random() * 600))
