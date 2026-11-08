@@ -1,10 +1,10 @@
 import { KeyRound, Monitor, Moon, Plus, RotateCcw, Sun } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, Card, Field, Input, Modal, PageHeader, Segmented, Select } from '@/components/ui'
 import { fiscalYearFor } from '@grantit/shared/finance'
 import { fmtDate, todayISO } from '@grantit/shared/format'
 import { can } from '@grantit/shared/permissions'
-import { AI_PROVIDERS, type AiProvider, clearProviderKey, providerInfo, readAiSettings, writeAiSettings } from '@/lib/ai-settings'
 import { type Appearance, readAppearance, writeAppearance } from '@/lib/appearance'
 import { useStore } from '@/store'
 import type { OrgCategory } from '@grantit/shared/types'
@@ -30,13 +30,9 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocal
 
 export default function Settings() {
   const { state, me, setFiscalYearStart, addOrgCategory, renameOrgCategory, resetDemo, notify } = useStore()
+  const navigate = useNavigate()
   const [resetOpen, setResetOpen] = useState(false)
   const fy = fiscalYearFor(todayISO(), state.org.fiscalYearStartMonth)
-  const [ai, setAi] = useState(readAiSettings)
-  const [showKey, setShowKey] = useState(false)
-  const info = providerInfo(ai.provider)
-  const current = ai.providers[ai.provider]
-  const setProvider = (patch: Partial<typeof current>) => setAi({ ...ai, providers: { ...ai.providers, [ai.provider]: { ...current, ...patch } } })
   const [appearance, setAppearance] = useState(readAppearance)
   const [newCategory, setNewCategory] = useState('')
   const canEditCategories = can(me.role, 'finance:review')
@@ -86,39 +82,14 @@ export default function Settings() {
             />
           </div>
         </Card>
-        <Card title="AI award-letter reading">
+        <Card title="AI drafting and award letters">
           <p className="text-sm text-slate-2">
-            Grant Setup can read an award letter PDF with Claude, OpenAI or Gemini and fill in the amount, period and budget for you to review.
-            Keys are stored only in this browser and sent directly to the provider; they aren't part of the demo data and Reset doesn't clear them.
+            Your AI provider and API key now live under <a className="text-link hover:underline" href="/connectors">Connectors</a>. Add a
+            Claude, OpenAI or Gemini key there to draft application answers from your approved facts and read award letter PDFs.
           </p>
-          <form
-            className="mt-4 grid gap-4 sm:grid-cols-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              writeAiSettings(ai)
-              setAi(readAiSettings())
-              notify(current.apiKey.trim() ? `AI settings saved in this browser · using ${info.label}` : `Saved; add a ${info.keyLabel} to use ${info.label}`)
-            }}
-          >
-            <div className="sm:col-span-2">
-              <Segmented<AiProvider>
-                label="AI provider"
-                value={ai.provider}
-                onChange={(provider) => { setAi({ ...ai, provider }); setShowKey(false) }}
-                options={AI_PROVIDERS.map((p) => ({ id: p.id, label: <>{p.label}{ai.providers[p.id].apiKey && <span aria-label="key saved" className="text-good">•</span>}</> }))}
-              />
-            </div>
-            <Field label={info.keyLabel} className="sm:col-span-2" hint={<button type="button" className="text-link hover:underline" onClick={() => setShowKey((v) => !v)}>{showKey ? 'Hide key' : 'Show key'}</button>}>
-              <Input type={showKey ? 'text' : 'password'} autoComplete="off" spellCheck={false} placeholder={info.keyPlaceholder} value={current.apiKey} onChange={(e) => setProvider({ apiKey: e.target.value })} />
-            </Field>
-            <Field label="Model" hint={`Default: ${info.defaultModel}. Needs PDF input and structured outputs.`}>
-              <Input spellCheck={false} value={current.model} onChange={(e) => setProvider({ model: e.target.value })} />
-            </Field>
-            <div className="flex items-end gap-2">
-              <Button type="submit" icon={<KeyRound size={15} />}>Save</Button>
-              <Button type="button" variant="secondary" onClick={() => { setAi(clearProviderKey(ai, ai.provider)); notify(`${info.label} key removed from this browser`, 'info') }}>Remove key</Button>
-            </div>
-          </form>
+          <div className="mt-4">
+            <Button variant="secondary" icon={<KeyRound size={15} />} onClick={() => navigate('/connectors')}>Open Connectors</Button>
+          </div>
         </Card>
         <Card title="Demo data">
           <p className="text-sm text-slate-2">Data is stored in this browser. Reset to restore the sample organization, grants, and ledger.</p>
