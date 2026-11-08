@@ -85,7 +85,8 @@ export default function Settings() {
         <Card title="AI drafting and award letters">
           <p className="text-sm text-slate-2">
             Your AI provider and API key now live under <a className="text-link hover:underline" href="/connectors">Connectors</a>. Add a
-            Claude, OpenAI or Gemini key there to draft application answers from your approved facts and read award letter PDFs.
+            Claude, OpenAI or Gemini key there to draft application answers from your approved PDFs and facts and read award letter PDFs.
+
           </p>
           <div className="mt-4">
             <Button variant="secondary" icon={<KeyRound size={15} />} onClick={() => navigate('/connectors')}>Open Connectors</Button>
