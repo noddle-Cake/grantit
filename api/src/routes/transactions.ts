@@ -1,15 +1,16 @@
-import { TRANSACTION_SOURCES, type Transaction } from '@grantit/shared/types'
+import { allocationFor } from '@grantit/shared/finance'
+import { TRANSACTION_SOURCES, type Allocation, type Transaction } from '@grantit/shared/types'
 import { and, asc, eq, gt, inArray, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { z } from 'zod'
-import { loadTransactions } from '../db/organization-data.ts'
+import { loadGrants, loadTransactions } from '../db/organization-data.ts'
 import type { Db } from '../db/client.ts'
-import { allocations, auditEvents, grants, transactions } from '../db/schema.ts'
+import { allocations, auditEvents, transactions } from '../db/schema.ts'
 import { ApiError, actorId, decodeCursor, notFound, pageQuery, requireAction, toPage, validate, type AppEnv, type ErrorDetail, type Page } from '../http.ts'
 
 // Transactions and their grant allocations (docs/api.md). Compliance violations (unauthorized category,
 // over budget, outside period, split) are computed by shared computeFlags, not blocked at write time —
-// so allocations accept any category name and any grant in the organization.
+// so allocations accept any category (by id, or a name the grant may not have) and any grant in the organization.
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD')
 
@@ -19,11 +20,20 @@ const listQuery = pageQuery.extend({
   source: z.enum(TRANSACTION_SOURCES).optional(),
 })
 
-const allocationIn = z.object({
-  grantId: z.string().min(1),
-  category: z.string().min(1),
-  amount: z.number().finite(),
-})
+// The shared Allocation shape (categoryId, or unmatchedCategory for a name the grant lacks). A plain `category`
+// name is also accepted and resolved to the grant's category id when it has one.
+const allocationIn = z
+  .object({
+    grantId: z.string().min(1),
+    categoryId: z.string().min(1).optional(),
+    unmatchedCategory: z.string().min(1).optional(),
+    category: z.string().min(1).optional(),
+    amount: z.number().finite(),
+  })
+  .refine((a) => [a.categoryId, a.unmatchedCategory, a.category].filter((v) => v !== undefined).length === 1, {
+    message: 'Give exactly one of categoryId, unmatchedCategory or category',
+    path: ['categoryId'],
+  })
 
 const createBody = z.object({
   date: isoDate,
@@ -46,17 +56,22 @@ const patchBody = z.object({
   reviewed: z.boolean().optional(),
 })
 
-/** Reject allocations that point at grants outside (or absent from) this organization. */
-async function checkAllocationGrants(db: Pick<Db, 'select'>, organizationId: string, allocs: z.output<typeof allocationIn>[]) {
+/**
+ * Reject allocations that point at grants outside (or absent from) this organization, and turn category names
+ * into the grant's category ids.
+ */
+async function resolveAllocations(db: Db, organizationId: string, allocs: z.output<typeof allocationIn>[]): Promise<Allocation[]> {
   const grantIds = [...new Set(allocs.map((a) => a.grantId))]
-  if (!grantIds.length) return
-  const found = await db.select({ id: grants.id }).from(grants).where(and(eq(grants.organizationId, organizationId), inArray(grants.id, grantIds)))
-  const known = new Set(found.map((g) => g.id))
-  const details: ErrorDetail[] = allocs.flatMap((a, i) => (known.has(a.grantId) ? [] : [{ path: `allocations.${i}.grantId`, message: `Grant ${a.grantId} not found` }]))
+  if (!grantIds.length) return []
+  const found = new Map((await loadGrants(db, organizationId, grantIds)).map((g) => [g.id, g]))
+  const details: ErrorDetail[] = allocs.flatMap((a, i) => (found.has(a.grantId) ? [] : [{ path: `allocations.${i}.grantId`, message: `Grant ${a.grantId} not found` }]))
   if (details.length) throw new ApiError('validation_failed', 'Invalid request body', details)
+  return allocs.map(({ grantId, categoryId, unmatchedCategory, category, amount }) =>
+    category !== undefined ? allocationFor(found.get(grantId)!, category, amount) : { grantId, ...(categoryId ? { categoryId } : { unmatchedCategory }), amount },
+  )
 }
 
-async function insertAllocations(db: Pick<Db, 'insert'>, transactionId: string, allocs: z.output<typeof allocationIn>[]) {
+async function insertAllocations(db: Pick<Db, 'insert'>, transactionId: string, allocs: Allocation[]) {
   if (!allocs.length) return
   await db.insert(allocations).values(allocs.map((a, position) => ({ ...a, transactionId, position })))
 }
@@ -97,12 +112,12 @@ export const transactionRoutes = new Hono<AppEnv>()
     const { allocations: allocs, ...fields } = c.req.valid('json')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
-    await checkAllocationGrants(db, organizationId, allocs)
+    const resolved = await resolveAllocations(db, organizationId, allocs)
 
     const id = crypto.randomUUID()
     await db.transaction(async (tx) => {
       await tx.insert(transactions).values({ ...fields, id, organizationId })
-      await insertAllocations(tx, id, allocs)
+      await insertAllocations(tx, id, resolved)
     })
     await audit(c, 'transaction.created', id)
     const [txn] = await loadTransactions(db, organizationId, [id])
@@ -137,11 +152,11 @@ export const transactionRoutes = new Hono<AppEnv>()
       .from(transactions)
       .where(and(eq(transactions.id, transactionId), eq(transactions.organizationId, organizationId)))
     if (!existing) throw notFound('Transaction', transactionId)
-    await checkAllocationGrants(db, organizationId, allocs)
+    const resolved = await resolveAllocations(db, organizationId, allocs)
 
     await db.transaction(async (tx) => {
       await tx.delete(allocations).where(eq(allocations.transactionId, transactionId))
-      await insertAllocations(tx, transactionId, allocs)
+      await insertAllocations(tx, transactionId, resolved)
     })
     await audit(c, 'allocations.replaced', transactionId, `${allocs.length} allocation${allocs.length === 1 ? '' : 's'}`)
     const [txn] = await loadTransactions(db, organizationId, [transactionId])

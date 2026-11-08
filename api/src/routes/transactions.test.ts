@@ -63,7 +63,7 @@ describe.skipIf(!hasTestDb)('transactions API', () => {
       })
       expect(res.status).toBe(201)
       const { data: txn } = (await res.json()) as { data: Transaction }
-      expect(txn).toMatchObject({ vendor: 'Office Depot', source: 'manual', reviewed: false, allocations: [{ grantId: 'g-anchor', category: 'Youth Activities', amount: 50 }] })
+      expect(txn).toMatchObject({ vendor: 'Office Depot', source: 'manual', reviewed: false, allocations: [{ grantId: 'g-anchor', categoryId: 'c3', amount: 50 }] })
     })
 
     it('400s on an allocation to a foreign or missing grant', async () => {
@@ -106,10 +106,25 @@ describe.skipIf(!hasTestDb)('transactions API', () => {
       ])
       expect(res.status).toBe(200)
       const { data: txn } = (await res.json()) as { data: Transaction }
+      // Category names are resolved to each grant's category id.
       expect(txn.allocations).toEqual([
-        { grantId: 'g-anchor', category: 'Indirect', amount: 200 },
-        { grantId: 'g-counseling', category: 'Family Support', amount: 160 },
+        { grantId: 'g-anchor', categoryId: 'c5', amount: 200 },
+        { grantId: 'g-counseling', categoryId: 'c4', amount: 160 },
       ])
+    })
+
+    it('accepts the shared shape and keeps names a grant lacks as unmatched categories', async () => {
+      const res = await send('PUT', '/transactions/t-u3/allocations', [
+        { grantId: 'g-anchor', categoryId: 'c2', amount: 300 },
+        { grantId: 'g-anchor', category: 'Equipment', amount: 60 },
+      ])
+      expect(res.status).toBe(200)
+      const { data: txn } = (await res.json()) as { data: Transaction }
+      expect(txn.allocations).toEqual([
+        { grantId: 'g-anchor', categoryId: 'c2', amount: 300 },
+        { grantId: 'g-anchor', unmatchedCategory: 'Equipment', amount: 60 },
+      ])
+      expect((await send('PUT', '/transactions/t-u3/allocations', [{ grantId: 'g-anchor', categoryId: 'c2', category: 'Indirect', amount: 1 }])).status).toBe(400)
     })
 
     it('records an audit trail per transaction', async () => {

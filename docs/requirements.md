@@ -50,16 +50,17 @@ Every funder can impose different requirements, and the application must support
 
 | Priority | Requirement | Status |
 |---|---|---|
-| P0 | Import a set of financial transactions, initially through CSV or sample QuickBooks data. | ✅ |
-| P0 | Assign transactions to grants and approved spending categories. | ✅ |
-| P0 | Calculate spending for each grant within its own funding period or fiscal year. | ✅ |
+| P0 | Import a set of financial transactions, initially through CSV or sample QuickBooks data. | ✅ Grantit template or QuickBooks export headers; duplicates skipped; refunds supported |
+| P0 | Assign transactions to grants and approved spending categories. | ✅ by category id; only grants with confirmed setup |
+| P0 | Calculate spending for each grant within its own funding period or fiscal year. | ✅ grant period, funder fiscal years and quarters, org fiscal years |
 | P0 | Display approved budget, actual spending, and remaining balances for each category. | ✅ |
-| P0 | Flag transactions assigned to unauthorized categories or exceeding approved category budgets. | ✅ |
-| P1 | Connect directly to QuickBooks. | ⬜ |
+| P0 | Flag transactions assigned to unauthorized categories or exceeding approved category budgets. | ✅ exact cents, overage amount, checked against the grant period |
+| P1 | Connect directly to QuickBooks. | ⬜ (QuickBooks export CSV accepted) |
 | P1 | Detect categories approaching their spending limits. | ✅ |
-| P1 | Allow staff to review and correct transaction classifications. | ✅ |
+| P1 | Allow staff to review and correct transaction classifications. | ✅ edits reset review; "not grant-funded" marking |
 | P1 | Support allocating a transaction across multiple grants when permitted. | ✅ |
 | P2 | Maintain a detailed audit trail of expenditure changes and approvals. | ⬜ |
+| — | Confirm each award's period and budget ("Needs setup") before it can receive transactions, with optional AI autofill from the award letter PDF. | ✅ OpenAI, key entered in Settings |
 
 ## 5. Dashboards and reports
 
@@ -67,7 +68,7 @@ Every funder can impose different requirements, and the application must support
 |---|---|---|
 | P0 | Show a grant overview with its funding amount, spending, and remaining balance. | ✅ |
 | P0 | Visualize expenditure by grant spending category. | ✅ |
-| P0 | Display financial information using the funder's configured reporting period. | ✅ |
+| P0 | Display financial information using the funder's configured reporting period. | ✅ incl. funder fiscal year and quarterly table |
 | P1 | Provide an organization-wide dashboard summarizing multiple grants. | ✅ |
 | P1 | Track application status, deadlines, and reporting obligations. | ✅ |
 | P1 | Generate grant-specific expenditure reports. | ✅ CSV |

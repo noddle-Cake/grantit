@@ -1,14 +1,15 @@
+import { allocationFor } from '@grantit/shared/finance'
 import type { Transaction } from '@grantit/shared/types'
-import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import Papa from 'papaparse'
 import { z } from 'zod'
-import { loadTransactions } from '../db/organization-data.ts'
-import { allocations, auditEvents, grants, transactions } from '../db/schema.ts'
+import { loadGrants, loadTransactions } from '../db/organization-data.ts'
+import { allocations, auditEvents, transactions } from '../db/schema.ts'
 import { actorId, requireAction, validate, type AppEnv } from '../http.ts'
 
 // Server-side CSV transaction import (docs/api.md). Same column rules as the web import modal:
-// date, vendor, description, account, amount, and optional grant (matched by name) + category.
+// date, vendor, description, account, amount, and optional grant (matched by name) + category (matched by name to
+// the grant's category id; a name the grant lacks is kept as unmatchedCategory and flagged as unauthorized).
 
 const importBody = z.object({ csv: z.string().min(1) })
 
@@ -28,8 +29,7 @@ export const transactionImportRoutes = new Hono<AppEnv>()
     const { csv } = c.req.valid('json')
     const db = c.get('db')
     const organizationId = c.get('organizationId')
-    const grantRows = await db.select({ id: grants.id, name: grants.name }).from(grants).where(eq(grants.organizationId, organizationId))
-    const grantByName = new Map(grantRows.map((g) => [g.name.toLowerCase(), g.id]))
+    const grantByName = new Map((await loadGrants(db, organizationId)).map((g) => [g.name.toLowerCase(), g]))
 
     const parsed = Papa.parse<Record<string, string>>(csv.trim(), {
       header: true,
@@ -47,7 +47,7 @@ export const transactionImportRoutes = new Hono<AppEnv>()
         return
       }
       const id = crypto.randomUUID()
-      const grantId = grantByName.get((r.grant ?? '').trim().toLowerCase())
+      const grant = grantByName.get((r.grant ?? '').trim().toLowerCase())
       const category = (r.category ?? '').trim()
       rows.push({
         transaction: {
@@ -61,7 +61,7 @@ export const transactionImportRoutes = new Hono<AppEnv>()
           reviewed: false,
           source: 'csv',
         },
-        allocation: grantId && category ? { transactionId: id, position: 0, grantId, category, amount } : undefined,
+        allocation: grant && category ? { ...allocationFor(grant, category, amount), transactionId: id, position: 0 } : undefined,
       })
     })
 

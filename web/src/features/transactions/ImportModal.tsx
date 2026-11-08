@@ -1,14 +1,15 @@
 import clsx from 'clsx'
 import Papa from 'papaparse'
-import { Download, FileSpreadsheet, Link2, UploadCloud, X } from 'lucide-react'
+import { AlertTriangle, Copy, Download, FileSpreadsheet, Link2, UploadCloud, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Button, Modal, Pill } from '@/components/ui'
-import { money } from '@grantit/shared/format'
+import { allocationCategoryName } from '@grantit/shared/finance'
+import { moneyExact } from '@grantit/shared/format'
+import { HEADER_ALIASES, prepareImport, type ImportPreview } from '@grantit/shared/import'
+import { can } from '@grantit/shared/permissions'
 import { downloadFile } from '@/lib/report'
 import { useStore } from '@/store'
 import type { Transaction } from '@grantit/shared/types'
-
-type Row = Omit<Transaction, 'id'>
 
 const TEMPLATE = `date,vendor,description,account,amount,grant,category
 2026-10-30,Brightpath Curriculum Co.,Coping-skills cards for workshops,6400 Program Supplies,1250.00,Safe & Strong School Workshops,Curriculum & Materials
@@ -16,98 +17,106 @@ const TEMPLATE = `date,vendor,description,account,amount,grant,category
 2026-11-01,Sunline Charter Bus,Mentoring outing transportation,6600 Activities,640,,
 `
 
-const QB_SAMPLE: Row[] = [
-  { date: '2026-11-03', vendor: 'Lingua Bridge Interpreters', description: 'Spanish interpretation – family sessions', account: '6700 Contract Services', amount: 980, allocations: [], reviewed: false, source: 'quickbooks-sample' },
-  { date: '2026-11-04', vendor: 'Keystone Evaluation Group', description: 'Fall workshop pre-surveys', account: '6700 Contract Services', amount: 2500, allocations: [], reviewed: false, source: 'quickbooks-sample' },
-  { date: '2026-11-05', vendor: 'Zoom', description: 'Video conferencing – annual', account: '7200 Software', amount: 180, allocations: [], reviewed: false, source: 'quickbooks-sample' },
-]
+/** QuickBooks-style transaction export served from web/public (about 30 rows, incl. a duplicate, a bad row and a refund). */
+const QB_SAMPLE_URL = `${import.meta.env.BASE_URL}samples/quickbooks-sample.csv`
+
+const ACCEPTED = (Object.entries(HEADER_ALIASES) as [string, string[]][]).map(([f, a]) => `${f} (${a.join(' / ')})`).join(', ')
 
 export function ImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, importTransactions, notify } = useStore()
-  const [rows, setRows] = useState<Row[]>([])
-  const [errors, setErrors] = useState<string[]>([])
+  const { state, me, importTransactions, notify } = useStore()
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [readError, setReadError] = useState('')
   const [fileName, setFileName] = useState('')
   const [drag, setDrag] = useState(false)
   const input = useRef<HTMLInputElement>(null)
+  const allowed = can(me.role, 'finance:import')
+  const grantFor = (id: string) => state.grants.find((g) => g.id === id)
 
   const reset = () => {
-    setRows([])
-    setErrors([])
+    setPreview(null)
+    setReadError('')
     setFileName('')
   }
-
-  function parse(file: File) {
-    setFileName(file.name)
-    Papa.parse<Record<string, string>>(file, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (h) => h.trim().toLowerCase(),
-      complete: (res) => {
-        const errs: string[] = []
-        const out: Row[] = []
-        res.data.forEach((r, i) => {
-          const amount = Number(String(r.amount ?? '').replace(/[$,]/g, ''))
-          const date = (r.date ?? '').trim()
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(amount)) {
-            errs.push(`Row ${i + 2}: needs date (YYYY-MM-DD) and numeric amount`)
-            return
-          }
-          const grant = state.grants.find((g) => g.name.toLowerCase() === (r.grant ?? '').trim().toLowerCase())
-          out.push({
-            date,
-            vendor: (r.vendor ?? '').trim(),
-            description: (r.description ?? r.memo ?? '').trim(),
-            account: (r.account ?? '').trim(),
-            amount,
-            allocations: grant && r.category?.trim() ? [{ grantId: grant.id, category: r.category.trim(), amount }] : [],
-            reviewed: false,
-            source: 'csv',
-          })
-        })
-        setRows(out)
-        setErrors(errs)
-      },
-    })
-  }
-
-  function commit() {
-    importTransactions(rows)
-    notify(`Imported ${rows.length} transactions`)
+  const close = () => {
     reset()
     onClose()
   }
 
+  function load(name: string, text: string, source: Transaction['source']) {
+    const parsed = Papa.parse<string[]>(text, { skipEmptyLines: 'greedy' })
+    const p = prepareImport(parsed.data, state.grants, state.transactions, source)
+    setFileName(name)
+    if (p.missingColumns.length) {
+      setPreview(null)
+      setReadError(`${name} is missing a ${p.missingColumns.join(' and ')} column. Accepted headers: ${ACCEPTED}.`)
+      return
+    }
+    setReadError('')
+    setPreview(p)
+  }
+
+  async function loadFile(file: File) {
+    load(file.name, await file.text(), 'csv')
+  }
+
+  async function loadSample() {
+    try {
+      const res = await fetch(QB_SAMPLE_URL)
+      if (!res.ok) throw new Error(String(res.status))
+      load('QuickBooks sample (quickbooks-sample.csv)', await res.text(), 'quickbooks-sample')
+    } catch {
+      setReadError('Couldn’t load the QuickBooks sample. Download it and drop the file here instead.')
+    }
+  }
+
+  function commit() {
+    if (!preview || !allowed) return
+    importTransactions(preview.ready)
+    const skipped = preview.duplicates ? `; skipped ${preview.duplicates} duplicate${preview.duplicates === 1 ? '' : 's'}` : ''
+    notify(`Imported ${preview.ready.length} transaction${preview.ready.length === 1 ? '' : 's'}${skipped}`)
+    close()
+  }
+
+  const warnings = preview?.rows.filter((r) => r.warning && !r.duplicate) ?? []
+
   return (
-    <Modal open={open} onClose={() => { reset(); onClose() }} width={680} label="Import transactions">
+    <Modal open={open} onClose={close} width={720} label="Import transactions">
       <div className="flex items-center justify-between border-b border-line-2 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate">Import transactions</h2>
-        <button onClick={() => { reset(); onClose() }} aria-label="Close" className="rounded-full p-1.5 text-slate-2 hover:bg-canvas-2"><X size={18} /></button>
+        <button onClick={close} aria-label="Close" className="rounded-full p-1.5 text-slate-2 hover:bg-canvas-2"><X size={18} /></button>
       </div>
       <div className="space-y-5 p-6">
-        {!rows.length ? (
+        {!preview ? (
           <>
             <div
               onDragOver={(e) => { e.preventDefault(); setDrag(true) }}
               onDragLeave={() => setDrag(false)}
-              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) parse(f) }}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) void loadFile(f) }}
               className={clsx('flex flex-col items-center rounded-2xl border-2 border-dashed px-6 py-10 text-center transition', drag ? 'border-link bg-link-soft' : 'border-line hover:border-slate-3 hover:bg-canvas')}
             >
               <UploadCloud size={28} className="text-slate-3" />
               <button type="button" onClick={() => input.current?.click()} className="mt-2 rounded px-3 py-2 font-medium text-link hover:underline">Choose a CSV file</button>
               <div className="text-sm text-slate-2">Or drop it here</div>
-              <div className="mt-1 text-xs text-slate-3">Columns: date, vendor, description, account, amount, grant (optional), category (optional)</div>
-              <input ref={input} type="file" accept=".csv,text/csv" aria-label="Choose CSV file" className="hidden" onChange={(e) => e.target.files?.[0] && parse(e.target.files[0])} />
+              <div className="mt-1 text-xs text-slate-3">Grantit template or a QuickBooks transaction export (Date, Name, Memo/Description, Account, Amount). Extra columns are ignored.</div>
+              <input ref={input} type="file" accept=".csv,text/csv" aria-label="Choose CSV file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void loadFile(f) }} />
             </div>
-            {errors.length > 0 && <p role="alert" className="text-sm text-bad">{errors[0]}</p>}
+            {readError && <p role="alert" className="text-sm text-bad">{readError}</p>}
             <div className="grid gap-3 sm:grid-cols-3">
               <button onClick={() => downloadFile('grantit-transactions-template.csv', TEMPLATE)} className="flex items-center gap-3 rounded-xl border border-line-2 p-3 text-left hover:bg-canvas">
                 <Download size={18} className="text-slate-2" />
                 <span><span className="block text-sm font-medium text-slate">CSV template</span><span className="text-xs text-slate-3">Download example</span></span>
               </button>
-              <button onClick={() => { setFileName('QuickBooks sample'); setRows(QB_SAMPLE) }} className="flex items-center gap-3 rounded-xl border border-line-2 p-3 text-left hover:bg-canvas">
-                <FileSpreadsheet size={18} className="text-good" />
-                <span><span className="block text-sm font-medium text-slate">QuickBooks sample</span><span className="text-xs text-slate-3">Load demo ledger</span></span>
-              </button>
+              <div className="flex items-center gap-3 rounded-xl border border-line-2 p-3">
+                <FileSpreadsheet size={18} className="shrink-0 text-good" />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-slate">QuickBooks sample</span>
+                  <span className="text-xs text-slate-3">
+                    <a href={QB_SAMPLE_URL} download="quickbooks-sample.csv" className="text-link hover:underline">Download CSV</a>
+                    {' · '}
+                    <button type="button" onClick={() => void loadSample()} className="text-link hover:underline">Import it</button>
+                  </span>
+                </span>
+              </div>
               <div className="flex items-center gap-3 rounded-xl border border-dashed border-line-2 p-3 opacity-70">
                 <Link2 size={18} className="text-slate-3" />
                 <span><span className="block text-sm font-medium text-slate">Connect QuickBooks</span><span className="text-xs text-slate-3">Coming soon</span></span>
@@ -116,11 +125,13 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
           </>
         ) : (
           <>
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 text-sm">
               <FileSpreadsheet size={16} className="text-slate-2" />
               <span className="font-medium text-slate">{fileName}</span>
-              <Pill tone="good">{rows.length} ready</Pill>
-              {errors.length > 0 && <Pill tone="bad">{errors.length} skipped</Pill>}
+              <Pill tone="good">{preview.ready.length} ready</Pill>
+              {preview.duplicates > 0 && <Pill tone="info">{preview.duplicates} duplicate{preview.duplicates === 1 ? '' : 's'} will be skipped</Pill>}
+              {preview.errors.length > 0 && <Pill tone="bad">{preview.errors.length} unreadable</Pill>}
+              {warnings.length > 0 && <Pill tone="warn">{warnings.length} imported as unassigned</Pill>}
               <button onClick={reset} className="ml-auto text-xs text-link hover:underline">Choose another file</button>
             </div>
             <div className="max-h-72 overflow-auto rounded-lg border border-line-2 scrollbar-thin">
@@ -129,21 +140,41 @@ export function ImportModal({ open, onClose }: { open: boolean; onClose: () => v
                   <tr><th className="px-3 py-2">Date</th><th className="px-3 py-2">Vendor / description</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Assigned</th></tr>
                 </thead>
                 <tbody className="divide-y divide-line-2">
-                  {rows.map((r, i) => (
-                    <tr key={i}>
-                      <td className="px-3 py-2 text-slate-2">{r.date}</td>
-                      <td className="px-3 py-2"><div className="text-slate">{r.vendor}</div><div className="text-xs text-slate-3">{r.description}</div></td>
-                      <td className="px-3 py-2 text-right tabular-nums">{money(r.amount)}</td>
-                      <td className="px-3 py-2">{r.allocations.length ? <Pill tone="info">{r.allocations[0].category}</Pill> : <Pill>Unassigned</Pill>}</td>
-                    </tr>
-                  ))}
+                  {preview.rows.map((r) => {
+                    const a = r.tx.allocations[0]
+                    return (
+                      <tr key={r.line} className={clsx(r.duplicate && 'opacity-55')}>
+                        <td className="whitespace-nowrap px-3 py-2 text-slate-2">{r.tx.date}</td>
+                        <td className="px-3 py-2">
+                          <div className="text-slate">{r.tx.vendor}</div>
+                          <div className="text-xs text-slate-3">{r.tx.description}</div>
+                          {r.warning && !r.duplicate && <div className="mt-0.5 flex items-center gap-1 text-xs text-warn"><AlertTriangle size={12} /> {r.warning}</div>}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{moneyExact(r.tx.amount)}</td>
+                        <td className="px-3 py-2">
+                          {r.duplicate ? <Pill><Copy size={11} /> Already imported</Pill>
+                            : a ? <Pill tone={a.categoryId ? 'info' : 'bad'}>{allocationCategoryName(grantFor(a.grantId), a)}{a.categoryId ? '' : ' (not approved)'}</Pill>
+                            : <Pill>Unassigned</Pill>}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
-            {errors.length > 0 && <ul role="alert" className="text-xs text-bad">{errors.slice(0, 3).map((e) => <li key={e}>{e}</li>)}</ul>}
-            <div className="flex justify-end gap-2">
+            {preview.errors.length > 0 && (
+              <ul role="alert" className="space-y-0.5 text-xs text-bad">
+                {preview.errors.slice(0, 4).map((e) => <li key={e}>{e}: skipped</li>)}
+                {preview.errors.length > 4 && <li>…and {preview.errors.length - 4} more</li>}
+              </ul>
+            )}
+            {preview.ignoredColumns.length > 0 && <p className="text-xs text-slate-3">Ignored columns: {preview.ignoredColumns.join(', ')}</p>}
+            <div className="flex items-center justify-end gap-2">
+              {!allowed && <span className="mr-auto text-xs text-slate-3">Only Finance or the Director can import.</span>}
               <Button variant="secondary" onClick={reset}>Back</Button>
-              <Button onClick={commit}>Import {rows.length} transactions</Button>
+              <Button onClick={commit} disabled={!allowed || !preview.ready.length}>
+                {preview.ready.length ? `Import ${preview.ready.length} transaction${preview.ready.length === 1 ? '' : 's'}` : 'Nothing new to import'}
+              </Button>
             </div>
           </>
         )}

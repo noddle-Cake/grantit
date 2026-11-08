@@ -45,7 +45,7 @@ describe.skipIf(!hasTestDb)('transaction-imports API', () => {
 
     const [allocated, unassigned, foreign] = data
     expect(allocated).toMatchObject({ vendor: 'Brightpath Curriculum Co.', amount: 1250, source: 'csv', reviewed: false })
-    expect(allocated.allocations).toEqual([{ grantId: 'g-safe', category: 'Curriculum & Materials', amount: 1250 }])
+    expect(allocated.allocations).toEqual([{ grantId: 'g-safe', categoryId: 'c2', amount: 1250 }])
     expect(unassigned.allocations).toEqual([])
     expect(unassigned.amount).toBe(640) // "$640" parses
     // A grant name from another organization must not match.

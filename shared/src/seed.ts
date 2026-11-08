@@ -1,4 +1,5 @@
-import type { AppState, Fact, Grant, Transaction } from './types.ts'
+import { allocationFor } from './finance.ts'
+import type { Allocation, AppState, Fact, Grant, Transaction } from './types.ts'
 
 // Demo data for Tidepath Family Alliance, a made-up Miami-Dade nonprofit that helps kids and their families
 // through mentoring, family counseling, and safety and mental health workshops in schools. Every person,
@@ -10,6 +11,10 @@ import type { AppState, Fact, Grant, Transaction } from './types.ts'
 //   from the approved facts.
 // - Anchor Mentors 2026 has one transaction of each compliance problem: over budget, unauthorized category,
 //   outside the funding period. Mentor Training and Counselors are close to running over.
+// - Family Nights 2026 runs exactly $300 over its $5,000 Family Events budget.
+// - Family Counseling Access has a refund (a negative amount) that reduces Family Support spending.
+// - Family Wellness Partnership was just awarded and still needs setup: upload its sample award letter
+//   (web/public/samples) on the Setup tab to fill in the budget.
 
 const facts: Fact[] = [
   {
@@ -230,6 +235,7 @@ const grants: Grant[] = [
     periodStart: '2026-01-01',
     periodEnd: '2026-12-31',
     allowSplit: true,
+    setupConfirmedAt: '2026-01-08',
     deadlines: [
       { id: 'd1', label: 'Mid-year narrative report', date: '2026-07-31', kind: 'report', done: true },
       { id: 'd2', label: 'Final narrative + financial report', date: '2027-01-31', kind: 'report' },
@@ -272,6 +278,7 @@ const grants: Grant[] = [
     periodStart: '2025-10-01',
     periodEnd: '2026-09-30',
     allowSplit: false,
+    setupConfirmedAt: '2025-10-06',
     deadlines: [{ id: 'd3', label: 'Annual report', date: '2026-11-30', kind: 'report' }],
     rules: [
       'Funder year runs October 1 – September 30.',
@@ -298,6 +305,7 @@ const grants: Grant[] = [
     periodStart: '2026-07-01',
     periodEnd: '2027-06-30',
     allowSplit: true,
+    setupConfirmedAt: '2026-07-02',
     deadlines: [
       { id: 'd4', label: 'Q2 expenditure report', date: '2027-01-15', kind: 'report' },
       { id: 'd5', label: 'Final report', date: '2027-08-15', kind: 'report' },
@@ -310,6 +318,44 @@ const grants: Grant[] = [
       { id: 'c4', name: 'Evaluation', budget: 6000 },
       { id: 'c5', name: 'Indirect', budget: 6000 },
     ],
+    questions: [],
+  },
+  {
+    id: 'g-familynights',
+    name: 'Family Nights 2026',
+    funder: 'Keys Neighborhood Fund',
+    amount: 12000,
+    stage: 'awarded',
+    cover: 1,
+    ownerId: 'u-luis',
+    periodStart: '2026-01-01',
+    periodEnd: '2026-12-31',
+    allowSplit: false,
+    setupConfirmedAt: '2026-01-12',
+    deadlines: [{ id: 'd12', label: 'Final report', date: '2027-01-31', kind: 'report' }],
+    rules: ['Funder year runs January 1 – December 31.', 'Food and venue costs count as Family Events.'],
+    categories: [
+      { id: 'c1', name: 'Family Events', budget: 5000 },
+      { id: 'c2', name: 'Facilitator Stipends', budget: 7000 },
+    ],
+    questions: [],
+  },
+  {
+    // Just awarded; budget and period not confirmed yet, so it shows "Needs setup" until the award letter is
+    // entered. Its funder year (October) comes from the letter, so it isn't set here.
+    id: 'g-family-wellness',
+    name: 'Family Wellness Partnership',
+    funder: 'Harborlight Community Trust',
+    amount: 60000,
+    stage: 'awarded',
+    cover: 2,
+    ownerId: 'u-claudette',
+    periodStart: '2026-10-01',
+    periodEnd: '2027-09-30',
+    allowSplit: false,
+    deadlines: [{ id: 'd13', label: 'Q1 expenditure report', date: '2027-01-31', kind: 'report' }],
+    rules: ['Funder year runs October 1 – September 30.'],
+    categories: [],
     questions: [],
   },
   {
@@ -397,6 +443,7 @@ const grants: Grant[] = [
     periodStart: '2025-05-01',
     periodEnd: '2025-09-30',
     allowSplit: false,
+    setupConfirmedAt: '2025-05-05',
     deadlines: [{ id: 'd10', label: 'Final report', date: '2025-10-31', kind: 'report', done: true }],
     rules: [],
     categories: [
@@ -439,6 +486,9 @@ const tx = (
 const A = 'g-anchor'
 const C = 'g-counseling'
 const W = 'g-safe'
+const N = 'g-familynights'
+/** Allocation by category name: the grant's category id, or an unmatched name (the planted unauthorized charges). */
+const al = (grantId: string, category: string, amount: number): Allocation => allocationFor(grants.find((g) => g.id === grantId)!, category, amount)
 const months = (from: string, count: number) => {
   const [y, m] = from.split('-').map(Number)
   return Array.from({ length: count }, (_, i) => {
@@ -451,41 +501,50 @@ const months = (from: string, count: number) => {
 const transactions: Transaction[] = [
   // Anchor Mentors 2026 (funder year Jan–Dec 2026)
   ...months('2026-01', 10).map((ym, i) =>
-    tx(`t-a-pay-${ym}`, `${ym}-28`, 'Payroll', `Mentor coordinator salary – ${ym}`, '6000 Salaries', 4500, [{ grantId: A, category: 'Mentor Coordinator', amount: 4500 }], i < 9),
+    tx(`t-a-pay-${ym}`, `${ym}-28`, 'Payroll', `Mentor coordinator salary – ${ym}`, '6000 Salaries', 4500, [al(A, 'Mentor Coordinator', 4500)], i < 9),
   ),
-  tx('t-a1', '2026-01-20', 'Bayside Outings', 'Mentor–mentee kickoff field day', '6600 Activities', 4800, [{ grantId: A, category: 'Youth Activities', amount: 4800 }]),
-  tx('t-a2', '2026-04-11', 'Sunline Charter Bus', 'Group outing transportation', '6600 Activities', 3900, [{ grantId: A, category: 'Youth Activities', amount: 3900 }]),
-  tx('t-a3', '2026-07-18', 'Bayside Outings', 'Summer mentor–mentee outing', '6600 Activities', 3700, [{ grantId: A, category: 'Youth Activities', amount: 3700 }]),
-  tx('t-a4', '2026-09-26', 'Harbor Park Pavilions', 'Fall family picnic', '6600 Activities', 3200, [{ grantId: A, category: 'Youth Activities', amount: 3200 }], false),
-  tx('t-a5', '2026-02-07', 'Coastal Youth Training Institute', 'Mentor screening and training – spring cohort', '6500 Training', 5600, [{ grantId: A, category: 'Mentor Training', amount: 5600 }]),
-  tx('t-a6', '2026-08-15', 'Coastal Youth Training Institute', 'Mentor training – fall cohort', '6500 Training', 5200, [{ grantId: A, category: 'Mentor Training', amount: 5200 }]),
-  tx('t-a7', '2026-06-30', 'Keystone Evaluation Group', 'Mid-year mentoring evaluation', '6700 Contract Services', 3000, [{ grantId: A, category: 'Evaluation', amount: 3000 }]),
-  tx('t-a8', '2026-10-05', 'Brightway Electronics', 'Laptops for the mentoring center', '6800 Equipment', 2400, [{ grantId: A, category: 'Equipment', amount: 2400 }], false),
-  tx('t-a9', '2026-04-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 2250, [{ grantId: A, category: 'Indirect', amount: 2250 }]),
-  tx('t-a10', '2026-07-31', 'Tidepath Family Alliance', 'Q2 indirect allocation', '7900 Indirect', 2250, [{ grantId: A, category: 'Indirect', amount: 2250 }]),
-  tx('t-a11', '2025-12-17', 'Bayside Outings', 'Holiday mentoring event deposit', '6600 Activities', 1100, [{ grantId: A, category: 'Youth Activities', amount: 1100 }], false),
+  tx('t-a1', '2026-01-20', 'Bayside Outings', 'Mentor–mentee kickoff field day', '6600 Activities', 4800, [al(A, 'Youth Activities', 4800)]),
+  tx('t-a2', '2026-04-11', 'Sunline Charter Bus', 'Group outing transportation', '6600 Activities', 3900, [al(A, 'Youth Activities', 3900)]),
+  tx('t-a3', '2026-07-18', 'Bayside Outings', 'Summer mentor–mentee outing', '6600 Activities', 3700, [al(A, 'Youth Activities', 3700)]),
+  tx('t-a4', '2026-09-26', 'Harbor Park Pavilions', 'Fall family picnic', '6600 Activities', 3200, [al(A, 'Youth Activities', 3200)], false),
+  tx('t-a5', '2026-02-07', 'Coastal Youth Training Institute', 'Mentor screening and training – spring cohort', '6500 Training', 5600, [al(A, 'Mentor Training', 5600)]),
+  tx('t-a6', '2026-08-15', 'Coastal Youth Training Institute', 'Mentor training – fall cohort', '6500 Training', 5200, [al(A, 'Mentor Training', 5200)]),
+  tx('t-a7', '2026-06-30', 'Keystone Evaluation Group', 'Mid-year mentoring evaluation', '6700 Contract Services', 3000, [al(A, 'Evaluation', 3000)]),
+  tx('t-a8', '2026-10-05', 'Brightway Electronics', 'Laptops for the mentoring center', '6800 Equipment', 2400, [al(A, 'Equipment', 2400)], false),
+  tx('t-a9', '2026-04-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 2250, [al(A, 'Indirect', 2250)]),
+  tx('t-a10', '2026-07-31', 'Tidepath Family Alliance', 'Q2 indirect allocation', '7900 Indirect', 2250, [al(A, 'Indirect', 2250)]),
+  tx('t-a11', '2025-12-17', 'Bayside Outings', 'Holiday mentoring event deposit', '6600 Activities', 1100, [al(A, 'Youth Activities', 1100)], false),
 
   // Family Counseling Access (funder year Oct 2025 – Sep 2026)
   ...months('2025-10', 11).map((ym) =>
-    tx(`t-c-pay-${ym}`, `${ym}-25`, 'Payroll', `Family therapists – ${ym}`, '6000 Salaries', 6500, [{ grantId: C, category: 'Counselors', amount: 6500 }]),
+    tx(`t-c-pay-${ym}`, `${ym}-25`, 'Payroll', `Family therapists – ${ym}`, '6000 Salaries', 6500, [al(C, 'Counselors', 6500)]),
   ),
   ...months('2025-10', 11).map((ym) =>
-    tx(`t-c-sup-${ym}`, `${ym}-26`, 'Dr. Renata Alves, LMFT', `Clinical supervision – ${ym}`, '6700 Contract Services', 900, [{ grantId: C, category: 'Clinical Supervision', amount: 900 }]),
+    tx(`t-c-sup-${ym}`, `${ym}-26`, 'Dr. Renata Alves, LMFT', `Clinical supervision – ${ym}`, '6700 Contract Services', 900, [al(C, 'Clinical Supervision', 900)]),
   ),
-  tx('t-c1', '2025-12-09', 'Lingua Bridge Interpreters', 'Haitian Creole interpretation – Q1', '6700 Contract Services', 2600, [{ grantId: C, category: 'Interpretation Services', amount: 2600 }]),
-  tx('t-c2', '2026-05-12', 'Lingua Bridge Interpreters', 'Haitian Creole interpretation – Q3', '6700 Contract Services', 2600, [{ grantId: C, category: 'Interpretation Services', amount: 2600 }]),
-  tx('t-c3', '2025-11-20', 'Family Pantry Partners', 'Emergency grocery cards for families', '6900 Client Support', 2400, [{ grantId: C, category: 'Family Support', amount: 2400 }]),
-  tx('t-c4', '2026-02-14', 'Metro Transit', 'Bus passes for counseling clients', '6900 Client Support', 1850, [{ grantId: C, category: 'Family Support', amount: 1850 }]),
-  tx('t-c5', '2026-06-03', 'Family Pantry Partners', 'Summer grocery cards', '6900 Client Support', 2100, [{ grantId: C, category: 'Family Support', amount: 2100 }]),
+  tx('t-c1', '2025-12-09', 'Lingua Bridge Interpreters', 'Haitian Creole interpretation – Q1', '6700 Contract Services', 2600, [al(C, 'Interpretation Services', 2600)]),
+  tx('t-c2', '2026-05-12', 'Lingua Bridge Interpreters', 'Haitian Creole interpretation – Q3', '6700 Contract Services', 2600, [al(C, 'Interpretation Services', 2600)]),
+  tx('t-c3', '2025-11-20', 'Family Pantry Partners', 'Emergency grocery cards for families', '6900 Client Support', 2400, [al(C, 'Family Support', 2400)]),
+  tx('t-c4', '2026-02-14', 'Metro Transit', 'Bus passes for counseling clients', '6900 Client Support', 1850, [al(C, 'Family Support', 1850)]),
+  tx('t-c5', '2026-06-03', 'Family Pantry Partners', 'Summer grocery cards', '6900 Client Support', 2100, [al(C, 'Family Support', 2100)]),
+  tx('t-c6', '2026-06-24', 'Family Pantry Partners', 'Refund – unused summer grocery cards', '6900 Client Support', -150, [al(C, 'Family Support', -150)]),
+
+  // Family Nights 2026 (funder year Jan–Dec 2026): Family Events ends $300 over its $5,000 budget
+  tx('t-n1', '2026-02-20', 'Harbor Park Pavilions', 'Family night venue – February', '6600 Activities', 1800, [al(N, 'Family Events', 1800)]),
+  tx('t-n2', '2026-05-15', 'Sabor Caribeño Catering', 'Family night dinner – May', '6900 Client Support', 1900, [al(N, 'Family Events', 1900)]),
+  tx('t-n3', '2026-08-21', 'Harbor Park Pavilions', 'Family night venue and supplies – August', '6600 Activities', 1600, [al(N, 'Family Events', 1600)], false),
+  ...['2026-02', '2026-05', '2026-08'].map((ym) =>
+    tx(`t-n-fac-${ym}`, `${ym}-22`, 'Payroll', `Family night facilitator stipends – ${ym}`, '6000 Salaries', 1200, [al(N, 'Facilitator Stipends', 1200)]),
+  ),
 
   // Safe & Strong School Workshops (funder year Jul 2026 – Jun 2027)
   ...months('2026-07', 4).map((ym, i) =>
-    tx(`t-w-pay-${ym}`, `${ym}-28`, 'Payroll', `Workshop facilitators – ${ym}`, '6000 Salaries', 3500, [{ grantId: W, category: 'Workshop Facilitators', amount: 3500 }], i < 3),
+    tx(`t-w-pay-${ym}`, `${ym}-28`, 'Payroll', `Workshop facilitators – ${ym}`, '6000 Salaries', 3500, [al(W, 'Workshop Facilitators', 3500)], i < 3),
   ),
-  tx('t-w1', '2026-08-04', 'Brightpath Curriculum Co.', 'Safe & Strong student workbooks', '6400 Program Supplies', 4800, [{ grantId: W, category: 'Curriculum & Materials', amount: 4800 }]),
-  tx('t-w2', '2026-09-18', 'Mileage reimbursement', 'Facilitator travel to partner schools – Sep', '6600 Travel', 650, [{ grantId: W, category: 'Travel', amount: 650 }]),
-  tx('t-w3', '2026-10-16', 'Mileage reimbursement', 'Facilitator travel to partner schools – Oct', '6600 Travel', 640, [{ grantId: W, category: 'Travel', amount: 640 }], false),
-  tx('t-w4', '2026-09-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 1500, [{ grantId: W, category: 'Indirect', amount: 1500 }]),
+  tx('t-w1', '2026-08-04', 'Brightpath Curriculum Co.', 'Safe & Strong student workbooks', '6400 Program Supplies', 4800, [al(W, 'Curriculum & Materials', 4800)]),
+  tx('t-w2', '2026-09-18', 'Mileage reimbursement', 'Facilitator travel to partner schools – Sep', '6600 Travel', 650, [al(W, 'Travel', 650)]),
+  tx('t-w3', '2026-10-16', 'Mileage reimbursement', 'Facilitator travel to partner schools – Oct', '6600 Travel', 640, [al(W, 'Travel', 640)], false),
+  tx('t-w4', '2026-09-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 1500, [al(W, 'Indirect', 1500)]),
 
   // Shared or not yet assigned to a grant
   tx('t-u1', '2026-10-14', 'FPL Utilities', 'Electricity – North family center', '7100 Occupancy', 820, [], false),

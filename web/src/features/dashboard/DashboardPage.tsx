@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { ArrowRight, BookOpenCheck, CircleDollarSign, Compass, FileWarning, Receipt, Sparkles } from 'lucide-react'
+import { ArrowRight, BookOpenCheck, CircleDollarSign, Compass, FileWarning, Receipt, Settings2, Sparkles } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { STAGES } from '@/lib/labels'
@@ -7,7 +7,9 @@ import { DeadlineTimeline } from '@/components/DeadlineTimeline'
 import { collectDeadlines } from '@grantit/shared/deadlines'
 import { Card, Meter, PageHeader, Pill } from '@/components/ui'
 import { checkApplication } from '@grantit/shared/drafting'
-import { computeFinancials } from '@grantit/shared/finance'
+import { computeFinancials, sumDollars } from '@grantit/shared/finance'
+import { needsSetup } from '@grantit/shared/setup'
+import { NeedsSetupPill } from '@/features/grants/NeedsSetupPill'
 import { money, moneyCompact, pct, todayISO } from '@grantit/shared/format'
 import { recommendOpportunities } from '@grantit/shared/opportunities'
 import { can } from '@grantit/shared/permissions'
@@ -58,7 +60,8 @@ export default function Dashboard() {
   const active = useMemo(() => state.grants.filter((g) => g.stage === 'awarded' || g.stage === 'reporting'), [state.grants])
   const fin = useMemo(() => active.map((g) => computeFinancials(g, state.transactions)), [active, state.transactions])
   const totalAwarded = active.reduce((s, g) => s + g.amount, 0)
-  const totalSpent = fin.reduce((s, f) => s + f.spent, 0)
+  const totalSpent = sumDollars(fin.map((f) => f.spent))
+  const unconfigured = active.filter(needsSetup)
   const atRisk = fin.reduce((n, f) => n + f.categories.filter((c) => c.status !== 'ok').length, 0)
 
   const flaggedTx = [...flags.values()].filter((f) => f.length)
@@ -68,6 +71,9 @@ export default function Dashboard() {
   const todos = [
     can(me.role, 'fact:approve') &&
       pendingFacts.length > 0 && { icon: BookOpenCheck, tone: 'warn' as const, text: `${pendingFacts.length} fact${pendingFacts.length > 1 ? 's' : ''} waiting for approval`, to: '/apply/knowledge?status=pending' },
+    ...(can(me.role, 'grant:configure')
+      ? unconfigured.map((g) => ({ icon: Settings2, tone: 'warn' as const, text: `${g.name} needs setup: confirm its award period and budget`, to: `/grants/${g.id}?tab=setup` }))
+      : []),
     can(me.role, 'finance:review') &&
       flaggedTx.length > 0 && { icon: Receipt, tone: 'bad' as const, text: `${flaggedTx.length} transactions flagged for review`, to: '/funds/spending?view=flagged' },
     ...(can(me.role, 'application:draft')
@@ -127,6 +133,17 @@ export default function Dashboard() {
             <Pill tone={flaggedTx.length ? 'bad' : 'good'} dot>{flaggedTx.length} flagged transactions</Pill>
             <Pill tone={atRisk ? 'warn' : 'good'} dot>{atRisk} categories near or over budget</Pill>
           </div>
+          {unconfigured.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              {unconfigured.map((g) => (
+                <Link key={g.id} to={`/grants/${g.id}?tab=setup`} className="flex items-center gap-2 rounded-lg bg-canvas px-3 py-2 text-sm hover:bg-canvas-2">
+                  <NeedsSetupPill />
+                  <span className="min-w-0 flex-1 truncate font-medium text-slate">{g.name}</span>
+                  <span className="text-xs text-link">Set up →</span>
+                </Link>
+              ))}
+            </div>
+          )}
         </WorkspaceCard>
       </div>
 

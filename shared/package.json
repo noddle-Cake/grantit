@@ -7,6 +7,9 @@
   "exports": {
     "./types": "./src/types.ts",
     "./finance": "./src/finance.ts",
+    "./setup": "./src/setup.ts",
+    "./import": "./src/import.ts",
+    "./award-letter": "./src/award-letter.ts",
     "./drafting": "./src/drafting.ts",
     "./permissions": "./src/permissions.ts",
     "./deadlines": "./src/deadlines.ts",

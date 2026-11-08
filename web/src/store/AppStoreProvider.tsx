@@ -6,18 +6,20 @@ import { computeFlags } from '@grantit/shared/finance'
 import { todayISO, uid } from '@grantit/shared/format'
 import type { AppState, Fact, Grant } from '@grantit/shared/types'
 import { StoreContext, type Store, type Toast } from './context'
+import { loadState, STORAGE_KEY } from './migrate'
 
-const STORAGE_KEY = 'grantit:v2' // v2: Tidepath demo data; bumping drops older saved demo state
 const DISMISSED_KEY = 'grantit:dismissed-opportunities:v1'
 
+/** Saved state (v3, or v2 upgraded), falling back to the seed if storage is unavailable or unreadable. */
 function load(): AppState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw) as AppState
-  } catch {
-    /* ignore corrupt / unavailable storage */
+  const read = (key: string) => {
+    try {
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
   }
-  return structuredClone(seedState)
+  return loadState(read, seedState, todayISO()).state
 }
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
@@ -107,13 +109,31 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       return id
     },
     updateGrant: (id, patch) => updateGrants((g) => ({ ...g, ...patch }), id),
+    confirmGrantSetup: (id, patch) => updateGrants((g) => ({ ...g, ...patch, setupConfirmedAt: todayISO() }), id),
     updateQuestion: (grantId, qid, patch) =>
       updateGrants((g) => ({ ...g, questions: g.questions.map((q) => (q.id === qid ? { ...q, ...patch, updatedAt: todayISO() } : q)) }), grantId),
 
     importTransactions: (txs) =>
       setState((s) => ({ ...s, transactions: [...txs.map((t) => ({ ...t, id: uid('t') })), ...s.transactions] })),
+    // Changing a classification means it needs review again; assigning a grant clears "not grant-funded".
     setAllocations: (txId, allocations) =>
-      setState((s) => ({ ...s, transactions: s.transactions.map((t) => (t.id === txId ? { ...t, allocations } : t)) })),
+      setState((s) => ({
+        ...s,
+        transactions: s.transactions.map((t) => {
+          if (t.id !== txId || JSON.stringify(t.allocations) === JSON.stringify(allocations)) return t
+          const { notGrantFunded: _n, ...rest } = t
+          return { ...(allocations.length ? rest : t), allocations, reviewed: false }
+        }),
+      })),
+    setNotGrantFunded: (ids, value) =>
+      setState((s) => ({
+        ...s,
+        transactions: s.transactions.map((t) => {
+          if (!ids.includes(t.id) || (value && t.allocations.length)) return t
+          const { notGrantFunded: _n, ...rest } = t
+          return value ? { ...rest, notGrantFunded: true } : rest
+        }),
+      })),
     markReviewed: (ids, reviewed = true) =>
       setState((s) => ({ ...s, transactions: s.transactions.map((t) => (ids.includes(t.id) ? { ...t, reviewed } : t)) })),
 

@@ -1,10 +1,11 @@
 import clsx from 'clsx'
-import { AlertOctagon, Download, Table2 } from 'lucide-react'
+import { AlertOctagon, Download, Settings2, Table2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MonthlySpendChart } from '@/components/MonthlySpendChart'
 import { Button, EmptyState, Meter, Segmented, Stat, StatusPill } from '@/components/ui'
-import { computeFinancials, FLAG_LABEL, inPeriod, periodOptions } from '@grantit/shared/finance'
+import { allocationCategoryName, computeFinancials, FLAG_LABEL, inPeriod, periodOptions, quarterlySpend } from '@grantit/shared/finance'
+import { needsSetup } from '@grantit/shared/setup'
 import { fmtDate, money, moneyExact, pct } from '@grantit/shared/format'
 import { downloadFile, expenditureReportCsv } from '@/lib/report'
 import { useStore } from '@/store'
@@ -18,12 +19,27 @@ export function BudgetTab({ grant }: { grant: Grant }) {
   const period = options[idx] ?? options[0]
   const f = computeFinancials(grant, state.transactions, period)
 
+  const setupBanner = needsSetup(grant) && (
+    <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warn/40 bg-warn-soft px-4 py-3 text-sm">
+      <Settings2 size={16} className="shrink-0 text-warn" />
+      <span className="min-w-0 flex-1 text-slate">
+        <span className="font-medium">Needs setup.</span> Confirm this award's period and budget before transactions can be charged to it.
+      </span>
+      <Link to="?tab=setup"><Button size="sm">Go to Setup</Button></Link>
+    </div>
+  )
+
   if (!grant.categories.length)
     return (
-      <EmptyState icon={<Table2 />} title="No budget configured" action={<Link to="?tab=setup"><Button size="sm">Configure budget</Button></Link>}>
-        Define this grant's approved spending categories to start tracking actuals.
-      </EmptyState>
+      <div className="space-y-6">
+        {setupBanner}
+        <EmptyState icon={<Table2 />} title="No budget configured" action={!setupBanner && <Link to="?tab=setup"><Button size="sm">Configure budget</Button></Link>}>
+          Define this grant's approved spending categories to start tracking actuals. You can fill them in from the award letter.
+        </EmptyState>
+      </div>
     )
+
+  const quarterly = quarterlySpend(grant, state.transactions)
 
   const lines = state.transactions
     .flatMap((t) => t.allocations.filter((a) => a.grantId === grant.id).map((a) => ({ t, a })))
@@ -32,13 +48,14 @@ export function BudgetTab({ grant }: { grant: Grant }) {
 
   return (
     <div className="space-y-6">
+      {setupBanner}
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-xs font-medium uppercase tracking-wide text-slate-3">Reporting period</span>
         <Segmented<string>
           label="Reporting period"
           value={String(idx)}
           onChange={(v) => setIdx(Number(v))}
-          options={options.map((o, i) => ({ id: String(i), label: i === 0 ? 'Funder period' : o.label.replace('Org fiscal year ', '') }))}
+          options={options.map((o, i) => ({ id: String(i), label: o.short ?? o.label }))}
         />
         <span className="text-sm text-slate-2">{fmtDate(period.start)} – {fmtDate(period.end)}</span>
         <Button
@@ -53,7 +70,10 @@ export function BudgetTab({ grant }: { grant: Grant }) {
       </div>
 
       {idx > 0 && (
-        <p className="-mt-3 text-xs text-slate-3">Showing spending in your organization's fiscal year against the full grant budget. Funder reports use the funder period.</p>
+        <p className="-mt-3 text-xs text-slate-2">
+          {period.label}: spending in this {period.kind === 'funder-fy' ? "funder fiscal year" : "organization fiscal year"} against the full grant budget.{' '}
+          <span className="font-medium">Over-budget flags are always checked against the full grant period</span>, the period the funder audits.
+        </p>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:grid-cols-4">
@@ -120,6 +140,38 @@ export function BudgetTab({ grant }: { grant: Grant }) {
       </div>
 
       <div>
+        <h4 className="mb-1 text-sm font-semibold text-slate">Spending by funder fiscal quarter</h4>
+        <p className="mb-2 text-xs text-slate-3">Spending inside the grant period, grouped by the funder's fiscal calendar. Hover a quarter for its dates.</p>
+        <div className="overflow-x-auto rounded-lg border border-line-2">
+          <table className="w-full text-sm">
+            <thead className="bg-canvas text-left text-xs font-semibold tracking-wide text-slate-2">
+              <tr>
+                <th className="px-4 py-2.5 uppercase">Category</th>
+                {quarterly.quarters.map((q) => <th key={q.start} className="whitespace-nowrap px-3 py-2.5 text-right" title={q.label}>{q.short}</th>)}
+                <th className="px-4 py-2.5 text-right uppercase">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line-2">
+              {quarterly.rows.map((r) => (
+                <tr key={r.name} className={clsx(!r.approved && 'bg-bad-soft/50')}>
+                  <td className={clsx('px-4 py-2.5 font-medium', r.approved ? 'text-slate' : 'text-bad')}>{r.name}{!r.approved && ' (not approved)'}</td>
+                  {r.spent.map((v, i) => <td key={i} className={clsx('px-3 py-2.5 text-right tabular-nums', !v && 'text-slate-3')}>{v ? money(v) : '–'}</td>)}
+                  <td className="px-4 py-2.5 text-right font-medium tabular-nums">{money(r.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-line bg-canvas font-semibold">
+              <tr>
+                <td className="px-4 py-2.5">Total</td>
+                {quarterly.totals.map((v, i) => <td key={i} className="px-3 py-2.5 text-right tabular-nums">{money(v)}</td>)}
+                <td className="px-4 py-2.5 text-right tabular-nums">{money(quarterly.totals.reduce((s, v) => s + Math.round(v * 100), 0) / 100)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div>
         <div className="mb-2 flex items-center justify-between">
           <h4 className="text-sm font-semibold text-slate">Monthly spending</h4>
           <button onClick={() => setShowTable((s) => !s)} className="text-xs text-link hover:underline">{showTable ? 'Show chart' : 'Show as table'}</button>
@@ -142,13 +194,13 @@ export function BudgetTab({ grant }: { grant: Grant }) {
             {lines.map(({ t, a }) => {
               const fl = (flags.get(t.id) ?? []).filter((x) => !x.grantId || x.grantId === grant.id)
               return (
-                <li key={t.id + a.category} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <li key={`${t.id}-${a.categoryId ?? a.unmatchedCategory}`} className="flex items-center gap-3 px-4 py-2.5 text-sm">
                   <span className="w-20 shrink-0 text-xs text-slate-3">{fmtDate(t.date, { month: 'short', day: 'numeric', year: '2-digit' })}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-slate">{t.description}</span>
-                    <span className="block truncate text-xs text-slate-3">{t.vendor} · {a.category}</span>
+                    <span className="block truncate text-xs text-slate-3">{t.vendor} · {allocationCategoryName(grant, a)}</span>
                   </span>
-                  {fl.map((x) => <StatusPill key={x.kind} tone="bad">{FLAG_LABEL[x.kind]}</StatusPill>)}
+                  {fl.map((x) => <StatusPill key={x.kind} tone="bad">{FLAG_LABEL[x.kind]}{x.overBy ? ` · ${moneyExact(x.overBy)}` : ''}</StatusPill>)}
                   <span className="w-24 text-right tabular-nums">{moneyExact(a.amount)}</span>
                 </li>
               )
