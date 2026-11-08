@@ -1,10 +1,11 @@
 import clsx from 'clsx'
 import { FileDown, FileSpreadsheet, FileText } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Button, Segmented } from '@/components/ui'
 import { periodOptions, type Period } from '@grantit/shared/finance'
 import { fmtDate, moneyExact } from '@grantit/shared/format'
-import { buildReport } from '@grantit/shared/funds'
+import { buildReport, unconfirmedInPeriod } from '@grantit/shared/funds'
 import { downloadReportCsv, downloadReportPdf, downloadReportXlsx, REPORT_COLUMNS } from '@/lib/report'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
@@ -13,7 +14,7 @@ const key = (p: Pick<Period, 'start' | 'end'>) => `${p.start}|${p.end}`
 
 /**
  * The funder report for one grant, in the funder's format: budget, spend this period, cumulative spend and what's
- * left per category, with disallowed costs listed separately. Rendered by both the Reports page and the grant's
+ * left per category, with charges that can't be reported listed separately. Rendered by both the Reports page and the grant's
  * Budget tab, so the two never disagree. `period` preselects a period (e.g. the quarter a due report covers).
  */
 export function GrantReport({ grant, period: preset }: { grant: Grant; period?: Period }) {
@@ -29,6 +30,7 @@ export function GrantReport({ grant, period: preset }: { grant: Grant; period?: 
   }
   const period = options.find((o) => key(o) === selected) ?? options[0]
   const r = buildReport(grant, state.transactions, period)
+  const unconfirmed = unconfirmedInPeriod(grant, state.transactions, period).length
   const excludedTotal = r.excluded.reduce((s, l) => s + Math.round(l.amount * 100), 0) / 100
 
   const run = async (label: string, fn: () => Promise<void> | void) => {
@@ -48,6 +50,13 @@ export function GrantReport({ grant, period: preset }: { grant: Grant; period?: 
       {period.kind !== 'grant' && (
         <p className="-mt-1 text-xs text-slate-2">
           {period.label}. Cumulative runs from the grant start to the end of this period. Over-budget flags are always checked against the full grant period.
+        </p>
+      )}
+
+      {unconfirmed > 0 && (
+        <p className="text-sm text-slate-2" role="status">
+          {unconfirmed} unconfirmed item{unconfirmed === 1 ? '' : 's'} in this period.{' '}
+          <Link to={`/funds/spending?grant=${grant.id}&from=${period.start}&to=${period.end}`} className="text-link hover:underline">Review them →</Link>
         </p>
       )}
 
@@ -84,10 +93,10 @@ export function GrantReport({ grant, period: preset }: { grant: Grant; period?: 
       {r.excluded.length > 0 && (
         <div className="rounded-lg border border-line-2 bg-canvas px-4 py-3">
           <h4 className="text-sm font-semibold text-slate">Excluded from this report <span className="font-normal text-slate-2">· {moneyExact(excludedTotal)}</span></h4>
-          <p className="text-xs text-slate-2">Disallowed costs are left out of every figure above.</p>
+          <p className="text-xs text-slate-2">These are left out of every figure above.</p>
           <ul className="mt-2 divide-y divide-line-2 text-sm">
             {r.excluded.map((l) => (
-              <li key={`${l.tx.id}-${l.alloc.categoryId ?? l.alloc.unmatchedCategory}`} className="flex flex-wrap items-baseline gap-x-3 py-1.5">
+              <li key={`${l.tx.id}-${l.alloc.budgetLineId}`} className="flex flex-wrap items-baseline gap-x-3 py-1.5">
                 <span className="w-24 shrink-0 text-xs text-slate-3">{fmtDate(l.tx.date)}</span>
                 <span className="min-w-0 flex-1 text-slate">{l.tx.description} <span className="text-slate-3">· {l.tx.vendor}</span></span>
                 <span className="text-xs text-bad">{l.detail}</span>

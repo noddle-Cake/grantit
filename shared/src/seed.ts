@@ -1,5 +1,6 @@
+import { autoAssign, categoryForAccount } from './auto-assign.ts'
 import { allocationFor } from './finance.ts'
-import type { Allocation, AppState, Fact, Grant, Transaction } from './types.ts'
+import type { Allocation, AppState, Fact, Grant, OrgCategory, Program, Transaction } from './types.ts'
 
 // Demo data for Tidepath Family Alliance, a made-up Miami-Dade nonprofit that helps kids and their families
 // through mentoring, family counseling, and safety and mental health workshops in schools. Every person,
@@ -9,9 +10,10 @@ import type { Allocation, AppState, Fact, Grant, Transaction } from './types.ts'
 // - Funders' years start in January, July or October; Tidepath's own fiscal year is the calendar year.
 // - Youth Mental Health Partnership (drafting) asks questions with 250- and 1,000-word limits, to draft live
 //   from the approved facts.
-// - Anchor Mentors 2026 has one transaction of each compliance problem: over budget, unauthorized category,
-//   outside the funding period. Mentor Training and Counselors are close to running over.
-// - Family Nights 2026 runs exactly $300 over its $5,000 Family Events budget.
+// - The bookkeeper codes each expense to a category and program. Auto-assign has left eight for the monthly close:
+//   laptops no mentoring grant allows, a picnic and a venue too big for what's left, a deposit from before any
+//   mentoring grant began, a deposit split across two mentoring grants, and three that still need a program.
+// - Mentor Expansion 2026–27 overlaps the end of Anchor Mentors 2026, so soonest-ending money gets spent first.
 // - Family Counseling Access has a refund (a negative amount) that reduces Family Support spending.
 // - Family Wellness Partnership was just awarded and still needs setup: upload its sample award letter
 //   (web/public/samples) on the Setup tab to fill in the budget.
@@ -213,6 +215,32 @@ const facts: Fact[] = [
   },
 ]
 
+const orgCategories: OrgCategory[] = [
+  { id: 'cat-personnel', name: 'Personnel', glAccounts: ['6000'] },
+  { id: 'cat-fringe', name: 'Fringe benefits', glAccounts: [] },
+  { id: 'cat-contract', name: 'Contract services', glAccounts: ['6700'] },
+  { id: 'cat-training', name: 'Training', glAccounts: ['6500'] },
+  { id: 'cat-travel', name: 'Travel', glAccounts: ['6600'] },
+  { id: 'cat-supplies', name: 'Supplies', glAccounts: ['6400'] },
+  { id: 'cat-equipment', name: 'Equipment', glAccounts: ['6800'] },
+  { id: 'cat-activities', name: 'Program activities', glAccounts: ['6650', '6900'] },
+  { id: 'cat-occupancy', name: 'Occupancy', glAccounts: ['7100'] },
+  { id: 'cat-technology', name: 'Technology', glAccounts: ['7200'] },
+  { id: 'cat-indirect', name: 'Indirect', glAccounts: ['7900'] },
+]
+
+const programs: Program[] = [
+  { id: 'p-mentoring', name: 'Mentoring' },
+  { id: 'p-workshops', name: 'School workshops' },
+  { id: 'p-counseling', name: 'Family counseling' },
+  { id: 'p-engagement', name: 'Family engagement' },
+  { id: 'p-wellness', name: 'Family wellness' },
+  { id: 'p-admin', name: 'Admin and shared' },
+]
+
+/** A budget line that pays for one spending category. */
+const line = (id: string, name: string, budget: number, categoryId: string) => ({ id, name, budget, acceptedCategoryIds: [categoryId] })
+
 const q = (id: string, prompt: string, wordLimit: number): Grant['questions'][number] => ({
   id,
   prompt,
@@ -226,6 +254,7 @@ const q = (id: string, prompt: string, wordLimit: number): Grant['questions'][nu
 const grants: Grant[] = [
   {
     id: 'g-anchor',
+    programId: 'p-mentoring',
     name: 'Anchor Mentors 2026',
     funder: 'Biscayne Youth Fund',
     amount: 96000,
@@ -249,11 +278,11 @@ const grants: Grant[] = [
       'Moving more than 10% of a category to another needs written approval.',
     ],
     categories: [
-      { id: 'c1', name: 'Mentor Coordinator', budget: 54000 },
-      { id: 'c2', name: 'Mentor Training', budget: 12000 },
-      { id: 'c3', name: 'Youth Activities', budget: 15000 },
-      { id: 'c4', name: 'Evaluation', budget: 6000 },
-      { id: 'c5', name: 'Indirect', budget: 9000 },
+      line('c1', 'Mentor Coordinator', 54000, 'cat-personnel'),
+      line('c2', 'Mentor Training', 12000, 'cat-training'),
+      line('c3', 'Youth Activities', 15000, 'cat-activities'),
+      line('c4', 'Evaluation', 6000, 'cat-contract'),
+      line('c5', 'Indirect', 9000, 'cat-indirect'),
     ],
     questions: [
       {
@@ -270,7 +299,31 @@ const grants: Grant[] = [
     ],
   },
   {
+    // Starts as Anchor Mentors 2026 winds down, so overlapping mentoring costs go to Anchor first.
+    id: 'g-mentor-expansion',
+    programId: 'p-mentoring',
+    name: 'Mentor Expansion 2026–27',
+    funder: 'Keys Neighborhood Fund',
+    amount: 40000,
+    stage: 'awarded',
+    cover: 3,
+    ownerId: 'u-claudette',
+    periodStart: '2026-11-01',
+    periodEnd: '2027-10-31',
+    allowSplit: true,
+    setupConfirmedAt: '2026-11-02',
+    deadlines: [{ id: 'd14', label: 'Q1 expenditure report', date: '2027-02-15', kind: 'report' }],
+    rules: ['Funder year runs November 1 – October 31.'],
+    categories: [
+      line('c1', 'Personnel', 28000, 'cat-personnel'),
+      line('c2', 'Training', 8000, 'cat-training'),
+      line('c3', 'Indirect', 4000, 'cat-indirect'),
+    ],
+    questions: [],
+  },
+  {
     id: 'g-counseling',
+    programId: 'p-counseling',
     name: 'Family Counseling Access',
     funder: 'South Florida Family Futures Council',
     amount: 110000,
@@ -289,15 +342,16 @@ const grants: Grant[] = [
       'Quarterly expenditure reports required.',
     ],
     categories: [
-      { id: 'c1', name: 'Counselors', budget: 78000 },
-      { id: 'c2', name: 'Clinical Supervision', budget: 12000 },
-      { id: 'c3', name: 'Interpretation Services', budget: 9000 },
-      { id: 'c4', name: 'Family Support', budget: 11000 },
+      line('c1', 'Counselors', 78000, 'cat-personnel'),
+      line('c2', 'Clinical Supervision', 12000, 'cat-contract'),
+      line('c3', 'Interpretation Services', 9000, 'cat-contract'),
+      line('c4', 'Family Support', 11000, 'cat-activities'),
     ],
     questions: [],
   },
   {
     id: 'g-safe',
+    programId: 'p-workshops',
     name: 'Safe & Strong School Workshops',
     funder: 'State Youth Safety Grants Office',
     amount: 72000,
@@ -314,16 +368,17 @@ const grants: Grant[] = [
     ],
     rules: ['Funder year runs July 1 – June 30.', 'Indirect costs capped at 10% of the award.', 'Quarterly expenditure reports required.'],
     categories: [
-      { id: 'c1', name: 'Workshop Facilitators', budget: 42000 },
-      { id: 'c2', name: 'Curriculum & Materials', budget: 12000 },
-      { id: 'c3', name: 'Travel', budget: 6000 },
-      { id: 'c4', name: 'Evaluation', budget: 6000 },
-      { id: 'c5', name: 'Indirect', budget: 6000 },
+      line('c1', 'Workshop Facilitators', 42000, 'cat-personnel'),
+      line('c2', 'Curriculum & Materials', 12000, 'cat-supplies'),
+      line('c3', 'Travel', 6000, 'cat-travel'),
+      line('c4', 'Evaluation', 6000, 'cat-contract'),
+      line('c5', 'Indirect', 6000, 'cat-indirect'),
     ],
     questions: [],
   },
   {
     id: 'g-familynights',
+    programId: 'p-engagement',
     name: 'Family Nights 2026',
     funder: 'Keys Neighborhood Fund',
     amount: 12000,
@@ -337,8 +392,8 @@ const grants: Grant[] = [
     deadlines: [{ id: 'd12', label: 'Final report', date: '2027-01-31', kind: 'report' }],
     rules: ['Funder year runs January 1 – December 31.', 'Food and venue costs count as Family Events.'],
     categories: [
-      { id: 'c1', name: 'Family Events', budget: 5000 },
-      { id: 'c2', name: 'Facilitator Stipends', budget: 7000 },
+      line('c1', 'Family Events', 5000, 'cat-activities'),
+      line('c2', 'Facilitator Stipends', 7000, 'cat-personnel'),
     ],
     questions: [],
   },
@@ -346,6 +401,7 @@ const grants: Grant[] = [
     // Just awarded; budget and period not confirmed yet, so it shows "Needs setup" until the award letter is
     // entered. Its funder year (October) comes from the letter, so it isn't set here.
     id: 'g-family-wellness',
+    programId: 'p-wellness',
     name: 'Family Wellness Partnership',
     funder: 'Harborlight Community Trust',
     amount: 60000,
@@ -436,6 +492,7 @@ const grants: Grant[] = [
   },
   {
     id: 'g-camp',
+    programId: 'p-mentoring',
     name: 'Summer Mentoring Camp 2025',
     funder: 'Biscayne Youth Fund',
     amount: 25000,
@@ -449,8 +506,8 @@ const grants: Grant[] = [
     deadlines: [{ id: 'd10', label: 'Final report', date: '2025-10-31', kind: 'report', done: true }],
     rules: [],
     categories: [
-      { id: 'c1', name: 'Camp Staff', budget: 15000 },
-      { id: 'c2', name: 'Activities', budget: 10000 },
+      line('c1', 'Camp Staff', 15000, 'cat-personnel'),
+      line('c2', 'Activities', 10000, 'cat-activities'),
     ],
     questions: [],
   },
@@ -472,8 +529,8 @@ const grants: Grant[] = [
   },
 ]
 
-// Sample QuickBooks-style ledger lines. A few are deliberately problematic so the compliance checks have
-// something to show. QuickBooks only knows Tidepath's own (calendar) year; each grant is checked in its own.
+// Sample QuickBooks-style ledger lines. QuickBooks only knows Tidepath's own (calendar) year; each grant is checked
+// in its own. Lines already assigned were coded by a person; the rest wait for auto-assign below.
 const tx = (
   id: string,
   date: string,
@@ -481,17 +538,30 @@ const tx = (
   description: string,
   account: string,
   amount: number,
-  allocations: Transaction['allocations'] = [],
-  reviewed = true,
-): Transaction => ({ id, date, vendor, description, account, amount, allocations, reviewed, source: 'quickbooks-sample' })
+  allocations: Allocation[] = [],
+  /** The line's QuickBooks class, when it had one. */
+  programId?: string,
+): Transaction => ({
+  id,
+  date,
+  vendor,
+  description,
+  account,
+  amount,
+  categoryId: categoryForAccount(orgCategories, account),
+  programId: programId ?? grants.find((g) => g.id === allocations[0]?.grantId)?.programId,
+  allocations,
+  origin: 'quickbooks-sample',
+  source: allocations.length ? 'manual' : 'auto',
+  status: allocations.length ? 'done' : 'needs_input',
+})
 
 const A = 'g-anchor'
 const C = 'g-counseling'
 const W = 'g-safe'
 const N = 'g-familynights'
 const S = 'g-camp'
-/** Allocation by category name: the grant's category id, or an unmatched name (the planted unauthorized charges). */
-const al = (grantId: string, category: string, amount: number): Allocation => allocationFor(grants.find((g) => g.id === grantId)!, category, amount)
+const al = (grantId: string, lineName: string, amount: number): Allocation => allocationFor(grants.find((g) => g.id === grantId)!, lineName, amount)!
 const months = (from: string, count: number) => {
   const [y, m] = from.split('-').map(Number)
   return Array.from({ length: count }, (_, i) => {
@@ -501,22 +571,26 @@ const months = (from: string, count: number) => {
   })
 }
 
+// These two carry a QuickBooks class: payee history can't tell. Harbor Park last hosted a Family Night, and
+// Brightway has no history at all.
+const MENTORING_CLASS = 'p-mentoring'
+
 const transactions: Transaction[] = [
   // Anchor Mentors 2026 (funder year Jan–Dec 2026)
-  ...months('2026-01', 10).map((ym, i) =>
-    tx(`t-a-pay-${ym}`, `${ym}-28`, 'Payroll', `Mentor coordinator salary – ${ym}`, '6000 Salaries', 4500, [al(A, 'Mentor Coordinator', 4500)], i < 9),
+  ...months('2026-01', 10).map((ym) =>
+    tx(`t-a-pay-${ym}`, `${ym}-28`, 'Payroll', `Mentor coordinator salary – ${ym}`, '6000 Salaries', 4500, [al(A, 'Mentor Coordinator', 4500)]),
   ),
-  tx('t-a1', '2026-01-20', 'Bayside Outings', 'Mentor–mentee kickoff field day', '6600 Activities', 4800, [al(A, 'Youth Activities', 4800)]),
-  tx('t-a2', '2026-04-11', 'Sunline Charter Bus', 'Group outing transportation', '6600 Activities', 3900, [al(A, 'Youth Activities', 3900)]),
-  tx('t-a3', '2026-07-18', 'Bayside Outings', 'Summer mentor–mentee outing', '6600 Activities', 3700, [al(A, 'Youth Activities', 3700)]),
-  tx('t-a4', '2026-09-26', 'Harbor Park Pavilions', 'Fall family picnic', '6600 Activities', 3200, [al(A, 'Youth Activities', 3200)], false),
+  tx('t-a1', '2026-01-20', 'Bayside Outings', 'Mentor–mentee kickoff field day', '6650 Activities', 4800, [al(A, 'Youth Activities', 4800)]),
+  tx('t-a2', '2026-04-11', 'Sunline Charter Bus', 'Group outing transportation', '6650 Activities', 3900, [al(A, 'Youth Activities', 3900)]),
+  tx('t-a3', '2026-07-18', 'Bayside Outings', 'Summer mentor–mentee outing', '6650 Activities', 3700, [al(A, 'Youth Activities', 3700)]),
+  tx('t-a4', '2026-09-26', 'Harbor Park Pavilions', 'Fall family picnic', '6650 Activities', 3200, [], MENTORING_CLASS),
   tx('t-a5', '2026-02-07', 'Coastal Youth Training Institute', 'Mentor screening and training – spring cohort', '6500 Training', 5600, [al(A, 'Mentor Training', 5600)]),
   tx('t-a6', '2026-08-15', 'Coastal Youth Training Institute', 'Mentor training – fall cohort', '6500 Training', 5200, [al(A, 'Mentor Training', 5200)]),
   tx('t-a7', '2026-06-30', 'Keystone Evaluation Group', 'Mid-year mentoring evaluation', '6700 Contract Services', 3000, [al(A, 'Evaluation', 3000)]),
-  tx('t-a8', '2026-10-05', 'Brightway Electronics', 'Laptops for the mentoring center', '6800 Equipment', 2400, [al(A, 'Equipment', 2400)], false),
+  tx('t-a8', '2026-10-05', 'Brightway Electronics', 'Laptops for the mentoring center', '6800 Equipment', 2400, [], MENTORING_CLASS),
   tx('t-a9', '2026-04-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 2250, [al(A, 'Indirect', 2250)]),
   tx('t-a10', '2026-07-31', 'Tidepath Family Alliance', 'Q2 indirect allocation', '7900 Indirect', 2250, [al(A, 'Indirect', 2250)]),
-  tx('t-a11', '2025-12-17', 'Bayside Outings', 'Holiday mentoring event deposit', '6600 Activities', 1100, [al(A, 'Youth Activities', 1100)], false),
+  tx('t-a11', '2025-12-17', 'Bayside Outings', 'Holiday mentoring event deposit', '6650 Activities', 1100),
 
   // Family Counseling Access (funder year Oct 2025 – Sep 2026)
   ...months('2025-10', 11).map((ym) =>
@@ -532,37 +606,37 @@ const transactions: Transaction[] = [
   tx('t-c5', '2026-06-03', 'Family Pantry Partners', 'Summer grocery cards', '6900 Client Support', 2100, [al(C, 'Family Support', 2100)]),
   tx('t-c6', '2026-06-24', 'Family Pantry Partners', 'Refund – unused summer grocery cards', '6900 Client Support', -150, [al(C, 'Family Support', -150)]),
 
-  // Family Nights 2026 (funder year Jan–Dec 2026): Family Events ends $300 over its $5,000 budget
-  tx('t-n1', '2026-02-20', 'Harbor Park Pavilions', 'Family night venue – February', '6600 Activities', 1800, [al(N, 'Family Events', 1800)]),
+  // Family Nights 2026 (funder year Jan–Dec 2026)
+  tx('t-n1', '2026-02-20', 'Harbor Park Pavilions', 'Family night venue – February', '6650 Activities', 1800, [al(N, 'Family Events', 1800)]),
   tx('t-n2', '2026-05-15', 'Sabor Caribeño Catering', 'Family night dinner – May', '6900 Client Support', 1900, [al(N, 'Family Events', 1900)]),
-  tx('t-n3', '2026-08-21', 'Harbor Park Pavilions', 'Family night venue and supplies – August', '6600 Activities', 1600, [al(N, 'Family Events', 1600)], false),
+  tx('t-n3', '2026-08-21', 'Harbor Park Pavilions', 'Family night venue and supplies – August', '6650 Activities', 1600),
   ...['2026-02', '2026-05', '2026-08'].map((ym) =>
     tx(`t-n-fac-${ym}`, `${ym}-22`, 'Payroll', `Family night facilitator stipends – ${ym}`, '6000 Salaries', 1200, [al(N, 'Facilitator Stipends', 1200)]),
   ),
 
   // Safe & Strong School Workshops (funder year Jul 2026 – Jun 2027)
-  ...months('2026-07', 4).map((ym, i) =>
-    tx(`t-w-pay-${ym}`, `${ym}-28`, 'Payroll', `Workshop facilitators – ${ym}`, '6000 Salaries', 3500, [al(W, 'Workshop Facilitators', 3500)], i < 3),
+  ...months('2026-07', 4).map((ym) =>
+    tx(`t-w-pay-${ym}`, `${ym}-28`, 'Payroll', `Workshop facilitators – ${ym}`, '6000 Salaries', 3500, [al(W, 'Workshop Facilitators', 3500)]),
   ),
   tx('t-w1', '2026-08-04', 'Brightpath Curriculum Co.', 'Safe & Strong student workbooks', '6400 Program Supplies', 4800, [al(W, 'Curriculum & Materials', 4800)]),
   tx('t-w2', '2026-09-18', 'Mileage reimbursement', 'Facilitator travel to partner schools – Sep', '6600 Travel', 650, [al(W, 'Travel', 650)]),
-  tx('t-w3', '2026-10-16', 'Mileage reimbursement', 'Facilitator travel to partner schools – Oct', '6600 Travel', 640, [al(W, 'Travel', 640)], false),
+  tx('t-w3', '2026-10-16', 'Mileage reimbursement', 'Facilitator travel to partner schools – Oct', '6600 Travel', 640, [al(W, 'Travel', 640)]),
   tx('t-w4', '2026-09-30', 'Tidepath Family Alliance', 'Q1 indirect allocation', '7900 Indirect', 1500, [al(W, 'Indirect', 1500)]),
 
   // Summer Mentoring Camp 2025 (closed, May–Sep 2025): nearly all of the $25,000 spent; final report submitted
   ...months('2025-05', 5).map((ym) =>
     tx(`t-s-pay-${ym}`, `${ym}-28`, 'Payroll', `Camp counselors – ${ym}`, '6000 Salaries', 3000, [al(S, 'Camp Staff', 3000)]),
   ),
-  tx('t-s1', '2025-06-20', 'Bayside Outings', 'Camp field day – June', '6600 Activities', 2400, [al(S, 'Activities', 2400)]),
-  tx('t-s2', '2025-07-15', 'Bayside Outings', 'Beach cleanup and picnic', '6600 Activities', 3100, [al(S, 'Activities', 3100)]),
-  tx('t-s3', '2025-07-25', 'Sunline Charter Bus', 'Camp trip to the science museum', '6600 Activities', 1700, [al(S, 'Activities', 1700)]),
-  tx('t-s4', '2025-08-08', 'Bayside Outings', 'End-of-camp celebration', '6600 Activities', 2650, [al(S, 'Activities', 2650)]),
+  tx('t-s1', '2025-06-20', 'Bayside Outings', 'Camp field day – June', '6650 Activities', 2400, [al(S, 'Activities', 2400)]),
+  tx('t-s2', '2025-07-15', 'Bayside Outings', 'Beach cleanup and picnic', '6650 Activities', 3100, [al(S, 'Activities', 3100)]),
+  tx('t-s3', '2025-07-25', 'Sunline Charter Bus', 'Camp trip to the science museum', '6650 Activities', 1700, [al(S, 'Activities', 1700)]),
+  tx('t-s4', '2025-08-08', 'Bayside Outings', 'End-of-camp celebration', '6650 Activities', 2650, [al(S, 'Activities', 2650)]),
 
-  // Shared or not yet assigned to a grant
-  tx('t-u1', '2026-10-14', 'FPL Utilities', 'Electricity – North family center', '7100 Occupancy', 820, [], false),
-  tx('t-u2', '2026-10-20', 'SimplePractice', 'Telehealth and records software', '7200 Software', 360, [], false),
-  tx('t-u3', '2026-10-24', 'Office Depot', 'Printer toner, paper', '6400 Program Supplies', 410, [], false),
-  tx('t-u4', '2026-11-02', 'Coastal Youth Training Institute', 'Winter mentor training deposit', '6500 Training', 1500, [], false),
+  // Not yet coded
+  tx('t-u1', '2026-10-14', 'FPL Utilities', 'Electricity – North family center', '7100 Occupancy', 820),
+  tx('t-u2', '2026-10-20', 'SimplePractice', 'Telehealth and records software', '7200 Software', 360),
+  tx('t-u3', '2026-10-24', 'Office Depot', 'Printer toner, paper', '6400 Program Supplies', 410),
+  tx('t-u4', '2026-11-02', 'Coastal Youth Training Institute', 'Winter mentor training deposit', '6500 Training', 1500),
 ]
 
 export const seedState: AppState = {
@@ -580,6 +654,8 @@ export const seedState: AppState = {
     { id: 'p3', name: 'Summer Mentoring Camp – final report', kind: 'report', funder: 'Biscayne Youth Fund', year: 2025 },
     { id: 'p4', name: 'Youth Violence Prevention – application', kind: 'application', funder: 'Metro Safe Neighborhoods Fund', year: 2026, outcome: 'declined' },
   ],
+  orgCategories,
+  programs,
   grants,
-  transactions,
+  transactions: autoAssign({ grants, orgCategories, programs, transactions }),
 }

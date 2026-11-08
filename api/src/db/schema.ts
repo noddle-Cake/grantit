@@ -7,7 +7,9 @@ import {
   FACT_STATUSES,
   GRANT_STAGES,
   ROLES,
-  TRANSACTION_SOURCES,
+  ASSIGNMENT_SOURCES,
+  TRANSACTION_ORIGINS,
+  TRANSACTION_STATUSES,
   type BudgetReallocation,
 } from '@grantit/shared/types'
 import { sql } from 'drizzle-orm'
@@ -38,7 +40,9 @@ export const documentOutcomeEnum = pgEnum('document_outcome', DOCUMENT_OUTCOMES)
 export const grantStageEnum = pgEnum('grant_stage', GRANT_STAGES)
 export const answerStatusEnum = pgEnum('answer_status', ANSWER_STATUSES)
 export const deadlineKindEnum = pgEnum('deadline_kind', DEADLINE_KINDS)
-export const transactionSourceEnum = pgEnum('transaction_source', TRANSACTION_SOURCES)
+export const transactionOriginEnum = pgEnum('transaction_source', TRANSACTION_ORIGINS)
+export const assignmentSourceEnum = pgEnum('assignment_source', ASSIGNMENT_SOURCES)
+export const transactionStatusEnum = pgEnum('transaction_status', TRANSACTION_STATUSES)
 
 export const organizations = pgTable(
   'organizations',
@@ -56,6 +60,30 @@ const organizationId = () =>
   text()
     .notNull()
     .references(() => organizations.id, { onDelete: 'cascade' })
+
+// The chart of accounts and programs are identified within their organization, so the demo's ids can repeat.
+export const orgCategories = pgTable(
+  'org_categories',
+  {
+    id: text().notNull(),
+    organizationId: organizationId(),
+    position: integer().notNull(),
+    name: text().notNull(),
+    glAccounts: textArray(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.id] })],
+)
+
+export const programs = pgTable(
+  'programs',
+  {
+    id: text().notNull(),
+    organizationId: organizationId(),
+    position: integer().notNull(),
+    name: text().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.organizationId, t.id] })],
+)
 
 export const users = pgTable(
   'users',
@@ -149,6 +177,8 @@ export const grants = pgTable(
     rebudgetThresholdPct: integer(),
     // Budget moves between categories (category budgets already include them).
     reallocations: jsonb().$type<BudgetReallocation[]>(),
+    // The program this award funds; expenses coded to it can be charged here.
+    programId: text(),
     createdAt: createdAt(),
   },
   (t) => [
@@ -172,6 +202,8 @@ export const budgetCategories = pgTable(
     position: integer().notNull(),
     name: text().notNull(),
     budget: money().notNull(),
+    // Organization spending categories this line can pay for; null until mapped.
+    acceptedCategoryIds: text().array(),
   },
   // Allocations refer to categories by id; names stay unique within a grant so CSV imports match one category.
   (t) => [primaryKey({ columns: [t.grantId, t.id] }), unique().on(t.grantId, t.name), index().on(t.grantId, t.position)],
@@ -218,10 +250,15 @@ export const transactions = pgTable(
     description: text().notNull(),
     account: text().notNull(),
     amount: money().notNull(),
-    reviewed: boolean().notNull().default(false),
-    source: transactionSourceEnum().notNull(),
-    // True when deliberately paid from unrestricted funds; null otherwise (matches the optional shared field).
-    notGrantFunded: boolean(),
+    // Where the line came from (csv, QuickBooks sample, manual). Stored in the original `source` column.
+    origin: transactionOriginEnum('source').notNull(),
+    // Organization spending category and program; both can be blank until coded.
+    categoryId: text(),
+    programId: text(),
+    // Who chose the allocations: auto-assign or a person.
+    source: assignmentSourceEnum('assignment_source').notNull().default('auto'),
+    status: transactionStatusEnum().notNull().default('needs_input'),
+    reason: text(),
     // When the paid-for service happens, if not the transaction date; period checks use it.
     serviceDate: isoDate(),
     createdAt: createdAt(),
@@ -256,18 +293,16 @@ export const allocations = pgTable(
       .notNull()
       .references(() => transactions.id, { onDelete: 'cascade' }),
     position: integer().notNull(),
-    grantId: grantId(),
-    // The grant's budget category (ids are unique within a grant). Not a foreign key, so deleting or
-    // renaming categories never cascades into the ledger; the shared rules flag an id the grant lacks.
-    categoryId: text(),
-    // A category name the grant doesn't have, kept as imported: exactly what the "unauthorized category" flag
-    // reports. Stored in the original `category` column.
-    unmatchedCategory: text('category'),
+    // Null for General funds.
+    grantId: text().references(() => grants.id, { onDelete: 'cascade' }),
+    // The grant's budget line (ids are unique within a grant), stored in the original `category_id` column. Not a
+    // foreign key, so deleting or renaming lines never cascades into the ledger.
+    budgetLineId: text('category_id'),
     amount: money().notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.transactionId, t.position] }),
     index().on(t.grantId),
-    check('category_or_unmatched', sql`(${t.categoryId} is null) <> (${t.unmatchedCategory} is null)`),
+    check('general_funds_has_no_line', sql`(${t.grantId} is null) = (${t.budgetLineId} is null)`),
   ],
 )

@@ -21,6 +21,7 @@ const categoryIn = z.object({
   id: z.string().min(1).optional(),
   name: z.string().min(1),
   budget: z.number().finite().nonnegative(),
+  acceptedCategoryIds: z.array(z.string().min(1)).optional(),
 })
 const questionIn = z.object({
   id: z.string().min(1).optional(),
@@ -50,6 +51,7 @@ const createBody = z.object({
   periodEnd: isoDate,
   rules: z.array(z.string()).default([]),
   allowSplit: z.boolean().default(false),
+  programId: z.string().min(1).optional(),
   categories: z.array(categoryIn).default([]),
   questions: z.array(questionIn).default([]),
   deadlines: z.array(deadlineIn).default([]),
@@ -68,6 +70,7 @@ const patchBody = z.object({
   periodEnd: isoDate.optional(),
   rules: z.array(z.string()).optional(),
   allowSplit: z.boolean().optional(),
+  programId: z.string().min(1).optional(),
   categories: z.array(categoryIn).optional(),
   questions: z.array(questionIn).optional(),
   deadlines: z.array(deadlineIn).optional(),

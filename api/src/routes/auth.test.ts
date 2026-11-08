@@ -30,6 +30,8 @@ describe.skipIf(!hasTestDb)('auth API', () => {
       org: { id: 'org-other', name: 'Other Org', ein: '11-1111111', fiscalYearStartMonth: 1 },
       users: [{ id: 'u-other', name: 'Other Director', role: 'director', title: 'Director', initials: 'OD' }],
       facts: [],
+      orgCategories: [],
+      programs: [],
       documents: [],
       grants: [{ ...seedState.grants[0], id: 'g-other', ownerId: 'u-other' }],
       transactions: [],

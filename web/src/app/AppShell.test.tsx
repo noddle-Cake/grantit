@@ -90,10 +90,10 @@ describe('app keyboard access', () => {
   it('opens a transaction for review using the keyboard', async () => {
     const user = userEvent.setup()
     renderApp('/funds/spending')
-    const review = screen.getAllByRole('button', { name: /^Review transaction:/ })[0]
+    const review = screen.getAllByRole('button', { name: /^Review expense:/ })[0]
     review.focus()
     await user.keyboard('{Enter}')
-    expect(screen.getByRole('dialog', { name: 'Review transaction' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Review expense' })).toBeTruthy()
   })
 
   it('falls back to a valid tab for an unknown tab parameter', () => {

@@ -23,6 +23,8 @@ describe.skipIf(!hasTestDb)('organization, users and documents API', () => {
       org: { id: 'org-other', name: 'Other Org', ein: '11-1111111', fiscalYearStartMonth: 7 },
       users: [{ id: 'u-other', name: 'Other Director', role: 'director', title: 'Director', initials: 'OD' }],
       facts: [],
+      orgCategories: [],
+      programs: [],
       documents: [],
       grants: [],
       transactions: [],

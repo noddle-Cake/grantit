@@ -1,16 +1,35 @@
-import { KeyRound, Monitor, Moon, RotateCcw, Sun } from 'lucide-react'
+import { KeyRound, Monitor, Moon, Plus, RotateCcw, Sun } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Card, Field, Input, Modal, PageHeader, Segmented, Select } from '@/components/ui'
 import { fiscalYearFor } from '@grantit/shared/finance'
 import { fmtDate, todayISO } from '@grantit/shared/format'
+import { can } from '@grantit/shared/permissions'
 import { AI_PROVIDERS, type AiProvider, clearProviderKey, providerInfo, readAiSettings, writeAiSettings } from '@/lib/ai-settings'
 import { type Appearance, readAppearance, writeAppearance } from '@/lib/appearance'
 import { useStore } from '@/store'
+import type { OrgCategory } from '@grantit/shared/types'
+
+/** One editable name. Commits on blur so a half-typed name never reaches the ledger; a blank restores the old name. */
+function CategoryName({ category, onRename }: { category: OrgCategory; onRename: (name: string) => void }) {
+  const [name, setName] = useState(category.name)
+  return (
+    <Input
+      aria-label={`Rename ${category.name}`}
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      onBlur={() => {
+        const next = name.trim()
+        if (next && next !== category.name) onRename(next)
+        else setName(category.name)
+      }}
+    />
+  )
+}
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' }))
 
 export default function Settings() {
-  const { state, setFiscalYearStart, resetDemo, notify } = useStore()
+  const { state, me, setFiscalYearStart, addOrgCategory, renameOrgCategory, resetDemo, notify } = useStore()
   const [resetOpen, setResetOpen] = useState(false)
   const fy = fiscalYearFor(todayISO(), state.org.fiscalYearStartMonth)
   const [ai, setAi] = useState(readAiSettings)
@@ -19,6 +38,8 @@ export default function Settings() {
   const current = ai.providers[ai.provider]
   const setProvider = (patch: Partial<typeof current>) => setAi({ ...ai, providers: { ...ai.providers, [ai.provider]: { ...current, ...patch } } })
   const [appearance, setAppearance] = useState(readAppearance)
+  const [newCategory, setNewCategory] = useState('')
+  const canEditCategories = can(me.role, 'finance:review')
   return (
     <>
       <PageHeader title="Settings" />
@@ -34,6 +55,21 @@ export default function Settings() {
             </Field>
           </div>
           <p className="mt-4 text-xs text-slate-3">Each grant keeps its own funding period; the fiscal year is used for organization-wide views.</p>
+        </Card>
+        <Card title="Spending categories">
+          <p className="text-sm text-slate-2">Your chart of accounts. Every expense is coded to one of these, whatever each grant calls its budget lines.</p>
+          <fieldset disabled={!canEditCategories} className="mt-4 grid gap-2 sm:grid-cols-2">
+            {state.orgCategories.map((c) => <CategoryName key={c.id} category={c} onRename={(name) => renameOrgCategory(c.id, name)} />)}
+          </fieldset>
+          {canEditCategories && (
+            <form
+              className="mt-3 flex gap-2"
+              onSubmit={(e) => { e.preventDefault(); if (newCategory.trim()) { addOrgCategory(newCategory.trim()); setNewCategory('') } }}
+            >
+              <Input aria-label="New category" placeholder="New category" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+              <Button type="submit" variant="secondary" icon={<Plus size={15} />} disabled={!newCategory.trim()}>Add</Button>
+            </form>
+          )}
         </Card>
         <Card title="Appearance">
           <p className="text-sm text-slate-2">Use light or dark, or follow this device. Saved in this browser; Reset doesn't change it.</p>

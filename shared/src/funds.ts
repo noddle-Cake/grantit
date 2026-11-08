@@ -4,8 +4,6 @@
 // Pure functions; "today" is always passed in.
 
 import {
-  allocationCategoryName,
-  categoryByName,
   categoryOf,
   computeFinancials,
   effectiveDate,
@@ -17,8 +15,8 @@ import {
   type Period,
 } from './finance.ts'
 import { parseDate } from './format.ts'
-import { canReceiveTransactions, isOpenAward, needsSetup } from './setup.ts'
-import type { Allocation, BudgetCategory, Deadline, Grant, Transaction, TxFlag } from './types.ts'
+import { isOpenAward, needsSetup } from './setup.ts'
+import type { Allocation, BudgetCategory, Deadline, Grant, Transaction } from './types.ts'
 
 // ─── Dates ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +88,7 @@ export interface Pacing {
 
 /**
  * Spending speed against the grant's own period: on pace within ±10 percentage points of the time elapsed.
- * Spend is reportable spend only (unauthorized and outside-period charges excluded).
+ * Spend is reportable spend only (charges outside the period are excluded).
  */
 export function pacing(g: Grant, txs: Transaction[], today: string): Pacing {
   const state = fundingState(g, today) ?? 'active'
@@ -119,28 +117,29 @@ export const isOffPace = (p: Pacing) => (p.state === 'active' && p.status !== 'o
 
 // ─── Reportable vs excluded ─────────────────────────────────────────────────
 
-export type ExclusionReason = 'unauthorized-category' | 'outside-period'
+export type ExclusionReason = 'missing-line' | 'outside-period'
 
 export interface ExcludedLine {
   tx: Transaction
   alloc: Allocation
   amount: number
   reason: ExclusionReason
-  /** Human reason, e.g. "Not an approved category (Equipment)". */
+  /** Human reason, e.g. "Outside the funding period". */
   detail: string
 }
 
-/** Charges to this grant that can't be reported: unapproved categories and service dates outside the period. */
+/**
+ * Charges on this grant that can't be reported. Dropdowns only offer in-period lines, so this catches what changes
+ * afterward: a manual row's service date moved, or a grant's period or budget lines edited.
+ */
 export function excludedLines(g: Grant, txs: Transaction[]): ExcludedLine[] {
   const period = grantPeriod(g)
   return txs.flatMap((tx) =>
     tx.allocations
       .filter((a) => a.grantId === g.id)
       .flatMap((alloc): ExcludedLine[] => {
-        if (!inPeriod(effectiveDate(tx), period))
-          return [{ tx, alloc, amount: alloc.amount, reason: 'outside-period', detail: 'Outside the funding period' }]
-        if (!categoryOf(g, alloc))
-          return [{ tx, alloc, amount: alloc.amount, reason: 'unauthorized-category', detail: `Not an approved category (${allocationCategoryName(g, alloc)})` }]
+        if (!inPeriod(effectiveDate(tx), period)) return [{ tx, alloc, amount: alloc.amount, reason: 'outside-period', detail: 'Outside the funding period' }]
+        if (!categoryOf(g, alloc)) return [{ tx, alloc, amount: alloc.amount, reason: 'missing-line', detail: 'Budget line no longer exists' }]
         return []
       }),
   )
@@ -221,9 +220,8 @@ export function grantIssues(g: Grant, txs: Transaction[], today: string) {
 
 // ─── Review queue ───────────────────────────────────────────────────────────
 
-/** A transaction needs review if it's unassigned (and not marked not grant-funded), flagged, or not yet reviewed. */
-export const needsReview = (t: Transaction, flags: Map<string, TxFlag[]>) =>
-  (!t.allocations.length && !t.notGrantFunded) || !!flags.get(t.id)?.length || !t.reviewed
+/** Everything not yet confirmed is To review. */
+export const needsReview = (t: Pick<Transaction, 'status'>) => t.status !== 'done'
 
 export interface ReviewQueue {
   transactions: Transaction[]
@@ -232,11 +230,15 @@ export interface ReviewQueue {
 }
 
 /** The To review inbox: each transaction once, plus missing recurring charges on open awards. */
-export function reviewQueue(grants: Grant[], txs: Transaction[], flags: Map<string, TxFlag[]>, today: string, grantId?: string): ReviewQueue {
-  const transactions = txs.filter((t) => needsReview(t, flags) && (!grantId || t.allocations.some((a) => a.grantId === grantId)))
+export function reviewQueue(grants: Grant[], txs: Transaction[], today: string, grantId?: string): ReviewQueue {
+  const transactions = txs.filter((t) => needsReview(t) && (!grantId || t.allocations.some((a) => a.grantId === grantId)))
   const missing = grants.filter((g) => isOpenAward(g) && (!grantId || g.id === grantId)).flatMap((g) => missingRecurringCharges(g, txs, today))
   return { transactions, missing, count: transactions.length + missing.length }
 }
+
+/** Unconfirmed charges on this grant in the period. Reports count them, and say so. */
+export const unconfirmedInPeriod = (g: Grant, txs: Transaction[], period: Pick<Period, 'start' | 'end'>) =>
+  txs.filter((t) => needsReview(t) && t.allocations.some((a) => a.grantId === g.id) && inPeriod(effectiveDate(t), period))
 
 // ─── Reports due ────────────────────────────────────────────────────────────
 
@@ -297,13 +299,13 @@ export interface GrantReport {
   period: Period
   rows: ReportRow[]
   totals: Omit<ReportRow, 'id' | 'name'>
-  /** Disallowed charges up to the end of the period, left out of every figure above. */
+  /** Charges that can't be reported, up to the end of the period, left out of every figure above. */
   excluded: ExcludedLine[]
 }
 
 /**
  * The funder's report table: per category, the budget, spend in the chosen period, cumulative spend from the grant
- * start to the period end, and what's left. Disallowed costs are excluded and listed separately.
+ * start to the period end, and what's left. Charges that can't be reported are listed separately.
  */
 export function buildReport(g: Grant, txs: Transaction[], period: Period): GrantReport {
   const cumEnd = period.end < g.periodEnd ? period.end : g.periodEnd
@@ -319,52 +321,7 @@ export function buildReport(g: Grant, txs: Transaction[], period: Period): Grant
   return { period, rows, totals: { budget: sum('budget'), thisPeriod: sum('thisPeriod'), cumulative: sum('cumulative'), remaining: sum('remaining') }, excluded }
 }
 
-// ─── Assigning ──────────────────────────────────────────────────────────────
-
-export interface AllocationSuggestion {
-  grantId: string
-  categoryId: string
-  reason: 'vendor' | 'account'
-}
-
-/**
- * Suggest a grant + category for a transaction: first from earlier charges to the same payee, then from how its GL
- * account has been categorized before. Only grants open for spending, preferring one whose period covers the
- * date. Never guesses beyond that.
- */
-export function suggestAllocation(tx: Transaction, grants: Grant[], txs: Transaction[]): AllocationSuggestion | undefined {
-  const eligible = grants.filter(canReceiveTransactions)
-  const covers = (g: Grant) => inPeriod(effectiveDate(tx), grantPeriod(g))
-  const others = txs.filter((t) => t.id !== tx.id && t.allocations.length).sort((a, b) => b.date.localeCompare(a.date))
-  const pick = (cands: { grant: Grant; categoryId: string }[], reason: AllocationSuggestion['reason']) => {
-    const best = cands.find((c) => covers(c.grant)) ?? cands[0]
-    return best && { grantId: best.grant.id, categoryId: best.categoryId, reason }
-  }
-
-  const byVendor = others
-    .filter((t) => norm(t.vendor) === norm(tx.vendor))
-    .flatMap((t) => t.allocations)
-    .flatMap((a) => {
-      const grant = eligible.find((g) => g.id === a.grantId)
-      const c = grant && categoryOf(grant, a)
-      return grant && c ? [{ grant, categoryId: c.id }] : []
-    })
-  const vendorPick = pick(byVendor, 'vendor')
-  if (vendorPick) return vendorPick
-
-  const code = norm(tx.account).split(' ')[0]
-  if (!code) return undefined
-  const names = others
-    .filter((t) => norm(t.account).split(' ')[0] === code)
-    .flatMap((t) => t.allocations.map((a) => allocationCategoryName(grants.find((g) => g.id === a.grantId), a)))
-  const byAccount = names.flatMap((name) =>
-    eligible.flatMap((grant) => {
-      const c = categoryByName(grant, name)
-      return c ? [{ grant, categoryId: c.id }] : []
-    }),
-  )
-  return pick(byAccount, 'account')
-}
+// ─── Budget impact ──────────────────────────────────────────────────────────
 
 export interface BudgetImpact {
   categoryName: string

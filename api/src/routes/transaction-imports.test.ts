@@ -11,7 +11,7 @@ const ORG = seedState.org.id
 
 const CSV = `date,vendor,description,account,amount,grant,category
 2026-10-30,Brightpath Curriculum Co.,Workshop cards,6400 Program Supplies,1250.00,Safe & Strong School Workshops,Curriculum & Materials
-2026-11-01,Sunline Charter Bus,Transportation,6600 Activities,$640,,
+2026-11-01,Sunline Charter Bus,Transportation,6650 Activities,$640,,
 not-a-date,Bad Vendor,,,,,
 2026-11-02,Foreign Grant Vendor,,,12,Other Grant,Things
 `
@@ -29,6 +29,8 @@ describe.skipIf(!hasTestDb)('transaction-imports API', () => {
       org: { id: 'org-other', name: 'Other Org', ein: '11-1111111', fiscalYearStartMonth: 1 },
       users: [{ id: 'u-other', name: 'Other Director', role: 'director', title: 'Director', initials: 'OD' }],
       facts: [],
+      orgCategories: [],
+      programs: [],
       documents: [],
       grants: [{ ...seedState.grants[0], id: 'g-other', name: 'Other Grant', ownerId: 'u-other' }],
       transactions: [],
@@ -44,8 +46,8 @@ describe.skipIf(!hasTestDb)('transaction-imports API', () => {
     expect(data.length).toBe(3)
 
     const [allocated, unassigned, foreign] = data
-    expect(allocated).toMatchObject({ vendor: 'Brightpath Curriculum Co.', amount: 1250, source: 'csv', reviewed: false })
-    expect(allocated.allocations).toEqual([{ grantId: 'g-safe', categoryId: 'c2', amount: 1250 }])
+    expect(allocated).toMatchObject({ vendor: 'Brightpath Curriculum Co.', amount: 1250, origin: 'csv', source: 'manual', status: 'suggested' })
+    expect(allocated.allocations).toEqual([{ grantId: 'g-safe', budgetLineId: 'c2', amount: 1250 }])
     expect(unassigned.allocations).toEqual([])
     expect(unassigned.amount).toBe(640) // "$640" parses
     // A grant name from another organization must not match.
@@ -53,7 +55,7 @@ describe.skipIf(!hasTestDb)('transaction-imports API', () => {
   })
 
   it('persists the imported transactions', async () => {
-    const res = await app.request('/api/transactions?source=csv')
+    const res = await app.request('/api/transactions?origin=csv')
     const body = (await res.json()) as Page<Transaction>
     expect(body.data.length).toBe(3)
   })

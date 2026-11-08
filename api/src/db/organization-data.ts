@@ -1,4 +1,4 @@
-import type { AppState, Grant, Transaction } from '@grantit/shared/types'
+import type { AppState, Grant, OrgCategory, Transaction } from '@grantit/shared/types'
 import { and, asc, eq, inArray } from 'drizzle-orm'
 import type { Db } from './client.ts'
 import * as t from './schema.ts'
@@ -20,6 +20,8 @@ export async function replaceOrganization(db: Db, data: OrganizationData) {
     await tx.insert(t.users).values(data.users.map((u) => ({ ...u, organizationId: orgId })))
     if (data.facts.length) await tx.insert(t.facts).values(data.facts.map((f) => ({ ...f, organizationId: orgId })))
     if (data.documents.length) await tx.insert(t.documents).values(data.documents.map((d) => ({ ...d, organizationId: orgId })))
+    if (data.orgCategories.length) await tx.insert(t.orgCategories).values(data.orgCategories.map((c, position) => ({ ...c, organizationId: orgId, position })))
+    if (data.programs.length) await tx.insert(t.programs).values(data.programs.map((p, position) => ({ ...p, organizationId: orgId, position })))
 
     for (const g of data.grants) {
       const { categories, questions, deadlines, ...grant } = g
@@ -52,7 +54,7 @@ export async function loadGrants(db: Db, organizationId: string, ids?: string[])
   ])
   return rows.map(({ organizationId: _o, createdAt: _c, ...g }) => ({
     ...compact(g),
-    categories: categories.filter((c) => c.grantId === g.id).map(({ id, name, budget }) => ({ id, name, budget })),
+    categories: categories.filter((c) => c.grantId === g.id).map(({ grantId: _g, position: _p, ...c }) => compact(c)),
     questions: questions
       .filter((q) => q.grantId === g.id)
       .map(({ grantId: _g, position: _p, ...q }) => compact(q)),
@@ -83,20 +85,27 @@ export async function loadTransactions(db: Db, organizationId: string, ids?: str
     ...compact(txn),
     allocations: allocs
       .filter((a) => a.transactionId === txn.id)
-      .map(({ grantId, categoryId, unmatchedCategory, amount }) => compact({ grantId, categoryId, unmatchedCategory, amount })),
+      .map(({ grantId, budgetLineId, amount }) => ({ grantId, ...(budgetLineId ? { budgetLineId } : {}), amount })),
   }))
+}
+
+export async function loadOrgCategories(db: Db, organizationId: string): Promise<OrgCategory[]> {
+  const rows = await db.select().from(t.orgCategories).where(eq(t.orgCategories.organizationId, organizationId)).orderBy(asc(t.orgCategories.position))
+  return rows.map(({ id, name, glAccounts }) => ({ id, name, glAccounts }))
 }
 
 /** Read back everything an organization owns. Returns undefined if it does not exist. */
 export async function loadOrganization(db: Db, organizationId: string): Promise<OrganizationData | undefined> {
   const org = await db.query.organizations.findFirst({ where: eq(t.organizations.id, organizationId) })
   if (!org) return undefined
-  const [users, facts, documents, grants, transactions] = await Promise.all([
+  const [users, facts, documents, grants, transactions, orgCategories, programs] = await Promise.all([
     db.select().from(t.users).where(eq(t.users.organizationId, organizationId)).orderBy(asc(t.users.createdAt), asc(t.users.id)),
     db.select().from(t.facts).where(eq(t.facts.organizationId, organizationId)),
     db.select().from(t.documents).where(eq(t.documents.organizationId, organizationId)).orderBy(asc(t.documents.createdAt), asc(t.documents.id)),
     loadGrants(db, organizationId),
     loadTransactions(db, organizationId),
+    loadOrgCategories(db, organizationId),
+    db.select().from(t.programs).where(eq(t.programs.organizationId, organizationId)).orderBy(asc(t.programs.position)),
   ])
   const { createdAt: _c, ...orgFields } = org
   return {
@@ -104,6 +113,8 @@ export async function loadOrganization(db: Db, organizationId: string): Promise<
     users: users.map(({ organizationId: _o, createdAt: _c2, ...u }) => u),
     facts: facts.map(({ organizationId: _o, ...f }) => compact(f)),
     documents: documents.map(({ organizationId: _o, createdAt: _c2, ...d }) => compact(d)),
+    orgCategories,
+    programs: programs.map(({ id, name }) => ({ id, name })),
     grants,
     transactions,
   }
