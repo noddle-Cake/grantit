@@ -1,5 +1,5 @@
 import clsx from 'clsx'
-import { BookOpenText, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
+import { BookOpenText, CalendarDays, Check, ChevronDown, ChevronsLeft, ChevronsRight, Compass, FileBarChart2, FileText, HandCoins, Home, Menu, Receipt, Search, Settings, Users, CheckCircle2, AlertOctagon, Info, X } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { matchPath, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { todayISO } from '@grantit/shared/format'
@@ -14,7 +14,12 @@ import { Avatar, Dialog } from '@/components/ui'
 
 // Two workspaces: finding and applying for funding, and managing money that was awarded.
 const NAV: { heading?: string; items: { to: string; label: string; icon: typeof Home; end?: boolean }[] }[] = [
-  { items: [{ to: '/', label: 'Home', icon: Home, end: true }] },
+  {
+    items: [
+      { to: '/', label: 'Home', icon: Home, end: true },
+      { to: '/calendar', label: 'Calendar', icon: CalendarDays },
+    ],
+  },
   {
     heading: WORKSPACES.apply.label,
     items: [
