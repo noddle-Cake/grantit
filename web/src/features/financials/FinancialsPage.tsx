@@ -3,7 +3,7 @@ import { ChevronRight, Search } from 'lucide-react'
 import { Fragment, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
-import { Card, EmptyState, Meter, PageHeader, Pill, Stat, StatusPill } from '@/components/ui'
+import { Card, EmptyState, Meter, Pill, Stat, StatusPill } from '@/components/ui'
 import { financialsOverview, URGENT_WINDOW_DAYS, type CategoryFinancials, type CategoryGrantBalance } from '@grantit/shared/financials'
 import { dateWithRelative, fmtDate, money, moneyExact, todayISO } from '@grantit/shared/format'
 import { useStore } from '@/store'
@@ -141,12 +141,6 @@ export default function Financials() {
 
   return (
     <>
-      <PageHeader
-        eyebrow="Manage funds"
-        title="Financials"
-        subtitle="Funding combined by category — how much is left, which grants it comes from, and when it must be spent."
-      />
-
       {!overview.categories.length ? (
         <Card><EmptyState title="No funded budgets yet" icon={<ChevronRight />}>Confirm a grant's budget on its Setup tab, then its categories appear here.</EmptyState></Card>
       ) : (
