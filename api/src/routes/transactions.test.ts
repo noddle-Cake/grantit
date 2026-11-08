@@ -132,6 +132,16 @@ describe.skipIf(!hasTestDb)('transactions API', () => {
       expect((await send('PUT', '/transactions/t-u3/allocations', [{ grantId: null, budgetLineId: 'c2', amount: 1 }])).status).toBe(400)
     })
 
+    it('keeps each split line’s own category and program', async () => {
+      const lines = [
+        { grantId: 'g-anchor', budgetLineId: 'c2', amount: 300, categoryId: 'cat-training', programId: 'p-mentoring' },
+        { grantId: null, amount: 60, categoryId: 'cat-supplies', programId: 'p-admin' },
+      ]
+      const res = await send('PUT', '/transactions/t-u1/allocations', lines)
+      expect(res.status).toBe(200)
+      expect(((await res.json()) as { data: Transaction }).data.allocations).toEqual(lines)
+    })
+
     it('records an audit trail per transaction', async () => {
       // t-u2 has: allocations.replaced (earlier test) — now add an update and read back the log.
       await send('PATCH', '/transactions/t-u2', { status: 'done' })

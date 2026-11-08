@@ -11,6 +11,7 @@ import { can } from '@grantit/shared/permissions'
 import { useStore } from '@/store'
 import type { Grant } from '@grantit/shared/types'
 import { grantLine } from './grantLine'
+import { UrgencyPill, useUrgency } from './UrgencyPill'
 import { PacingBar } from './PacingBar'
 import { useFunds } from './useFunds'
 
@@ -52,7 +53,12 @@ function Categories({ grant, state }: { grant: Grant; state: FundingState }) {
   const { state: app } = useStore()
   const f = computeFinancials(grant, app.transactions)
   if (!grant.categories.length) return <p className="py-2 text-sm text-slate-3">No budget yet. Add it from the award letter on the grant's Setup tab.</p>
+  const orgCategoryName = (lineId: string) => {
+    const categoryId = grant.categories.find((c) => c.id === lineId)?.acceptedCategoryIds?.[0]
+    return app.orgCategories.find((c) => c.id === categoryId)?.name
+  }
   return (
+    <>
     <table className="w-full table-fixed text-sm">
       <thead className="text-left text-xs text-slate-3">
         <tr>
@@ -66,9 +72,12 @@ function Categories({ grant, state }: { grant: Grant; state: FundingState }) {
       <tbody>
         {f.categories.map((c) => (
           <tr key={c.id}>
-            <td className="truncate py-1.5 pr-2 text-slate">{c.name}</td>
+            <td className="truncate py-1.5 pr-2 text-slate">
+              {c.name}
+              {orgCategoryName(c.id) && <span className="ml-1.5 text-xs text-slate-3">{orgCategoryName(c.id)}</span>}
+            </td>
             <td className="py-1.5 text-right tabular-nums text-slate-2">{money(c.budget)}</td>
-            <td className="py-1.5 text-right tabular-nums">{money(c.spent)}</td>
+            <td className="py-1.5 text-right font-medium tabular-nums">{money(c.spent)}</td>
             <td className={clsx('py-1.5 text-right tabular-nums', c.remaining < 0 && 'font-medium text-bad')}>{money(c.remaining)}</td>
             <td className="py-1.5 pl-4">
               <div className="flex items-center gap-2">
@@ -85,12 +94,15 @@ function Categories({ grant, state }: { grant: Grant; state: FundingState }) {
         ))}
       </tbody>
     </table>
+    <Link to={`/funds/spending?view=all&grant=${grant.id}`} className="mt-1 inline-block text-xs text-link hover:underline">See these receipts in Spending →</Link>
+    </>
   )
 }
 
-/** Funded grants as one table: what each needs, how fast it's spending in its own period, and its categories inline. */
+/** Funded grants as one table: what each has spent, then its categories inline, its pacing, and what it needs. */
 export function FundedGrantsTable() {
   const { rows } = useFunds()
+  const urgency = useUrgency()
   const [params, setParams] = useSearchParams()
   const filter = (params.get('status') as Filter) ?? 'all'
   const [q, setQ] = useState('')
@@ -134,8 +146,9 @@ export function FundedGrantsTable() {
         <table className="w-full table-fixed text-sm">
           <thead className="bg-canvas text-left text-xs font-semibold uppercase tracking-wide text-slate-2">
             <tr>
-              <th className="w-[46%] px-5 py-3">Grant</th>
-              <th className="w-[30%] px-4 py-3">Pacing</th>
+              <th className="w-[36%] px-5 py-3">Grant</th>
+              <th className="w-[14%] px-4 py-3 text-right">Spent</th>
+              <th className="w-[24%] px-4 py-3">Pacing</th>
               <th className="px-4 py-3">Status</th>
             </tr>
           </thead>
@@ -163,12 +176,15 @@ export function FundedGrantsTable() {
                         </div>
                       </div>
                     </td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {pace.state === 'needs-setup' ? <span className="text-slate-3">—</span> : <><div className="font-semibold text-slate">{money(pace.spent)}</div><div className="text-xs text-slate-3">of {money(grant.amount)}</div></>}
+                    </td>
                     <td className="px-4 py-3">{pace.state === 'needs-setup' ? <span className="text-xs text-slate-3">Not tracked until the budget is set</span> : <PacingBar pace={pace} />}</td>
-                    <td className="px-4 py-3"><Status grant={grant} pace={pace} issues={issues.count} /></td>
+                    <td className="px-4 py-3"><div className="flex flex-wrap items-center gap-1.5"><Status grant={grant} pace={pace} issues={issues.count} /><UrgencyPill urgency={urgency.get(grant.id)} /></div></td>
                   </tr>
                   {expanded && (
                     <tr className="bg-canvas/60">
-                      <td colSpan={3} className="px-5 pb-3 pl-12 pt-1">
+                      <td colSpan={4} className="px-5 pb-3 pl-12 pt-1">
                         <Categories grant={grant} state={pace.state} />
                       </td>
                     </tr>

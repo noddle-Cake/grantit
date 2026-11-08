@@ -1,5 +1,6 @@
 import { autoAssign, categoryForAccount } from './auto-assign.ts'
 import { allocationFor } from './finance.ts'
+import { DEMO_ORG_ID } from './urgency.ts'
 import type { Allocation, AppState, Fact, Grant, OrgCategory, Program, Transaction } from './types.ts'
 
 // Demo data for Tidepath Family Alliance, a made-up Miami-Dade nonprofit that helps kids and their families
@@ -640,7 +641,7 @@ const transactions: Transaction[] = [
 ]
 
 export const seedState: AppState = {
-  org: { id: 'org-tidepath', name: 'Tidepath Family Alliance', ein: '00-0000000', fiscalYearStartMonth: 1 },
+  org: { id: DEMO_ORG_ID, name: 'Tidepath Family Alliance', ein: '00-0000000', fiscalYearStartMonth: 1 },
   users: [
     { id: 'u-claudette', name: 'Claudette Pierre', role: 'director', title: 'Executive Director', initials: 'CP' },
     { id: 'u-denise', name: 'Denise Carter', role: 'finance', title: 'Bookkeeper (part-time)', initials: 'DC' },

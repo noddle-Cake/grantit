@@ -28,6 +28,8 @@ const allocationIn = z
     budgetLineId: z.string().min(1).optional(),
     category: z.string().min(1).optional(),
     amount: z.number().finite(),
+    categoryId: z.string().min(1).optional(),
+    programId: z.string().min(1).optional(),
   })
   .refine((a) => (a.grantId === null ? !a.budgetLineId && !a.category : [a.budgetLineId, a.category].filter((v) => v !== undefined).length === 1), {
     message: 'Give exactly one of budgetLineId or category for a grant, and neither for General funds',
@@ -64,17 +66,18 @@ async function resolveAllocations(db: Db, organizationId: string, allocs: z.outp
   const grantIds = [...new Set(allocs.flatMap((a) => a.grantId ?? []))]
   const found = new Map((grantIds.length ? await loadGrants(db, organizationId, grantIds) : []).map((g) => [g.id, g]))
   const details: ErrorDetail[] = []
-  const resolved = allocs.map(({ grantId, budgetLineId, category, amount }, i): Allocation => {
-    if (grantId === null) return { grantId, amount }
+  const resolved = allocs.map(({ grantId, budgetLineId, category, amount, categoryId, programId }, i): Allocation => {
+    const coding = { ...(categoryId ? { categoryId } : {}), ...(programId ? { programId } : {}) }
+    if (grantId === null) return { grantId, amount, ...coding }
     const grant = found.get(grantId)
     if (!grant) {
       details.push({ path: `allocations.${i}.grantId`, message: `Grant ${grantId} not found` })
       return { grantId, amount }
     }
-    if (category === undefined) return { grantId, budgetLineId, amount }
+    if (category === undefined) return { grantId, budgetLineId, amount, ...coding }
     const allocation = allocationFor(grant, category, amount)
     if (!allocation) details.push({ path: `allocations.${i}.category`, message: `${grant.name} has no budget line named ${category}` })
-    return allocation ?? { grantId, amount }
+    return { ...(allocation ?? { grantId, amount }), ...coding }
   })
   if (details.length) throw new ApiError('validation_failed', 'Invalid request body', details)
   return resolved

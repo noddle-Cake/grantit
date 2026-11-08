@@ -221,13 +221,47 @@ export function recode(tx: Transaction, coding: Coding, books: Books): Transacti
   const { serviceDate: current, ...rest } = tx
   const { serviceDate: changed, ...codes } = coding
   const serviceDate = 'serviceDate' in coding ? changed : current
-  return applySuggestion({ ...rest, ...codes, ...(serviceDate && serviceDate !== tx.date ? { serviceDate } : {}) }, books)
+  // A saved split's lines carry their own coding, so a change to the whole row has to reach them too.
+  const allocations = tx.allocations.map((a) => ({
+    ...a,
+    ...(codes.categoryId && a.categoryId ? { categoryId: codes.categoryId } : {}),
+    ...(codes.programId && a.programId ? { programId: codes.programId } : {}),
+  }))
+  return applySuggestion({ ...rest, ...codes, allocations, ...(serviceDate && serviceDate !== tx.date ? { serviceDate } : {}) }, books)
 }
 
-/** A person chose where this goes. That's final: it's confirmed, and auto-assign won't touch it again. */
+/** A split line's category and program: its own, or else the transaction's. */
+export const lineCoding = (tx: Pick<Transaction, 'categoryId' | 'programId'>, a: Allocation): Pick<Transaction, 'categoryId' | 'programId'> => ({
+  categoryId: a.categoryId ?? tx.categoryId,
+  programId: a.programId ?? tx.programId,
+})
+
+/** Whether a split's lines differ in category or program, so one value can't describe the row. */
+export function hasMixedCoding(tx: Pick<Transaction, 'categoryId' | 'programId'>, allocations: Allocation[]) {
+  const coded = allocations.map((a) => lineCoding(tx, a))
+  return new Set(coded.map((c) => c.categoryId)).size > 1 || new Set(coded.map((c) => c.programId)).size > 1
+}
+
+/** Lines add up to the receipt, to the cent. */
+export const isBalanced = (amount: number, allocations: Allocation[]) => allocations.reduce((s, a) => s + toCents(a.amount), 0) === toCents(amount)
+
+/**
+ * A person chose where this goes. That's final: it's confirmed, and auto-assign won't touch it again. A split stores
+ * each line's own category and program, and the row takes the largest line's. Lines that don't add up to the receipt
+ * are refused, so the ledger always reconciles.
+ */
 export function assignManually(tx: Transaction, allocations: Allocation[]): Transaction {
+  const lines = allocations.map((a) => ({ ...a, amount: fromCents(toCents(a.amount)) }))
+  if (!lines.length || !isBalanced(tx.amount, lines)) return tx
   const { reason: _r, ...rest } = tx
-  return { ...rest, allocations, source: 'manual', status: 'done' }
+  const largest = [...lines].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))[0]
+  const { categoryId, programId } = lineCoding(tx, largest)
+  const saved = lines.map(({ categoryId: _c, programId: _p, ...line }, i) => {
+    if (lines.length === 1) return line
+    const coded = lineCoding(tx, lines[i])
+    return { ...line, ...(coded.categoryId ? { categoryId: coded.categoryId } : {}), ...(coded.programId ? { programId: coded.programId } : {}) }
+  })
+  return { ...rest, ...(categoryId ? { categoryId } : {}), ...(programId ? { programId } : {}), allocations: saved, source: 'manual', status: 'done' }
 }
 
 /** Ready to confirm: it has somewhere to go. */

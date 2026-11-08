@@ -2,7 +2,7 @@ import clsx from 'clsx'
 import { ArrowRightLeft, CheckCheck, Lock, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Drawer, Field, Input, Select } from '@/components/ui'
-import { isLocked } from '@grantit/shared/auto-assign'
+import { hasMixedCoding, lineCoding, type Coding } from '@grantit/shared/auto-assign'
 import { effectiveDate, fromCents, toCents } from '@grantit/shared/finance'
 import { fmtDate, moneyExact, todayISO } from '@grantit/shared/format'
 import { budgetImpact, coverOverage, reallocate } from '@grantit/shared/funds'
@@ -12,9 +12,13 @@ import { useStore } from '@/store'
 import type { Allocation, Grant, Transaction } from '@grantit/shared/types'
 import { dollars, GENERAL, GENERAL_LABEL, lineOptions, parseTarget, targetKey, targetLabel } from './grantOptions'
 
+const MIXED = 'mixed'
+type LineCoding = Pick<Coding, 'categoryId' | 'programId'>
+
 /**
  * One expense in full: its coding, its GL account, and the split editor. Category, program and service date save as
- * they change and re-suggest the split; edits to the split itself stay a draft until confirmed.
+ * they change and re-suggest the split. Edits to the split itself stay a draft until confirmed, and a draft's lines
+ * and amounts survive any change to the row's coding. Each line of a split has its own category and program.
  */
 export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft?: Allocation[]; onClose: () => void }) {
   const { state, me, recodeTransaction, assignTransaction, confirmTransactions, notify } = useStore()
@@ -28,15 +32,30 @@ export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft
   const totalCents = allocs.reduce((s, a) => s + toCents(Number(a.amount) || 0), 0)
   const remaining = fromCents(toCents(tx.amount) - totalCents)
   const balanced = remaining === 0
+  const mixed = hasMixedCoding(tx, allocs)
   const canConfirm = allocs.length > 0 && balanced && (!!edited || tx.status !== 'done')
   const grantIds = new Set(allocs.flatMap((a) => a.grantId ?? []))
   const sharedNotAllowed = grantIds.size > 1 && [...grantIds].some((id) => !state.grants.find((g) => g.id === id)?.allowSplit)
 
-  const recode = (coding: Parameters<typeof recodeTransaction>[1]) => {
-    recodeTransaction(tx.id, coding)
-    if (!isLocked(tx)) setEdited(null)
+  /** Keep a line's target if its coding still allows it; otherwise the first line that does, or General funds. */
+  function retarget(line: Allocation, row: Transaction): Allocation {
+    const options = lineOptions({ ...row, ...lineCoding(row, line) }, state)
+    if (line.grantId === null || options.some((o) => o.value === targetKey(line))) return line
+    return { ...line, budgetLineId: undefined, ...parseTarget(options[0]?.value ?? GENERAL) }
+  }
+
+  function recode(coding: Coding) {
+    recodeTransaction(tx!.id, coding)
+    if (!edited) return
+    const row = { ...tx!, ...coding }
+    setEdited(edited.map((a) => retarget({
+      ...a,
+      ...(coding.categoryId && a.categoryId ? { categoryId: coding.categoryId } : {}),
+      ...(coding.programId && a.programId ? { programId: coding.programId } : {}),
+    }, row)))
   }
   const updateLine = (i: number, patch: Partial<Allocation>) => setEdited(allocs.map((a, j) => (j === i ? { ...a, ...patch } : a)))
+  const codeLine = (i: number, coding: LineCoding) => setEdited(allocs.map((a, j) => (j === i ? retarget({ ...a, ...coding }, tx!) : a)))
 
   function addLine() {
     const unused = options.find((o) => !allocs.some((a) => targetKey(a) === o.value))
@@ -79,14 +98,16 @@ export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft
 
       <fieldset disabled={!editable} className="mt-4 grid gap-3 sm:grid-cols-2">
         <Field label="Category">
-          <Select value={tx.categoryId ?? ''} onChange={(e) => recode({ categoryId: e.target.value })}>
-            {!tx.categoryId && <option value="">Pick a category</option>}
+          <Select disabled={mixed} value={mixed ? MIXED : tx.categoryId ?? ''} onChange={(e) => recode({ categoryId: e.target.value })}>
+            {mixed && <option value={MIXED}>Mixed: set on each line</option>}
+            {!mixed && !tx.categoryId && <option value="">Pick a category</option>}
             {state.orgCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </Select>
         </Field>
         <Field label="Program">
-          <Select value={tx.programId ?? ''} onChange={(e) => recode({ programId: e.target.value })}>
-            {!tx.programId && <option value="">Pick a program</option>}
+          <Select disabled={mixed} value={mixed ? MIXED : tx.programId ?? ''} onChange={(e) => recode({ programId: e.target.value })}>
+            {mixed && <option value={MIXED}>Mixed: set on each line</option>}
+            {!mixed && !tx.programId && <option value="">Pick a program</option>}
             {state.programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
         </Field>
@@ -102,6 +123,7 @@ export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft
         {allocs.map((a, i) => (
           <AllocationLine
             key={i}
+            index={i}
             tx={tx}
             allocation={a}
             allocations={allocs}
@@ -109,6 +131,7 @@ export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft
             editable={editable}
             onTarget={(value) => updateLine(i, { budgetLineId: undefined, ...parseTarget(value) })}
             onAmount={(amount) => updateLine(i, { amount })}
+            onCoding={(coding) => codeLine(i, coding)}
             onRemove={() => setEdited(allocs.filter((_, j) => j !== i))}
           />
         ))}
@@ -131,7 +154,8 @@ export function AllocationDrawer({ txId, draft, onClose }: { txId: string; draft
 }
 
 /** One row of the split editor: where it's charged, how much, and what that does to the line's budget. */
-function AllocationLine({ tx, allocation: a, allocations, manual, editable, onTarget, onAmount, onRemove }: {
+function AllocationLine({ index, tx, allocation: a, allocations, manual, editable, onTarget, onAmount, onCoding, onRemove }: {
+  index: number
   tx: Transaction
   allocation: Allocation
   allocations: Allocation[]
@@ -139,16 +163,36 @@ function AllocationLine({ tx, allocation: a, allocations, manual, editable, onTa
   editable: boolean
   onTarget: (value: string) => void
   onAmount: (amount: number) => void
+  onCoding: (coding: LineCoding) => void
   onRemove: () => void
 }) {
   const { state, updateGrant, notify } = useStore()
   const value = targetKey(a)
-  const options = lineOptions(tx, state)
+  const coding = lineCoding(tx, a)
+  const options = lineOptions({ ...tx, ...coding }, state)
   const grant = state.grants.find((g) => g.id === a.grantId)
-  const impact = grant && a.budgetLineId ? budgetImpact(grant, a.budgetLineId, state.transactions, tx.id, Number(a.amount) || 0) : undefined
+  // Two lines of a split can draw on the same budget line; the preview has to count both.
+  const onThisLine = fromCents(allocations.filter((x) => targetKey(x) === value).reduce((s, x) => s + toCents(Number(x.amount) || 0), 0))
+  const impact = grant && a.budgetLineId ? budgetImpact(grant, a.budgetLineId, state.transactions, tx.id, onThisLine) : undefined
 
   return (
     <div className="rounded-lg border border-line-2 p-3">
+      {allocations.length > 1 && (
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <Field label="Category">
+            <Select aria-label={`Line ${index + 1} category`} value={coding.categoryId ?? ''} onChange={(e) => onCoding({ categoryId: e.target.value })}>
+              {!coding.categoryId && <option value="">Pick a category</option>}
+              {state.orgCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+          </Field>
+          <Field label="Program">
+            <Select aria-label={`Line ${index + 1} program`} value={coding.programId ?? ''} onChange={(e) => onCoding({ programId: e.target.value })}>
+              {!coding.programId && <option value="">Pick a program</option>}
+              {state.programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </Select>
+          </Field>
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <Field label="Charge to" className="min-w-0 flex-1">
           <Select value={value} onChange={(e) => onTarget(e.target.value)} className="truncate">

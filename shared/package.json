@@ -10,6 +10,8 @@
     "./setup": "./src/setup.ts",
     "./funds": "./src/funds.ts",
     "./auto-assign": "./src/auto-assign.ts",
+    "./urgency": "./src/urgency.ts",
+    "./financials": "./src/financials.ts",
     "./import": "./src/import.ts",
     "./award-letter": "./src/award-letter.ts",
     "./drafting": "./src/drafting.ts",

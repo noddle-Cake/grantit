@@ -298,6 +298,9 @@ export const allocations = pgTable(
     // The grant's budget line (ids are unique within a grant), stored in the original `category_id` column. Not a
     // foreign key, so deleting or renaming lines never cascades into the ledger.
     budgetLineId: text('category_id'),
+    // A split line's own spending category and program; null means the transaction's.
+    categoryId: text('org_category_id'),
+    programId: text(),
     amount: money().notNull(),
   },
   (t) => [
